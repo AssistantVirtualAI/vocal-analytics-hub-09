@@ -1,37 +1,12 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCallStats } from '@/hooks/useCallStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
 import { mockData } from '@/mockData';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
-
-const formatDuration = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
+import { OverviewTab } from '@/components/stats/OverviewTab';
+import { SatisfactionDistributionChart } from '@/components/stats/SatisfactionDistributionChart';
+import { SatisfactionLineChart } from '@/components/stats/SatisfactionLineChart';
 
 export default function Stats() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -59,9 +34,9 @@ export default function Stats() {
       date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
       appels: count,
     }))
-    .slice(-14); // Last 14 days
-  
-  // Use mockData for satisfaction distribution until we have real data
+    .slice(-14);
+
+  // Prepare satisfaction data
   const satisfactionData = Array(5).fill(0).map((_, i) => {
     const count = mockData.mockCalls.filter(call => call.satisfactionScore === i + 1).length;
     return {
@@ -70,34 +45,12 @@ export default function Stats() {
       percentage: Math.round((count / mockData.mockCalls.length) * 100),
     };
   });
-  
-  // Use mockData for agent performance until we have real data
-  const agentPerformance = mockData.mockAgents.map(agent => {
-    const agentCalls = mockData.mockCalls.filter(call => call.agentId === agent.id);
-    const avgSatisfaction = agentCalls.length > 0 
-      ? agentCalls.reduce((sum, call) => sum + call.satisfactionScore, 0) / agentCalls.length 
-      : 0;
-    
-    return {
-      name: agent.name,
-      calls: agentCalls.length,
-      satisfaction: Number(avgSatisfaction.toFixed(1)),
-      avgDuration: agentCalls.length > 0 
-        ? agentCalls.reduce((sum, call) => sum + call.duration, 0) / agentCalls.length 
-        : 0,
-    };
-  }).sort((a, b) => b.calls - a.calls);
-  
-  // Prepare data for customer distribution by call count with real customer stats
-  const customerStatsArray = customerStats || [];
-  const customerCallDistribution = [
-    { name: '1-5 appels', value: customerStatsArray.filter(c => c.totalCalls <= 5).length },
-    { name: '6-10 appels', value: customerStatsArray.filter(c => c.totalCalls > 5 && c.totalCalls <= 10).length },
-    { name: '11+ appels', value: customerStatsArray.filter(c => c.totalCalls > 10).length },
-  ].filter(item => item.value > 0);
 
-  // Colors for pie chart
-  const COLORS = ['#7E69AB', '#9b87f5', '#6E59A5', '#E5DEFF'];
+  // Prepare satisfaction over time data
+  const satisfactionOverTime = chartData.map((day, i) => ({
+    ...day,
+    satisfaction: 3 + Math.sin(i / 2) * 0.5 + Math.random() * 0.5,
+  }));
 
   return (
     <DashboardLayout>
@@ -119,171 +72,13 @@ export default function Stats() {
             <TabsTrigger value="customers">Clients</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Appels par jour</CardTitle>
-                  <CardDescription>Nombre d'appels sur les 14 derniers jours</CardDescription>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#888888" 
-                          fontSize={12} 
-                          tickLine={false} 
-                        />
-                        <YAxis
-                          stroke="#888888"
-                          fontSize={12}
-                          tickLine={false}
-                          tickFormatter={(value) => `${value}`}
-                        />
-                        <Tooltip />
-                        <Legend />
-                        <Bar 
-                          name="Nombre d'appels"
-                          dataKey="appels" 
-                          fill="hsl(var(--primary))" 
-                          radius={[4, 4, 0, 0]} 
-                          className="cursor-pointer hover:opacity-80"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Distribution des clients</CardTitle>
-                  <CardDescription>Répartition des clients par nombre d'appels</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={customerCallDistribution}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                          nameKey="name"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {customerCallDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: any) => [`${value} clients`, '']}
-                          labelFormatter={(name: string) => name}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="overview">
+            <OverviewTab chartData={chartData} customerStats={customerStats || []} />
           </TabsContent>
           
           <TabsContent value="satisfaction" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Distribution de la satisfaction</CardTitle>
-                <CardDescription>Répartition des appels par niveau de satisfaction</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={satisfactionData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="score" 
-                        stroke="#888888" 
-                        fontSize={12} 
-                        tickLine={false} 
-                      />
-                      <YAxis
-                        stroke="#888888"
-                        fontSize={12}
-                        tickLine={false}
-                        tickFormatter={(value) => `${value}`}
-                        yAxisId="left"
-                      />
-                      <YAxis
-                        stroke="#888888"
-                        fontSize={12}
-                        tickLine={false}
-                        tickFormatter={(value) => `${value}%`}
-                        orientation="right"
-                        yAxisId="right"
-                      />
-                      <Tooltip />
-                      <Legend />
-                      <Bar 
-                        name="Nombre d'appels"
-                        dataKey="count" 
-                        fill="#7E69AB" 
-                        radius={[4, 4, 0, 0]} 
-                        className="cursor-pointer hover:opacity-80"
-                        yAxisId="left"
-                      />
-                      <Bar 
-                        name="Pourcentage"
-                        dataKey="percentage" 
-                        fill="#E5DEFF" 
-                        radius={[4, 4, 0, 0]} 
-                        className="cursor-pointer hover:opacity-80"
-                        yAxisId="right"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Satisfaction dans le temps</CardTitle>
-                <CardDescription>Évolution de la satisfaction moyenne sur la période</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={chartData.map((day, i) => ({
-                        ...day,
-                        satisfaction: 3 + Math.sin(i / 2) * 0.5 + Math.random() * 0.5,
-                      }))}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[2.5, 5]} />
-                      <Tooltip 
-                        formatter={(value: number) => [value.toFixed(1) + '/5', 'Satisfaction']}
-                      />
-                      <Legend />
-                      <Line
-                        name="Satisfaction moyenne"
-                        type="monotone"
-                        dataKey="satisfaction"
-                        stroke="#7E69AB"
-                        strokeWidth={2}
-                        activeDot={{ r: 8 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <SatisfactionDistributionChart data={satisfactionData} />
+            <SatisfactionLineChart data={satisfactionOverTime} />
           </TabsContent>
           
           <TabsContent value="agents" className="space-y-4">

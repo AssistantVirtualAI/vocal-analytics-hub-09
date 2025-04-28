@@ -16,14 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-
-// Mock data for agent performance
-export const agentPerformance = [
-  { name: 'Alice', calls: 45, satisfaction: 4.8, avgDuration: 320 },
-  { name: 'Bob', calls: 38, satisfaction: 4.5, avgDuration: 280 },
-  { name: 'Claire', calls: 52, satisfaction: 4.2, avgDuration: 350 },
-  { name: 'David', calls: 29, satisfaction: 4.9, avgDuration: 240 },
-];
+import { useAgentStats } from '@/hooks/useAgentStats';
 
 // Format duration from seconds to minutes:seconds
 export const formatDuration = (seconds: number): string => {
@@ -33,6 +26,8 @@ export const formatDuration = (seconds: number): string => {
 };
 
 export const AgentPerformanceChart = () => {
+  const { data: agentStats = [] } = useAgentStats();
+
   return (
     <Card>
       <CardHeader>
@@ -43,7 +38,7 @@ export const AgentPerformanceChart = () => {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={agentPerformance}
+              data={agentStats}
               layout="vertical"
               margin={{ top: 20, right: 30, left: 60, bottom: 5 }}
             >

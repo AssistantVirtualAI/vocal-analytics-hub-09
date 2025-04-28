@@ -16,13 +16,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useAgentStats } from '@/hooks/useAgentStats';
 import { formatDuration } from './AgentPerformanceChart';
 
-// Mock data is already defined in AgentPerformanceChart.tsx
-// We'll import the agentPerformance data from there
-import { agentPerformance } from './AgentPerformanceChart';
-
 export const AgentDurationChart = () => {
+  const { data: agentStats = [] } = useAgentStats();
+
   return (
     <Card>
       <CardHeader>
@@ -32,7 +31,7 @@ export const AgentDurationChart = () => {
       <CardContent className="pl-2">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={agentPerformance}>
+            <BarChart data={agentStats}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis tickFormatter={(value) => formatDuration(value)} />

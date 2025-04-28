@@ -22,6 +22,8 @@ serve(async (req) => {
       throw new Error('ELEVENLABS_API_KEY environment variable is not set');
     }
 
+    console.log(`Fetching call audio for call ID: ${callId}`);
+    
     // Call the ElevenLabs API to get the call recording
     const response = await fetch(
       `https://api.elevenlabs.io/v1/calls/${callId}`,
@@ -42,11 +44,21 @@ serve(async (req) => {
 
     const data = await response.json();
     
+    // If this is a history item ID format, handle differently
+    let audioUrl = data.audio_url;
+    let transcript = data.transcript || "";
+    let summary = data.summary || "";
+
+    // Enhanced logging for debugging
+    console.log(`Audio URL received: ${audioUrl}`);
+    console.log(`Transcript length: ${transcript.length} characters`);
+    console.log(`Summary length: ${summary.length} characters`);
+
     return new Response(
       JSON.stringify({ 
-        audioUrl: data.audio_url,
-        transcript: data.transcript,
-        summary: data.summary
+        audioUrl,
+        transcript,
+        summary
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

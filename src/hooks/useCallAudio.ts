@@ -18,7 +18,10 @@ export const useCallAudio = (callId: string | undefined) => {
         body: { callId },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("ElevenLabs API error:", error);
+        throw error;
+      }
 
       if (!data) {
         throw new Error("No data returned from ElevenLabs");
@@ -31,5 +34,7 @@ export const useCallAudio = (callId: string | undefined) => {
       };
     },
     enabled: !!callId,
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 };

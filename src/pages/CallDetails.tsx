@@ -17,7 +17,12 @@ export default function CallDetails() {
   const { data: call, isLoading: isLoadingCallDetails, error: callDetailsError } = useCallDetails(id);
   
   // Fetch the audio URL from ElevenLabs
-  const { data: audioData, isLoading: isLoadingAudio, error: audioError } = useCallAudio(id);
+  const { 
+    data: audioData, 
+    isLoading: isLoadingAudio, 
+    error: audioError, 
+    refetch: refetchAudio 
+  } = useCallAudio(id);
 
   // Show loading state
   if (isLoadingCallDetails) {
@@ -68,7 +73,7 @@ export default function CallDetails() {
           <CallInformationCard call={call} />
           
           <div className="col-span-1 lg:col-span-2 space-y-6">
-            {/* Show both audio players */}
+            {/* Original audio player */}
             <AudioPlayer 
               audioUrl={call.audioUrl}
               isLoading={isLoadingCallDetails}

@@ -9,7 +9,8 @@ serve(async (req) => {
   }
 
   try {
-    const { callId } = await req.json();
+    const body = await req.json();
+    const { callId } = body;
 
     if (!callId) {
       throw new Error('Call ID is required');

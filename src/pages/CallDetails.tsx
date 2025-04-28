@@ -7,6 +7,7 @@ import { useCallDetails } from '@/hooks/useCallDetails';
 import { useCallAudio } from '@/hooks/useCallAudio';
 import { CallInformationCard } from '@/components/calls/CallInformationCard';
 import { AudioPlayer } from '@/components/calls/AudioPlayer';
+import { ElevenLabsAudioPlayer } from '@/components/calls/ElevenLabsAudioPlayer';
 import { CallContent } from '@/components/calls/CallContent';
 
 export default function CallDetails() {
@@ -67,10 +68,20 @@ export default function CallDetails() {
           <CallInformationCard call={call} />
           
           <div className="col-span-1 lg:col-span-2 space-y-6">
+            {/* Show both audio players */}
             <AudioPlayer 
-              audioUrl={audioUrl}
+              audioUrl={call.audioUrl}
+              isLoading={isLoadingCallDetails}
+              error={callDetailsError}
+            />
+            
+            {/* ElevenLabs audio player */}
+            <ElevenLabsAudioPlayer 
+              callId={id}
               isLoading={isLoadingAudio}
+              audioUrl={audioData?.audioUrl}
               error={audioError}
+              transcript={audioData?.transcript}
             />
             
             <CallContent 

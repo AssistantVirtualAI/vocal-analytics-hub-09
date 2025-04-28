@@ -5,26 +5,32 @@ import type { Call } from "@/types";
 
 interface CallsListParams {
   limit?: number;
-  offset?: number;
+  page?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  search?: string;
 }
 
 export const useCallsList = ({ 
   limit = 10, 
-  offset = 0, 
+  page = 1, 
   sortBy = 'date',
-  sortOrder = 'desc'
+  sortOrder = 'desc',
+  search = ''
 }: CallsListParams = {}) => {
+  // Calculate offset based on page number
+  const offset = (page - 1) * limit;
+
   return useQuery({
-    queryKey: ["calls", { limit, offset, sortBy, sortOrder }],
+    queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search }],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("get-calls", {
         body: JSON.stringify({
           limit,
           offset,
           sort: sortBy,
-          order: sortOrder
+          order: sortOrder,
+          search: search
         }),
       });
 
@@ -49,6 +55,8 @@ export const useCallsList = ({
       return {
         calls: formattedCalls,
         totalCount: data.count,
+        totalPages: Math.ceil(data.count / limit),
+        currentPage: page
       };
     },
   });

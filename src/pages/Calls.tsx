@@ -15,26 +15,32 @@ import { useCallsList } from '@/hooks/useCallsList';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { FilterButton } from '@/components/calls/FilterButton';
 import { CallsList } from '@/components/calls/CallsList';
+import { CallsPagination } from '@/components/calls/CallsPagination';
 import type { Call } from '@/types';
 
 export default function Calls() {
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const { data, isLoading, error } = useCallsList({
-    limit: 50,
+    limit: itemsPerPage,
+    page: currentPage,
     sortBy: 'date',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    search: searchQuery
   });
   
   const calls = data?.calls || [];
+  const totalPages = data?.totalPages || 1;
   
-  const filteredCalls = calls.filter(
-    (call) => 
-      call.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.agentName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when changing page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -97,7 +103,7 @@ export default function Calls() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Appels ({filteredCalls.length})</CardTitle>
+            <CardTitle>Appels ({data?.totalCount || 0})</CardTitle>
             <CardDescription>
               Liste de tous les appels enregistrés
             </CardDescription>
@@ -115,13 +121,25 @@ export default function Calls() {
                 Erreur lors du chargement des appels. Veuillez réessayer.
               </div>
             ) : (
-              <CallsList 
-                calls={filteredCalls}
-                view={view}
-                currentlyPlaying={currentlyPlaying}
-                onPlayToggle={handlePlayToggle}
-                formatDuration={formatDuration}
-              />
+              <>
+                <CallsList 
+                  calls={calls}
+                  view={view}
+                  currentlyPlaying={currentlyPlaying}
+                  onPlayToggle={handlePlayToggle}
+                  formatDuration={formatDuration}
+                />
+                
+                {totalPages > 1 && (
+                  <div className="mt-6">
+                    <CallsPagination 
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

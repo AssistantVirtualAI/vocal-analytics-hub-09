@@ -13,24 +13,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Get query parameters
-  const url = new URL(req.url);
-  const limit = parseInt(url.searchParams.get('limit') || '50');
-  const offset = parseInt(url.searchParams.get('offset') || '0');
-  const sortBy = url.searchParams.get('sort') || 'date';
-  const sortOrder = url.searchParams.get('order') || 'desc';
-  
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
   try {
-    // Fetch calls with pagination and sorting
-    const { data: calls, error, count } = await supabase
+    // Parse request body
+    const body = await req.json();
+    const { limit = 10, offset = 0, sort = 'date', order = 'desc', search = '' } = body;
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Create query
+    let query = supabase
       .from("calls_view")
       .select("*", { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
-      .range(offset, offset + limit - 1);
+      .order(sort, { ascending: order === 'asc' });
+    
+    // Add search filter if provided
+    if (search && search.trim() !== '') {
+      // Search in transcript, summary, customer_name, agent_name
+      query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%,transcript.ilike.%${search}%,summary.ilike.%${search}%`);
+    }
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+    
+    // Execute query
+    const { data: calls, error, count } = await query;
 
     if (error) throw error;
 

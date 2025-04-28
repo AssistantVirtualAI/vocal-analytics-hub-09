@@ -82,20 +82,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "calls_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "calls_view"
-            referencedColumns: ["agent_id"]
-          },
-          {
-            foreignKeyName: "calls_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "calls_view"
-            referencedColumns: ["customer_id"]
-          },
-          {
             foreignKeyName: "calls_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -140,6 +126,7 @@ export type Database = {
           agent_name: string | null
           agent_role: string | null
           audio_url: string | null
+          created_at: string | null
           customer_company: string | null
           customer_email: string | null
           customer_id: string | null
@@ -153,7 +140,22 @@ export type Database = {
           tags: string[] | null
           transcript: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "calls_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

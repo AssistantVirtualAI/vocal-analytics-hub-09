@@ -8,6 +8,11 @@ interface CallPerDayItem {
   count: number;
 }
 
+interface GetCallsPerDayParams {
+  start_date: string;
+  days_count: number;
+}
+
 export const useCallsPerDay = (days = 14) => {
   return useQuery({
     queryKey: ["callsPerDay", days],
@@ -20,14 +25,17 @@ export const useCallsPerDay = (days = 14) => {
       // Query calls grouped by date
       try {
         // First attempt to use the RPC function if it exists
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_calls_per_day', {
-          start_date: formattedStartDate,
-          days_count: days
-        });
+        const { data: rpcData, error: rpcError } = await supabase.rpc<CallPerDayItem[]>(
+          'get_calls_per_day', 
+          {
+            start_date: formattedStartDate,
+            days_count: days
+          } as GetCallsPerDayParams
+        );
         
         if (!rpcError && rpcData) {
           // Process RPC data
-          return (rpcData as CallPerDayItem[]).map(item => ({
+          return rpcData.map(item => ({
             date: format(new Date(item.date), 'dd/MM'),
             appels: item.count
           }));

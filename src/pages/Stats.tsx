@@ -68,10 +68,7 @@ export default function Stats() {
           </TabsContent>
           
           <TabsContent value="satisfaction">
-            <SatisfactionTab 
-              satisfactionData={satisfactionData} 
-              satisfactionOverTime={satisfactionOverTime} 
-            />
+            <SatisfactionTab />
           </TabsContent>
           
           <TabsContent value="agents">

@@ -16,7 +16,17 @@ serve(async (req) => {
   try {
     // Parse request body
     const body = await req.json();
-    const { limit = 10, offset = 0, sort = 'date', order = 'desc', search = '' } = body;
+    const { 
+      limit = 10, 
+      offset = 0, 
+      sort = 'date', 
+      order = 'desc', 
+      search = '',
+      customerId = '',
+      agentId = '',
+      startDate = '',
+      endDate = ''
+    } = body;
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -32,6 +42,25 @@ serve(async (req) => {
     if (search && search.trim() !== '') {
       // Search in transcript, summary, customer_name, agent_name
       query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%,transcript.ilike.%${search}%,summary.ilike.%${search}%`);
+    }
+
+    // Add customer filter if provided
+    if (customerId && customerId.trim() !== '') {
+      query = query.eq('customer_id', customerId);
+    }
+
+    // Add agent filter if provided
+    if (agentId && agentId.trim() !== '') {
+      query = query.eq('agent_id', agentId);
+    }
+
+    // Add date range filters if provided
+    if (startDate && startDate.trim() !== '') {
+      query = query.gte('date', startDate);
+    }
+
+    if (endDate && endDate.trim() !== '') {
+      query = query.lte('date', endDate);
     }
 
     // Apply pagination

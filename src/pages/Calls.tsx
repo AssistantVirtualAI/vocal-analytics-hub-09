@@ -12,9 +12,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useCallsList } from '@/hooks/useCallsList';
+import { useCallsPerDay } from '@/hooks/useCallsPerDay';
 import { SearchBar } from '@/components/calls/SearchBar';
+import { CallsFilter } from '@/components/calls/CallsFilter';
 import { FilterButton } from '@/components/calls/FilterButton';
 import { CallsList } from '@/components/calls/CallsList';
+import { CallsPerDayChart } from '@/components/stats/CallsPerDayChart';
 import { CallsPagination } from '@/components/calls/CallsPagination';
 import type { Call } from '@/types';
 
@@ -24,14 +27,27 @@ export default function Calls() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [filters, setFilters] = useState({
+    customerId: '',
+    agentId: '',
+    startDate: '',
+    endDate: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
   
   const { data, isLoading, error } = useCallsList({
     limit: itemsPerPage,
     page: currentPage,
     sortBy: 'date',
     sortOrder: 'desc',
-    search: searchQuery
+    search: searchQuery,
+    customerId: filters.customerId,
+    agentId: filters.agentId,
+    startDate: filters.startDate,
+    endDate: filters.endDate
   });
+
+  const { data: callsPerDayData, isLoading: isChartLoading } = useCallsPerDay();
   
   const calls = data?.calls || [];
   const totalPages = data?.totalPages || 1;
@@ -73,6 +89,15 @@ export default function Calls() {
     }
   };
 
+  const handleFilterChange = (newFilters: any) => {
+    setFilters(newFilters);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
@@ -101,6 +126,23 @@ export default function Calls() {
           </div>
         </div>
 
+        {/* Graphique d'appels par jour */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Volume d'appels quotidiens</CardTitle>
+            <CardDescription>Nombre d'appels par jour sur les 14 derniers jours</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isChartLoading ? (
+              <div className="flex items-center justify-center h-[300px]">
+                Chargement des données...
+              </div>
+            ) : (
+              <CallsPerDayChart data={callsPerDayData || []} />
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Appels ({data?.totalCount || 0})</CardTitle>
@@ -111,8 +153,16 @@ export default function Calls() {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <SearchBar value={searchQuery} onChange={setSearchQuery} />
-              <FilterButton />
+              <FilterButton onClick={toggleFilters} />
             </div>
+
+            {/* Filtres avancés */}
+            {showFilters && (
+              <div className="mb-6 p-4 border rounded-md">
+                <h3 className="text-sm font-medium mb-3">Filtres avancés</h3>
+                <CallsFilter onFilterChange={handleFilterChange} />
+              </div>
+            )}
 
             {isLoading ? (
               <div className="py-8 text-center">Chargement des appels...</div>

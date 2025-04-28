@@ -9,6 +9,10 @@ interface CallsListParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
+  customerId?: string;  // Ajout du filtre par client
+  agentId?: string;     // Ajout du filtre par agent
+  startDate?: string;   // Ajout du filtre par date de début
+  endDate?: string;     // Ajout du filtre par date de fin
 }
 
 export const useCallsList = ({ 
@@ -16,13 +20,17 @@ export const useCallsList = ({
   page = 1, 
   sortBy = 'date',
   sortOrder = 'desc',
-  search = ''
+  search = '',
+  customerId = '',
+  agentId = '',
+  startDate = '',
+  endDate = ''
 }: CallsListParams = {}) => {
   // Calculate offset based on page number
   const offset = (page - 1) * limit;
 
   return useQuery({
-    queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search }],
+    queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search, customerId, agentId, startDate, endDate }],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("get-calls", {
         body: JSON.stringify({
@@ -30,7 +38,11 @@ export const useCallsList = ({
           offset,
           sort: sortBy,
           order: sortOrder,
-          search: search
+          search: search,
+          customerId: customerId,
+          agentId: agentId,
+          startDate: startDate,
+          endDate: endDate
         }),
       });
 

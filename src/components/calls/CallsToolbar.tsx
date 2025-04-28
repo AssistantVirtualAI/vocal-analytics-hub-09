@@ -1,7 +1,9 @@
 
+import { useState } from 'react';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { CallsFilter } from '@/components/calls/CallsFilter';
 import { FilterButton } from '@/components/calls/FilterButton';
+import { DateRange } from '@/components/ui/calendar';
 
 interface CallsToolbarProps {
   searchQuery: string;
@@ -21,7 +23,7 @@ export function CallsToolbar({
   return (
     <>
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <SearchBar value={searchQuery} onChange={onSearchChange} />
+        <SearchBar value={searchQuery} onChange={onSearchChange} placeholder="Rechercher dans les transcriptions..." />
         <div className="flex-shrink-0">
           <FilterButton onToggle={onToggleFilters} />
         </div>

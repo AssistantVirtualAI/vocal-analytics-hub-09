@@ -13,11 +13,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const menuItems = [
   {
-    title: 'Dashboard',
+    title: 'Tableau de bord',
     icon: Home,
     url: '/',
   },
@@ -39,6 +39,8 @@ const menuItems = [
 ];
 
 export function DashboardSidebar() {
+  const location = useLocation();
+  
   return (
     <Sidebar>
       <SidebarHeader>
@@ -57,7 +59,10 @@ export function DashboardSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <Link to={item.url} className="flex items-center">
+                    <Link 
+                      to={item.url} 
+                      className={`flex items-center ${location.pathname === item.url ? 'text-primary font-medium' : ''}`}
+                    >
                       <item.icon className="h-5 w-5 mr-2" />
                       <span>{item.title}</span>
                     </Link>

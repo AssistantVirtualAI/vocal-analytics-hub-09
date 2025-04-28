@@ -3,6 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
 
+interface CallPerDayItem {
+  date: string;
+  count: number;
+}
+
 export const useCallsPerDay = (days = 14) => {
   return useQuery({
     queryKey: ["callsPerDay", days],
@@ -22,7 +27,7 @@ export const useCallsPerDay = (days = 14) => {
         
         if (!rpcError && rpcData) {
           // Process RPC data
-          return rpcData.map((item: any) => ({
+          return (rpcData as CallPerDayItem[]).map(item => ({
             date: format(new Date(item.date), 'dd/MM'),
             appels: item.count
           }));

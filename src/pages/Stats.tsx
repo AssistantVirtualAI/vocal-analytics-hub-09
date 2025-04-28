@@ -1,7 +1,7 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCallStats } from '@/hooks/useCallStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
 import { mockData } from '@/mockData';

@@ -2,12 +2,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CustomerStats } from "@/types";
+import { AGENT_ID } from "@/config/agent";
 
 export const useCustomerStats = () => {
   return useQuery({
-    queryKey: ["customerStats"],
+    queryKey: ["customerStats", AGENT_ID],
     queryFn: async () => {
-      // Instead of using RPC, let's query directly from calls_view
       const { data: callsData, error } = await supabase
         .from("calls_view")
         .select(`
@@ -15,13 +15,13 @@ export const useCustomerStats = () => {
           customer_name,
           duration,
           satisfaction_score
-        `);
+        `)
+        .eq('agent_id', AGENT_ID);
 
       if (error) throw error;
 
       if (!callsData || callsData.length === 0) return [];
       
-      // Process the data to calculate statistics
       const customerStatsMap: Record<string, any> = {};
       
       callsData.forEach((call) => {
@@ -43,7 +43,6 @@ export const useCustomerStats = () => {
         customerStatsMap[customerId].totalSatisfaction += call.satisfaction_score || 0;
       });
       
-      // Convert to array and calculate averages
       return Object.values(customerStatsMap).map((stat: any) => ({
         customerId: stat.customerId,
         customerName: stat.customerName,

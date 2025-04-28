@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CallStats, Call } from "@/types";
+import { AGENT_ID } from "@/config/agent";
 
 const calculateStats = (calls: Call[]): CallStats => {
   const totalCalls = calls.length;
@@ -25,11 +26,12 @@ const calculateStats = (calls: Call[]): CallStats => {
 
 export const useCallStats = () => {
   return useQuery({
-    queryKey: ["callStats"],
+    queryKey: ["callStats", AGENT_ID],
     queryFn: async () => {
       const { data: calls, error } = await supabase
         .from("calls_view")
         .select("*")
+        .eq('agent_id', AGENT_ID)
         .order("date", { ascending: false });
 
       if (error) throw error;

@@ -18,6 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useEffect, useRef } from 'react';
+import { useCallDetails } from '@/hooks/useCallDetails';
+import { useCallAudio } from '@/hooks/useCallAudio';
+import { useToast } from '@/hooks/use-toast';
 
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
@@ -31,9 +34,13 @@ export default function CallDetails() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const { toast } = useToast();
   
-  // Find the call with the matching ID
-  const call = mockCalls.find(call => call.id === id);
+  // Fetch call details from the API
+  const { data: call, isLoading: isLoadingCallDetails, error: callDetailsError } = useCallDetails(id);
+  
+  // Fetch the audio URL from ElevenLabs
+  const { data: audioData, isLoading: isLoadingAudio, error: audioError } = useCallAudio(id);
   
   // Set up audio controls
   useEffect(() => {
@@ -62,18 +69,37 @@ export default function CallDetails() {
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      audio.play().catch(error => {
+        toast({
+          title: "Erreur de lecture",
+          description: "Impossible de lire l'audio. Veuillez réessayer.",
+          variant: "destructive"
+        });
+        console.error("Audio playback error:", error);
+      });
     }
     
     setIsPlaying(!isPlaying);
   };
 
-  if (!call) {
+  // Show loading state
+  if (isLoadingCallDetails) {
     return (
       <DashboardLayout>
         <div className="container p-6 space-y-6 text-center">
-          <h1 className="text-3xl font-bold">Appel non trouvé</h1>
-          <p>L'appel avec l'ID {id} n'existe pas.</p>
+          <h1 className="text-3xl font-bold">Chargement des détails de l'appel...</h1>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (callDetailsError || !call) {
+    return (
+      <DashboardLayout>
+        <div className="container p-6 space-y-6 text-center">
+          <h1 className="text-3xl font-bold">Erreur</h1>
+          <p>Impossible de charger les détails de l'appel.</p>
           <Link to="/calls">
             <Button>Retour à la liste des appels</Button>
           </Link>
@@ -81,6 +107,12 @@ export default function CallDetails() {
       </DashboardLayout>
     );
   }
+
+  // Use ElevenLabs data for transcript and summary if available
+  const transcript = audioData?.transcript || call.transcript;
+  const summary = audioData?.summary || call.summary;
+  // Use ElevenLabs audio URL if available, otherwise fall back to the call's audioUrl
+  const audioUrl = audioData?.audioUrl || call.audioUrl;
 
   return (
     <DashboardLayout>
@@ -156,6 +188,14 @@ export default function CallDetails() {
             <Card>
               <CardHeader>
                 <CardTitle>Enregistrement audio</CardTitle>
+                {isLoadingAudio && (
+                  <CardDescription>Chargement de l'audio depuis ElevenLabs...</CardDescription>
+                )}
+                {audioError && (
+                  <CardDescription className="text-red-500">
+                    Erreur lors du chargement de l'audio. Utilisation de l'audio par défaut.
+                  </CardDescription>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="bg-secondary rounded-md p-4">
@@ -165,6 +205,7 @@ export default function CallDetails() {
                       size="icon" 
                       className="h-10 w-10 rounded-full bg-primary text-primary-foreground"
                       onClick={togglePlayback}
+                      disabled={isLoadingAudio}
                     >
                       {isPlaying ? <Pause /> : <Play />}
                     </Button>
@@ -181,7 +222,7 @@ export default function CallDetails() {
                       </div>
                     </div>
                   </div>
-                  <audio ref={audioRef} src={call.audioUrl} />
+                  <audio ref={audioRef} src={audioUrl} />
                 </div>
               </CardContent>
             </Card>
@@ -200,11 +241,11 @@ export default function CallDetails() {
                     <TabsTrigger value="transcript">Transcription</TabsTrigger>
                   </TabsList>
                   <TabsContent value="summary" className="pt-4">
-                    <p className="text-sm">{call.summary}</p>
+                    <p className="text-sm">{summary}</p>
                   </TabsContent>
                   <TabsContent value="transcript" className="pt-4">
-                    {call.transcript ? (
-                      <p className="text-sm whitespace-pre-wrap">{call.transcript}</p>
+                    {transcript ? (
+                      <p className="text-sm whitespace-pre-wrap">{transcript}</p>
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         La transcription complète n'est pas disponible pour cet appel.

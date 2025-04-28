@@ -3,3 +3,6 @@ project_id = "rzzywdulzfyycivwwfsd"
 
 [functions.elevenlabs-tts]
 verify_jwt = false
+
+[functions.elevenlabs-call-audio]
+verify_jwt = false

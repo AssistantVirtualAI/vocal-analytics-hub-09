@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -29,8 +29,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { mockCalls } from '@/mockData';
+import { useCallsList } from '@/hooks/useCallsList';
 import { Call } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
@@ -41,17 +42,22 @@ const formatDuration = (seconds: number): string => {
 export default function Calls() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const { toast } = useToast();
+  
+  // Fetch calls from API
+  const { data, isLoading, error } = useCallsList({
+    limit: 50, // Fetch up to 50 calls
+    sortBy: 'date',
+    sortOrder: 'desc'
+  });
+  
+  const calls = data?.calls || [];
   
   // Filter calls based on search query
-  const filteredCalls = mockCalls.filter(
+  const filteredCalls = calls.filter(
     (call) => 
       call.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       call.agentName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Sort calls by date (most recent first)
-  const sortedCalls = [...filteredCalls].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
   // Handle audio playback
@@ -65,13 +71,45 @@ export default function Calls() {
       // Pause any currently playing audio
       if (currentlyPlaying) {
         const currentAudio = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement;
-        currentAudio.pause();
+        if (currentAudio) {
+          currentAudio.pause();
+        }
       }
       
-      audioElement.play();
+      audioElement.play().catch(error => {
+        toast({
+          title: "Erreur de lecture",
+          description: "Impossible de lire l'audio. Veuillez réessayer.",
+          variant: "destructive"
+        });
+        console.error("Audio playback error:", error);
+      });
       setCurrentlyPlaying(call.id);
     }
   };
+
+  // Handle audio playback end
+  useEffect(() => {
+    const handleAudioEnd = () => {
+      setCurrentlyPlaying(null);
+    };
+
+    calls.forEach(call => {
+      const audio = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
+      if (audio) {
+        audio.addEventListener('ended', handleAudioEnd);
+      }
+    });
+
+    return () => {
+      calls.forEach(call => {
+        const audio = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
+        if (audio) {
+          audio.removeEventListener('ended', handleAudioEnd);
+        }
+      });
+    };
+  }, [calls]);
 
   return (
     <DashboardLayout>
@@ -87,7 +125,7 @@ export default function Calls() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Appels ({sortedCalls.length})</CardTitle>
+            <CardTitle>Appels ({filteredCalls.length})</CardTitle>
             <CardDescription>
               Liste de tous les appels enregistrés avec ElevenLabs
             </CardDescription>
@@ -119,84 +157,99 @@ export default function Calls() {
               </DropdownMenu>
             </div>
 
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Agent</TableHead>
-                    <TableHead>Durée</TableHead>
-                    <TableHead>Satisfaction</TableHead>
-                    <TableHead>Tags</TableHead>
-                    <TableHead>Audio</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedCalls.map((call) => (
-                    <TableRow key={call.id} className="group">
-                      <TableCell>
-                        {format(new Date(call.date), 'dd/MM/yyyy', { locale: fr })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{call.customerName}</div>
-                      </TableCell>
-                      <TableCell>{call.agentName}</TableCell>
-                      <TableCell>{formatDuration(call.duration)}</TableCell>
-                      <TableCell>
-                        <div className="flex">
-                          {Array(5)
-                            .fill(0)
-                            .map((_, i) => (
-                              <Star
-                                key={i}
-                                size={16}
-                                className={i < call.satisfactionScore ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
-                              />
-                            ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {call.tags?.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <audio
-                          id={`audio-${call.id}`}
-                          src={call.audioUrl}
-                          onEnded={() => setCurrentlyPlaying(null)}
-                          className="hidden"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => togglePlayback(call)}
-                        >
-                          {currentlyPlaying === call.id ? (
-                            <Pause size={16} />
-                          ) : (
-                            <Play size={16} />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Link to={`/calls/${call.id}`}>
-                          <Button variant="link" size="sm">
-                            Voir détails
-                          </Button>
-                        </Link>
-                      </TableCell>
+            {isLoading ? (
+              <div className="py-8 text-center">Chargement des appels...</div>
+            ) : error ? (
+              <div className="py-8 text-center text-red-500">
+                Erreur lors du chargement des appels. Veuillez réessayer.
+              </div>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Agent</TableHead>
+                      <TableHead>Durée</TableHead>
+                      <TableHead>Satisfaction</TableHead>
+                      <TableHead>Tags</TableHead>
+                      <TableHead>Audio</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCalls.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-24 text-center">
+                          Aucun appel trouvé.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredCalls.map((call) => (
+                        <TableRow key={call.id} className="group">
+                          <TableCell>
+                            {format(new Date(call.date), 'dd/MM/yyyy', { locale: fr })}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{call.customerName}</div>
+                          </TableCell>
+                          <TableCell>{call.agentName}</TableCell>
+                          <TableCell>{formatDuration(call.duration)}</TableCell>
+                          <TableCell>
+                            <div className="flex">
+                              {Array(5)
+                                .fill(0)
+                                .map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={16}
+                                    className={i < call.satisfactionScore ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
+                                  />
+                                ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 flex-wrap">
+                              {call.tags?.map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <audio
+                              id={`audio-${call.id}`}
+                              src={call.audioUrl}
+                              className="hidden"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => togglePlayback(call)}
+                            >
+                              {currentlyPlaying === call.id ? (
+                                <Pause size={16} />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link to={`/calls/${call.id}`}>
+                              <Button variant="link" size="sm">
+                                Voir détails
+                              </Button>
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

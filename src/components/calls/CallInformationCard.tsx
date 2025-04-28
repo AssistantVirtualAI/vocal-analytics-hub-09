@@ -29,7 +29,9 @@ export const CallInformationCard = ({ call }: CallInformationCardProps) => {
         <div className="grid grid-cols-1 gap-y-2">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Date</span>
-            <span className="font-medium">{format(new Date(call.date), 'PPP', { locale: fr })}</span>
+            <span className="font-medium">
+              {format(new Date(call.date), 'dd/MM/yyyy HH:mm', { locale: fr })}
+            </span>
           </div>
           
           <div className="flex justify-between">

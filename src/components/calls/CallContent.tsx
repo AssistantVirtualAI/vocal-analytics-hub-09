@@ -20,6 +20,9 @@ export const CallContent = ({ summary, transcript, callId }: CallContentProps) =
   const { mutate: generateSummary, isPending } = useGenerateSummary();
   const { toast } = useToast();
 
+  // Only show the generate button if we have a transcript but no summary
+  const showGenerateButton = !summary && !!transcript && !!callId;
+
   const handleGenerateSummary = () => {
     if (!callId) return;
     
@@ -46,7 +49,7 @@ export const CallContent = ({ summary, transcript, callId }: CallContentProps) =
       <Card>
         <CardHeader>
           <CardTitle>Résumé de l'appel</CardTitle>
-          {!summary && transcript && callId && (
+          {showGenerateButton && (
             <div className="flex justify-between items-center">
               <CardDescription>Aucun résumé disponible</CardDescription>
               <Button 
@@ -62,7 +65,7 @@ export const CallContent = ({ summary, transcript, callId }: CallContentProps) =
         </CardHeader>
         <CardContent>
           {summary ? (
-            <p>{summary}</p>
+            <p className="whitespace-pre-line">{summary}</p>
           ) : (
             <p className="text-muted-foreground italic">
               {transcript 
@@ -81,7 +84,7 @@ export const CallContent = ({ summary, transcript, callId }: CallContentProps) =
           </CardHeader>
           <CardContent>
             <div className="max-h-96 overflow-y-auto">
-              <p>{transcript}</p>
+              <p className="whitespace-pre-line">{transcript}</p>
             </div>
           </CardContent>
         </Card>

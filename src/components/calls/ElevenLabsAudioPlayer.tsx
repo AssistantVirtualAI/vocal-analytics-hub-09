@@ -25,6 +25,7 @@ interface ElevenLabsAudioPlayerProps {
   audioUrl?: string;
   error?: Error | null;
   transcript?: string;
+  onRetry?: () => void;
 }
 
 export const ElevenLabsAudioPlayer = ({ 
@@ -32,7 +33,8 @@ export const ElevenLabsAudioPlayer = ({
   isLoading, 
   audioUrl,
   error,
-  transcript
+  transcript,
+  onRetry
 }: ElevenLabsAudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -98,7 +100,7 @@ export const ElevenLabsAudioPlayer = ({
   };
 
   const handleRetry = async () => {
-    if (!callId) return;
+    if (!onRetry) return;
     
     setRetrying(true);
     toast({
@@ -107,6 +109,8 @@ export const ElevenLabsAudioPlayer = ({
     });
     
     try {
+      await onRetry();
+      
       // Force a retry by updating the audio element
       const audio = audioRef.current;
       if (audio && audioUrl) {
@@ -175,14 +179,15 @@ export const ElevenLabsAudioPlayer = ({
                 <span>{formatDuration(duration)}</span>
               </div>
             </div>
-            {error && (
+            {error && onRetry && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={handleRetry}
                 disabled={retrying}
               >
-                <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${retrying ? 'animate-spin' : ''}`} />
+                Réessayer
               </Button>
             )}
           </div>

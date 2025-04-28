@@ -1,5 +1,7 @@
 
 import { Link, useParams } from 'react-router-dom';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { ArrowLeft } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { Button } from '@/components/ui/button';
@@ -20,7 +22,7 @@ export default function CallDetails() {
   const { 
     data: audioData, 
     isLoading: isLoadingAudio, 
-    error: audioError, 
+    error: audioError,
     refetch: refetchAudio 
   } = useCallAudio(id);
 
@@ -50,6 +52,9 @@ export default function CallDetails() {
     );
   }
 
+  // Format the date for display in the title
+  const formattedDate = format(new Date(call.date), 'dd/MM/yyyy à HH:mm', { locale: fr });
+
   // Use ElevenLabs data for transcript and summary if available
   const transcript = audioData?.transcript || call.transcript;
   const summary = audioData?.summary || call.summary;
@@ -66,19 +71,21 @@ export default function CallDetails() {
               Retour
             </Button>
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold">Détails de l'appel</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Détails de l'appel du {formattedDate}</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <CallInformationCard call={call} />
           
           <div className="col-span-1 lg:col-span-2 space-y-6">
-            {/* Original audio player */}
-            <AudioPlayer 
-              audioUrl={call.audioUrl}
-              isLoading={isLoadingCallDetails}
-              error={callDetailsError}
-            />
+            {/* Original audio player if URL is available */}
+            {call.audioUrl && (
+              <AudioPlayer 
+                audioUrl={call.audioUrl}
+                isLoading={isLoadingCallDetails}
+                error={callDetailsError}
+              />
+            )}
             
             {/* ElevenLabs audio player */}
             <ElevenLabsAudioPlayer 
@@ -87,6 +94,7 @@ export default function CallDetails() {
               audioUrl={audioData?.audioUrl}
               error={audioError}
               transcript={audioData?.transcript}
+              onRetry={refetchAudio}
             />
             
             <CallContent 

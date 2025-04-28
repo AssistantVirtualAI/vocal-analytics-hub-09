@@ -24,35 +24,63 @@ serve(async (req) => {
 
     console.log(`Fetching call audio for call ID: ${callId}`);
     
-    // Call the ElevenLabs API to get the call recording
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/calls/${callId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'xi-api-key': elevenlabsApiKey,
-        },
-      }
-    );
+    // Get call details to retrieve the audio URL
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('ElevenLabs API error:', errorData);
-      throw new Error(errorData.detail?.message || `Failed to get call recording: ${response.status}`);
+    // Fetch the call to get the audio_url
+    const { data: call, error: callError } = await supabase
+      .from('calls_view')
+      .select('audio_url')
+      .eq('id', callId)
+      .single();
+
+    if (callError) {
+      console.error('Database error:', callError);
+      throw new Error(`Failed to fetch call: ${callError.message}`);
     }
 
-    const data = await response.json();
+    if (!call || !call.audio_url) {
+      throw new Error('Call not found or no audio URL available');
+    }
     
-    // If this is a history item ID format, handle differently
-    let audioUrl = data.audio_url;
-    let transcript = data.transcript || "";
-    let summary = data.summary || "";
+    let audioUrl = call.audio_url;
+    let transcript = '';
+    let summary = '';
 
-    // Enhanced logging for debugging
-    console.log(`Audio URL received: ${audioUrl}`);
-    console.log(`Transcript length: ${transcript.length} characters`);
-    console.log(`Summary length: ${summary.length} characters`);
+    // Check if this is an ElevenLabs API URL
+    if (audioUrl.includes('api.elevenlabs.io')) {
+      // Call the ElevenLabs API with authentication
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/calls/${callId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'xi-api-key': elevenlabsApiKey,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('ElevenLabs API error:', errorData);
+        throw new Error(errorData.detail?.message || `Failed to get call recording: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Update values from ElevenLabs API
+      audioUrl = data.audio_url || audioUrl;
+      transcript = data.transcript || "";
+      summary = data.summary || "";
+
+      console.log(`Received data from ElevenLabs API:
+        - Audio URL: ${audioUrl.substring(0, 30)}...
+        - Transcript: ${transcript.length} characters
+        - Summary: ${summary.length} characters`);
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -76,3 +104,6 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to create a Supabase client
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

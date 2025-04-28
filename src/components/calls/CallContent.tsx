@@ -6,42 +6,86 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { useGenerateSummary } from '@/hooks/useGenerateSummary';
+import { useToast } from '@/hooks/use-toast';
 
 interface CallContentProps {
-  summary: string;
+  summary?: string;
   transcript?: string;
+  callId?: string;
 }
 
-export const CallContent = ({ summary, transcript }: CallContentProps) => {
+export const CallContent = ({ summary, transcript, callId }: CallContentProps) => {
+  const { mutate: generateSummary, isPending } = useGenerateSummary();
+  const { toast } = useToast();
+
+  const handleGenerateSummary = () => {
+    if (!callId) return;
+    
+    generateSummary(callId, {
+      onSuccess: () => {
+        toast({
+          title: "Résumé généré",
+          description: "Le résumé de l'appel a été généré avec succès.",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Erreur",
+          description: "Impossible de générer le résumé. " + error.message,
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>Contenu de l'appel</CardTitle>
-        <CardDescription>
-          Résumé et transcription de l'appel
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="summary">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="summary">Résumé</TabsTrigger>
-            <TabsTrigger value="transcript">Transcription</TabsTrigger>
-          </TabsList>
-          <TabsContent value="summary" className="pt-4">
-            <p className="text-sm">{summary}</p>
-          </TabsContent>
-          <TabsContent value="transcript" className="pt-4">
-            {transcript ? (
-              <p className="text-sm whitespace-pre-wrap">{transcript}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                La transcription complète n'est pas disponible pour cet appel.
-              </p>
-            )}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {/* Summary Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Résumé de l'appel</CardTitle>
+          {!summary && transcript && callId && (
+            <div className="flex justify-between items-center">
+              <CardDescription>Aucun résumé disponible</CardDescription>
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={isPending}
+                onClick={handleGenerateSummary}
+              >
+                {isPending ? "Génération..." : "Générer un résumé"}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          {summary ? (
+            <p>{summary}</p>
+          ) : (
+            <p className="text-muted-foreground italic">
+              {transcript 
+                ? "Cliquez sur \"Générer un résumé\" pour créer un résumé à partir de la transcription."
+                : "Aucun résumé ou transcription disponible pour cet appel."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Transcript Card */}
+      {transcript && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Transcription</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-96 overflow-y-auto">
+              <p>{transcript}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };

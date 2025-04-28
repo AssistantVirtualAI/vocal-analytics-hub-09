@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error('ELEVENLABS_API_KEY environment variable is not set');
     }
 
-    // Call the ElevenLabs API to get the audio recording
+    // Call the ElevenLabs API to get the call recording
     const response = await fetch(
       `https://api.elevenlabs.io/v1/calls/${callId}`,
       {

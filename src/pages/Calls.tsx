@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/Layout';
@@ -54,7 +53,6 @@ export default function Calls() {
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll to top when changing page
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -71,7 +69,6 @@ export default function Calls() {
       audioElement.pause();
       setCurrentlyPlaying(null);
     } else {
-      // Pause currently playing audio if exists
       if (currentlyPlaying) {
         const currentAudio = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement;
         if (currentAudio) {
@@ -82,7 +79,6 @@ export default function Calls() {
       audioElement.play();
       setCurrentlyPlaying(call.id);
       
-      // Add event listener to reset currentlyPlaying when audio ends
       audioElement.onended = () => {
         setCurrentlyPlaying(null);
       };
@@ -91,7 +87,7 @@ export default function Calls() {
 
   const handleFilterChange = (newFilters: any) => {
     setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   };
 
   const toggleFilters = () => {
@@ -126,7 +122,6 @@ export default function Calls() {
           </div>
         </div>
 
-        {/* Graphique d'appels par jour */}
         <Card>
           <CardHeader>
             <CardTitle>Volume d'appels quotidiens</CardTitle>
@@ -153,13 +148,11 @@ export default function Calls() {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <SearchBar value={searchQuery} onChange={setSearchQuery} />
-              {/* Fix the FilterButton to use a custom handler */}
               <div className="flex-shrink-0">
                 <FilterButton onToggle={toggleFilters} />
               </div>
             </div>
 
-            {/* Filtres avancés */}
             {showFilters && (
               <div className="mb-6 p-4 border rounded-md">
                 <h3 className="text-sm font-medium mb-3">Filtres avancés</h3>

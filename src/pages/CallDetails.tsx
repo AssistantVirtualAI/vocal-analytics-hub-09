@@ -76,10 +76,11 @@ export default function CallDetails() {
             <CallContent 
               summary={summary}
               transcript={transcript}
+              callId={call.id}
             />
           </div>
         </div>
       </div>
     </DashboardLayout>
   );
-}
+};

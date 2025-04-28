@@ -9,10 +9,10 @@ interface CallsListParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
-  customerId?: string;  // Ajout du filtre par client
-  agentId?: string;     // Ajout du filtre par agent
-  startDate?: string;   // Ajout du filtre par date de début
-  endDate?: string;     // Ajout du filtre par date de fin
+  customerId?: string;  // Add customer filter
+  agentId?: string;     // Add agent filter
+  startDate?: string;   // Add start date filter
+  endDate?: string;     // Add end date filter
 }
 
 export const useCallsList = ({ 

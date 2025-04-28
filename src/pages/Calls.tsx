@@ -76,6 +76,10 @@ export default function Calls() {
     setCurrentPage(1);
   };
 
+  const handleToggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
@@ -85,6 +89,14 @@ export default function Calls() {
         />
 
         <CallsStats />
+
+        <CallsToolbar 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showFilters={showFilters}
+          onToggleFilters={handleToggleFilters}
+          onFilterChange={handleFilterChange}
+        />
 
         <CallsContent
           calls={calls}

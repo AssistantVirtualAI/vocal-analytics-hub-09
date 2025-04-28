@@ -9,10 +9,152 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      agents: {
+        Row: {
+          avatar: string | null
+          created_at: string | null
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          role: string
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      calls: {
+        Row: {
+          agent_id: string
+          audio_url: string | null
+          created_at: string | null
+          customer_id: string
+          date: string
+          duration: number
+          id: string
+          satisfaction_score: number | null
+          summary: string | null
+          tags: string[] | null
+          transcript: string | null
+        }
+        Insert: {
+          agent_id: string
+          audio_url?: string | null
+          created_at?: string | null
+          customer_id: string
+          date?: string
+          duration: number
+          id?: string
+          satisfaction_score?: number | null
+          summary?: string | null
+          tags?: string[] | null
+          transcript?: string | null
+        }
+        Update: {
+          agent_id?: string
+          audio_url?: string | null
+          created_at?: string | null
+          customer_id?: string
+          date?: string
+          duration?: number
+          id?: string
+          satisfaction_score?: number | null
+          summary?: string | null
+          tags?: string[] | null
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "calls_view"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "calls_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "calls_view"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "calls_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      calls_view: {
+        Row: {
+          agent_avatar: string | null
+          agent_id: string | null
+          agent_name: string | null
+          agent_role: string | null
+          audio_url: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          date: string | null
+          duration: number | null
+          id: string | null
+          satisfaction_score: number | null
+          summary: string | null
+          tags: string[] | null
+          transcript: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

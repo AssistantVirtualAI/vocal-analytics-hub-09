@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import {
@@ -9,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockCallStats, mockCustomerStats, mockAgents, mockCalls } from '@/mockData';
+import { useCallStats } from '@/hooks/useCallStats';
 import {
   BarChart,
   Bar,
@@ -34,9 +33,22 @@ const formatDuration = (seconds: number): string => {
 
 export default function Stats() {
   const [activeTab, setActiveTab] = useState('overview');
+  const { data: callStats, isLoading } = useCallStats();
   
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="container p-4 sm:p-6">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-lg text-muted-foreground">Chargement des statistiques...</div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   // Prepare chart data for calls per day
-  const chartData = Object.entries(mockCallStats.callsPerDay)
+  const chartData = Object.entries(callStats?.callsPerDay || {})
     .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
     .map(([date, count]) => ({
       date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -11,6 +12,8 @@ import { CallsToolbar } from "@/components/calls/CallsToolbar";
 import { StatCard } from "@/components/stats/StatCard";
 import { DateRange } from "@/types/calendar";
 import type { Call } from "@/types";
+import { useCallsPerDay } from "@/hooks/useCallsPerDay";
+import { CallsLast30DaysChart } from "@/components/stats/CallsLast30DaysChart";
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +27,7 @@ export default function Dashboard() {
   });
 
   const { data: statsData, isLoading: isStatsLoading } = useCallsStats();
+  const { data: calls30DaysData, isLoading: is30DaysLoading } = useCallsPerDay(30);
   
   const { data: callsData, isLoading: isCallsLoading } = useCallsList({
     limit: 10,
@@ -78,6 +82,21 @@ export default function Dashboard() {
             value={isStatsLoading ? "..." : `${statsData?.avgSatisfaction.toFixed(1) || 0}/5`}
             icon={Star}
           />
+        </div>
+
+        {/* Graphique d'appels sur 30 jours */}
+        <div className="grid gap-4">
+          {is30DaysLoading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center h-[300px]">
+                  Chargement des données du graphique...
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <CallsLast30DaysChart data={calls30DaysData || []} />
+          )}
         </div>
 
         {/* Section Liste des Appels */}

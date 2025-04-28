@@ -164,7 +164,10 @@ export default function Stats() {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value, name, props) => [`${value} clients`, props.payload.name]} />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} clients`, '']}
+                          labelFormatter={(name: string) => name}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -246,7 +249,9 @@ export default function Stats() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis domain={[2.5, 5]} />
-                      <Tooltip formatter={(value) => [parseFloat(value).toFixed(1) + '/5', 'Satisfaction']} />
+                      <Tooltip 
+                        formatter={(value: number) => [value.toFixed(1) + '/5', 'Satisfaction']}
+                      />
                       <Legend />
                       <Line
                         name="Satisfaction moyenne"
@@ -302,7 +307,9 @@ export default function Stats() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis tickFormatter={(value) => formatDuration(value)} />
-                      <Tooltip formatter={(value) => [formatDuration(value), 'Durée moyenne']} />
+                      <Tooltip 
+                        formatter={(value: number) => [formatDuration(value), 'Durée moyenne']}
+                      />
                       <Legend />
                       <Bar
                         dataKey="avgDuration"
@@ -361,7 +368,9 @@ export default function Stats() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="customerName" />
                       <YAxis domain={[0, 5]} />
-                      <Tooltip formatter={(value) => [`${value.toFixed(1)}/5`, 'Satisfaction moyenne']} />
+                      <Tooltip 
+                        formatter={(value: number) => [`${value.toFixed(1)}/5`, 'Satisfaction moyenne']}
+                      />
                       <Legend />
                       <Bar
                         dataKey="avgSatisfaction"

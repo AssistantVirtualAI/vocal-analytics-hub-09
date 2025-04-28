@@ -1,3 +1,8 @@
+
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
+import { Star, Play, Pause } from 'lucide-react';
 import { CallItem } from './CallItem';
 import {
   Table,
@@ -7,22 +12,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { Call } from '@/types';
 
 interface CallsListProps {
   calls: Call[];
   view?: 'table' | 'grid';
-  currentlyPlaying: string | null;
-  onPlayToggle: (call: Call) => void;
-  formatDuration: (seconds: number) => string;
+  currentlyPlaying?: string | null;
+  onPlayToggle?: (call: Call) => void;
+  formatDuration?: (seconds: number) => string;
 }
 
-export const CallsList = ({ calls, view = 'table', currentlyPlaying, onPlayToggle, formatDuration }: CallsListProps) => {
+export const CallsList = ({ 
+  calls, 
+  view = 'table', 
+  currentlyPlaying = null, 
+  onPlayToggle = () => {}, 
+  formatDuration = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+}: CallsListProps) => {
   if (view === 'grid') {
     return (
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {calls.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground col-span-full">
             Aucun appel trouvé.
           </div>
         ) : (

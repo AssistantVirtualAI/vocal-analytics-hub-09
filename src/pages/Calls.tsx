@@ -15,10 +15,12 @@ import { useCallsList } from '@/hooks/useCallsList';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { FilterButton } from '@/components/calls/FilterButton';
 import { CallsList } from '@/components/calls/CallsList';
+import type { Call } from '@/types';
 
 export default function Calls() {
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'table' | 'grid'>('table');
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   
   const { data, isLoading, error } = useCallsList({
     limit: 50,
@@ -33,6 +35,37 @@ export default function Calls() {
       call.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       call.agentName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handlePlayToggle = (call: Call) => {
+    const audioElement = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
+    
+    if (currentlyPlaying === call.id) {
+      audioElement.pause();
+      setCurrentlyPlaying(null);
+    } else {
+      // Pause currently playing audio if exists
+      if (currentlyPlaying) {
+        const currentAudio = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement;
+        if (currentAudio) {
+          currentAudio.pause();
+        }
+      }
+      
+      audioElement.play();
+      setCurrentlyPlaying(call.id);
+      
+      // Add event listener to reset currentlyPlaying when audio ends
+      audioElement.onended = () => {
+        setCurrentlyPlaying(null);
+      };
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -85,6 +118,9 @@ export default function Calls() {
               <CallsList 
                 calls={filteredCalls}
                 view={view}
+                currentlyPlaying={currentlyPlaying}
+                onPlayToggle={handlePlayToggle}
+                formatDuration={formatDuration}
               />
             )}
           </CardContent>

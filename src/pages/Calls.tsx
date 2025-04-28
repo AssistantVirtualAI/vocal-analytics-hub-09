@@ -153,7 +153,10 @@ export default function Calls() {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <SearchBar value={searchQuery} onChange={setSearchQuery} />
-              <FilterButton onClick={toggleFilters} />
+              {/* Fix the FilterButton to use a custom handler */}
+              <div className="flex-shrink-0">
+                <FilterButton onToggle={toggleFilters} />
+              </div>
             </div>
 
             {/* Filtres avancés */}

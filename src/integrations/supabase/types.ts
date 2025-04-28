@@ -119,6 +119,18 @@ export type Database = {
       }
     }
     Views: {
+      calls_summary_view: {
+        Row: {
+          agent_name: string | null
+          customer_name: string | null
+          date: string | null
+          duration: number | null
+          id: string | null
+          summary: string | null
+          transcript: string | null
+        }
+        Relationships: []
+      }
       calls_view: {
         Row: {
           agent_avatar: string | null

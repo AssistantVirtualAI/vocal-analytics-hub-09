@@ -23,10 +23,6 @@ type CustomerCallsChartProps = {
 };
 
 export const CustomerCallsChart = ({ data }: CustomerCallsChartProps) => {
-  const sortedCustomers = [...data]
-    .sort((a, b) => b.totalCalls - a.totalCalls)
-    .slice(0, 5);
-
   return (
     <Card>
       <CardHeader>
@@ -36,7 +32,7 @@ export const CustomerCallsChart = ({ data }: CustomerCallsChartProps) => {
       <CardContent className="pl-2">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={sortedCustomers}>
+            <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="customerName" />
               <YAxis />

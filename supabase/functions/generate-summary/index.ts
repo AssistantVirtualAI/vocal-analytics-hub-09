@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +44,7 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
   try {
     // First check if we already have a summary
@@ -82,21 +84,47 @@ serve(async (req) => {
       });
     }
 
-    // For now, we'll create a simple summary from the transcript
-    // In a real application, you'd use an AI service like OpenAI to generate this
-    const transcript = existingCall.transcript;
-    const simpleSummary = `Summary of call: ${transcript.substring(0, 100)}...`;
+    // Generate summary using OpenAI
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an assistant that summarizes phone calls. Provide a clear, concise summary focused on the key points, action items, and any important decisions or agreements made during the call.'
+          },
+          {
+            role: 'user',
+            content: `Please summarize this call transcript:\n\n${existingCall.transcript}`
+          }
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Failed to generate summary');
+    }
+
+    const openAIResponse = await response.json();
+    const generatedSummary = openAIResponse.choices[0].message.content;
 
     // Update the call with the new summary
     const { error: updateError } = await supabase
       .from("calls")
-      .update({ summary: simpleSummary })
+      .update({ summary: generatedSummary })
       .eq("id", callId);
 
     if (updateError) throw updateError;
 
     return new Response(JSON.stringify({ 
-      summary: simpleSummary,
+      summary: generatedSummary,
       isExisting: false
     }), {
       status: 200,

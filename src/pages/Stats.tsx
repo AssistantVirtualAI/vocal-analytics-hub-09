@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -5,8 +6,9 @@ import { useCallStats } from '@/hooks/useCallStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
 import { mockData } from '@/mockData';
 import { OverviewTab } from '@/components/stats/OverviewTab';
-import { SatisfactionDistributionChart } from '@/components/stats/SatisfactionDistributionChart';
-import { SatisfactionLineChart } from '@/components/stats/SatisfactionLineChart';
+import { SatisfactionTab } from '@/components/stats/SatisfactionTab';
+import { AgentsTab } from '@/components/stats/AgentsTab';
+import { CustomersTab } from '@/components/stats/CustomersTab';
 
 export default function Stats() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -36,7 +38,7 @@ export default function Stats() {
     }))
     .slice(-14);
 
-  // Prepare satisfaction data
+  // Prepare satisfaction data from mock data
   const satisfactionData = Array(5).fill(0).map((_, i) => {
     const count = mockData.mockCalls.filter(call => call.satisfactionScore === i + 1).length;
     return {
@@ -76,126 +78,19 @@ export default function Stats() {
             <OverviewTab chartData={chartData} customerStats={customerStats || []} />
           </TabsContent>
           
-          <TabsContent value="satisfaction" className="space-y-4">
-            <SatisfactionDistributionChart data={satisfactionData} />
-            <SatisfactionLineChart data={satisfactionOverTime} />
+          <TabsContent value="satisfaction">
+            <SatisfactionTab 
+              satisfactionData={satisfactionData} 
+              satisfactionOverTime={satisfactionOverTime} 
+            />
           </TabsContent>
           
-          <TabsContent value="agents" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance des agents</CardTitle>
-                <CardDescription>Comparaison des performances d'agents par nombre d'appels et satisfaction</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={agentPerformance}
-                      layout="vertical"
-                      margin={{ top: 20, right: 30, left: 60, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis type="category" dataKey="name" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="calls" name="Nombre d'appels" fill="#7E69AB" />
-                      <Bar dataKey="satisfaction" name="Satisfaction (sur 5)" fill="#6E59A5" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Durée moyenne par agent</CardTitle>
-                <CardDescription>Durée moyenne des appels par agent</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={agentPerformance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => formatDuration(value)} />
-                      <Tooltip 
-                        formatter={(value: number) => [formatDuration(value), 'Durée moyenne']}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="avgDuration"
-                        name="Durée moyenne"
-                        fill="#9b87f5"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="agents">
+            <AgentsTab />
           </TabsContent>
           
-          <TabsContent value="customers" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Top clients par nombre d'appels</CardTitle>
-                <CardDescription>Les clients avec le plus grand nombre d'appels</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={customerStatsArray
-                        .sort((a, b) => b.totalCalls - a.totalCalls)
-                        .slice(0, 5)
-                      }
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="customerName" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar
-                        dataKey="totalCalls"
-                        name="Nombre d'appels"
-                        fill="#7E69AB"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Satisfaction par client</CardTitle>
-                <CardDescription>Niveau moyen de satisfaction par client</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={customerStatsArray}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="customerName" />
-                      <YAxis domain={[0, 5]} />
-                      <Tooltip 
-                        formatter={(value: number) => [`${value.toFixed(1)}/5`, 'Satisfaction moyenne']}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="avgSatisfaction"
-                        name="Satisfaction moyenne"
-                        fill="#E5DEFF"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="customers">
+            <CustomersTab data={customerStats || []} />
           </TabsContent>
         </Tabs>
       </div>

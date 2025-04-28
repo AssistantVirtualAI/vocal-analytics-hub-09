@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCallStats } from '@/hooks/useCallStats';
 import { useCustomerStats } from '@/hooks/useCustomerStats';
-import { mockData } from '@/mockData';
 import { OverviewTab } from '@/components/stats/OverviewTab';
 import { SatisfactionTab } from '@/components/stats/SatisfactionTab';
 import { AgentsTab } from '@/components/stats/AgentsTab';
 import { CustomersTab } from '@/components/stats/CustomersTab';
+import { StatsOverview } from '@/components/stats/StatsOverview';
 
 export default function Stats() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,22 +37,6 @@ export default function Stats() {
     }))
     .slice(-14);
 
-  // Prepare satisfaction data from mock data
-  const satisfactionData = Array(5).fill(0).map((_, i) => {
-    const count = mockData.mockCalls.filter(call => call.satisfactionScore === i + 1).length;
-    return {
-      score: `${i + 1} étoile${i > 0 ? 's' : ''}`,
-      count,
-      percentage: Math.round((count / mockData.mockCalls.length) * 100),
-    };
-  });
-
-  // Prepare satisfaction over time data
-  const satisfactionOverTime = chartData.map((day, i) => ({
-    ...day,
-    satisfaction: 3 + Math.sin(i / 2) * 0.5 + Math.random() * 0.5,
-  }));
-
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
@@ -65,6 +48,12 @@ export default function Stats() {
             </span>
           </div>
         </div>
+
+        <StatsOverview
+          totalCalls={callStats?.totalCalls || 0}
+          avgDuration={callStats?.avgDuration || 0}
+          avgSatisfaction={callStats?.avgSatisfaction || 0}
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid sm:inline-grid w-full sm:w-auto grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0">

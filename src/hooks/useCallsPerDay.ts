@@ -29,7 +29,7 @@ export const useCallsPerDay = (days = 14) => {
       
       try {
         // First attempt to use the RPC function if it exists
-        const { data: rpcData, error: rpcError } = await supabase.rpc<CallPerDayItem[]>(
+        const { data: rpcData, error: rpcError } = await supabase.rpc<CallPerDayItem[], GetCallsPerDayParams>(
           'get_calls_per_day',
           {
             start_date: formattedStartDate,

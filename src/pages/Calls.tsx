@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { Button } from '@/components/ui/button';
@@ -11,16 +10,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useCallsList } from '@/hooks/useCallsList';
-import { useToast } from '@/hooks/use-toast';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { FilterButton } from '@/components/calls/FilterButton';
 import { CallsList } from '@/components/calls/CallsList';
-import type { Call } from '@/types';
+import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 
 export default function Calls() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const { toast } = useToast();
+  const { currentlyPlaying, handlePlayToggle, formatDuration } = useAudioPlayback();
   
   const { data, isLoading, error } = useCallsList({
     limit: 50,
@@ -35,60 +32,6 @@ export default function Calls() {
       call.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       call.agentName.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const formatDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const togglePlayback = (call: Call) => {
-    const audioElement = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
-    
-    if (currentlyPlaying === call.id) {
-      audioElement.pause();
-      setCurrentlyPlaying(null);
-    } else {
-      if (currentlyPlaying) {
-        const currentAudio = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement;
-        if (currentAudio) {
-          currentAudio.pause();
-        }
-      }
-      
-      audioElement.play().catch(error => {
-        toast({
-          title: "Erreur de lecture",
-          description: "Impossible de lire l'audio. Veuillez réessayer.",
-          variant: "destructive"
-        });
-        console.error("Audio playback error:", error);
-      });
-      setCurrentlyPlaying(call.id);
-    }
-  };
-
-  useEffect(() => {
-    const handleAudioEnd = () => {
-      setCurrentlyPlaying(null);
-    };
-
-    calls.forEach(call => {
-      const audio = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
-      if (audio) {
-        audio.addEventListener('ended', handleAudioEnd);
-      }
-    });
-
-    return () => {
-      calls.forEach(call => {
-        const audio = document.getElementById(`audio-${call.id}`) as HTMLAudioElement;
-        if (audio) {
-          audio.removeEventListener('ended', handleAudioEnd);
-        }
-      });
-    };
-  }, [calls]);
 
   return (
     <DashboardLayout>
@@ -123,7 +66,7 @@ export default function Calls() {
               <CallsList 
                 calls={filteredCalls}
                 currentlyPlaying={currentlyPlaying}
-                onPlayToggle={togglePlayback}
+                onPlayToggle={handlePlayToggle}
                 formatDuration={formatDuration}
               />
             )}

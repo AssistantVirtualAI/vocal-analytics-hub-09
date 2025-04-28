@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -10,7 +9,7 @@ import { useCallsStats } from "@/hooks/useCallsStats";
 import { useCallsList } from "@/hooks/useCallsList";
 import { CallsToolbar } from "@/components/calls/CallsToolbar";
 import { StatCard } from "@/components/stats/StatCard";
-import { DateRange } from "@/components/ui/calendar";
+import { DateRange } from "@/types/calendar";
 import type { Call } from "@/types";
 
 export default function Dashboard() {

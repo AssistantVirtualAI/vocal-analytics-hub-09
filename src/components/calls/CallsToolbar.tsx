@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { SearchBar } from '@/components/calls/SearchBar';
 import { CallsFilter } from '@/components/calls/CallsFilter';
 import { FilterButton } from '@/components/calls/FilterButton';
-import { DateRange } from '@/components/ui/calendar';
+import { DateRange } from '@/types/calendar';
 
 interface CallsToolbarProps {
   searchQuery: string;

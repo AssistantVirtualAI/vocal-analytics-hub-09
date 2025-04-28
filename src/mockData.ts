@@ -111,3 +111,12 @@ export const mockCustomerStats: CustomerStats[] = mockCustomers.map(customer => 
     avgSatisfaction: customerCalls.reduce((sum, call) => sum + call.satisfactionScore, 0) / customerCalls.length,
   };
 });
+
+// Export all mock data in a single object for easier imports
+export const mockData = {
+  mockAgents,
+  mockCustomers,
+  mockCalls,
+  mockCallStats,
+  mockCustomerStats
+};

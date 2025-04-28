@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCallStats } from '@/hooks/useCallStats';
+import { useCustomerStats } from '@/hooks/useCustomerStats';
+import { mockData } from '@/mockData';
 import {
   BarChart,
   Bar,
@@ -33,7 +35,10 @@ const formatDuration = (seconds: number): string => {
 
 export default function Stats() {
   const [activeTab, setActiveTab] = useState('overview');
-  const { data: callStats, isLoading } = useCallStats();
+  const { data: callStats, isLoading: callStatsLoading } = useCallStats();
+  const { data: customerStats, isLoading: customerStatsLoading } = useCustomerStats();
+  
+  const isLoading = callStatsLoading || customerStatsLoading;
   
   if (isLoading) {
     return (
@@ -56,19 +61,19 @@ export default function Stats() {
     }))
     .slice(-14); // Last 14 days
   
-  // Prepare data for satisfaction distribution
+  // Use mockData for satisfaction distribution until we have real data
   const satisfactionData = Array(5).fill(0).map((_, i) => {
-    const count = mockCalls.filter(call => call.satisfactionScore === i + 1).length;
+    const count = mockData.mockCalls.filter(call => call.satisfactionScore === i + 1).length;
     return {
       score: `${i + 1} étoile${i > 0 ? 's' : ''}`,
       count,
-      percentage: Math.round((count / mockCalls.length) * 100),
+      percentage: Math.round((count / mockData.mockCalls.length) * 100),
     };
   });
   
-  // Prepare data for agent performance
-  const agentPerformance = mockAgents.map(agent => {
-    const agentCalls = mockCalls.filter(call => call.agentId === agent.id);
+  // Use mockData for agent performance until we have real data
+  const agentPerformance = mockData.mockAgents.map(agent => {
+    const agentCalls = mockData.mockCalls.filter(call => call.agentId === agent.id);
     const avgSatisfaction = agentCalls.length > 0 
       ? agentCalls.reduce((sum, call) => sum + call.satisfactionScore, 0) / agentCalls.length 
       : 0;
@@ -83,11 +88,12 @@ export default function Stats() {
     };
   }).sort((a, b) => b.calls - a.calls);
   
-  // Prepare data for customer distribution by call count
+  // Prepare data for customer distribution by call count with real customer stats
+  const customerStatsArray = customerStats || [];
   const customerCallDistribution = [
-    { name: '1-5 appels', value: mockCustomerStats.filter(c => c.totalCalls <= 5).length },
-    { name: '6-10 appels', value: mockCustomerStats.filter(c => c.totalCalls > 5 && c.totalCalls <= 10).length },
-    { name: '11+ appels', value: mockCustomerStats.filter(c => c.totalCalls > 10).length },
+    { name: '1-5 appels', value: customerStatsArray.filter(c => c.totalCalls <= 5).length },
+    { name: '6-10 appels', value: customerStatsArray.filter(c => c.totalCalls > 5 && c.totalCalls <= 10).length },
+    { name: '11+ appels', value: customerStatsArray.filter(c => c.totalCalls > 10).length },
   ].filter(item => item.value > 0);
 
   // Colors for pie chart
@@ -346,7 +352,7 @@ export default function Stats() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={mockCustomerStats
+                      data={customerStatsArray
                         .sort((a, b) => b.totalCalls - a.totalCalls)
                         .slice(0, 5)
                       }
@@ -376,7 +382,7 @@ export default function Stats() {
               <CardContent className="pl-2">
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockCustomerStats}>
+                    <BarChart data={customerStatsArray}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="customerName" />
                       <YAxis domain={[0, 5]} />

@@ -12,6 +12,8 @@ export const useCustomerStats = () => {
 
       if (error) throw error;
 
+      if (!customerStats) return [];
+      
       return customerStats.map((stat: any) => ({
         customerId: stat.customer_id,
         customerName: stat.customer_name,

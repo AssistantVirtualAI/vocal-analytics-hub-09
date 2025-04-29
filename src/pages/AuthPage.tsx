@@ -1,157 +1,237 @@
 
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showConfirmationHelp, setShowConfirmationHelp] = useState(false);
-  const { user, signIn, signUp } = useAuth();
+  const [activeTab, setActiveTab] = useState('signin');
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+  const [invitationEmail, setInvitationEmail] = useState<string | null>(null);
+  
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // If already logged in, redirect to home
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
+  // Parse query parameters
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('invitation');
+    const emailFromUrl = params.get('email');
+
+    if (token) {
+      setInvitationToken(token);
+      setActiveTab('signup');
+      
+      if (emailFromUrl) {
+        setInvitationEmail(emailFromUrl);
+        setEmail(emailFromUrl);
+      }
+    }
+  }, [user, navigate, location]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      if (isLogin) {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-        setIsLogin(true);
-        setShowConfirmationHelp(true);
-      }
-    } catch (error) {
-      console.error('Auth error:', error);
-      // Show confirmation help if there's any auth error during login
-      if (isLogin) {
-        setShowConfirmationHelp(true);
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      
+      // Successfully signed in, navigate to home page
+      navigate('/');
+    } catch (error: any) {
+      toast("Erreur de connexion: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNeedConfirmation = () => {
-    setShowConfirmationHelp(true);
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // Sign up the user
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`
+        }
+      });
+      
+      if (error) throw error;
+      
+      // If there's an invitation token, accept it
+      if (invitationToken && email) {
+        // Check if token is valid
+        const { data: invitationData, error: invitationError } = await supabase
+          .from('organization_invitations')
+          .select('*')
+          .eq('token', invitationToken)
+          .eq('email', email)
+          .eq('status', 'pending')
+          .single();
+
+        if (invitationError) {
+          console.error('Error validating invitation:', invitationError);
+        } else if (invitationData) {
+          // Valid invitation, mark it as accepted
+          const { error: updateError } = await supabase
+            .from('organization_invitations')
+            .update({ status: 'accepted' })
+            .eq('id', invitationData.id);
+
+          if (updateError) {
+            console.error('Error accepting invitation:', updateError);
+          }
+        }
+      }
+      
+      toast("Votre compte a été créé avec succès. Veuillez vérifier votre email pour confirmer votre inscription.");
+    } catch (error: any) {
+      toast("Erreur d'inscription: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-4">
-        <div className="flex justify-center mb-6">
-          <img 
-            src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" 
-            alt="Logo" 
-            className="h-12 w-auto" 
-          />
-        </div>
-        
-        {showConfirmationHelp && (
-          <Alert className="mb-4 bg-blue-50 border-blue-200">
-            <Info className="h-4 w-4 text-blue-500" />
-            <AlertDescription className="text-sm text-blue-700">
-              Si vous venez de vous inscrire, veuillez vérifier votre email pour confirmer votre compte. 
-              Consultez votre boîte de réception et vos spams.
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-blue-700 underline" 
-                onClick={() => setShowConfirmationHelp(false)}
-              >
-                Fermer
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl">
-              {isLogin ? 'Connexion' : 'Inscription'}
-            </CardTitle>
-            <CardDescription>
-              {isLogin 
-                ? 'Connectez-vous à votre compte pour accéder à votre tableau de bord.' 
-                : 'Créez un compte pour commencer à utiliser notre plateforme.'}
-            </CardDescription>
-          </CardHeader>
-          
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
+    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-xl text-center">
+            {invitationToken ? "Accepter l'invitation" : "Authentification"}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {invitationToken 
+              ? "Créez votre compte pour rejoindre l'organisation" 
+              : "Connectez-vous à votre compte ou créez-en un nouveau"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!invitationToken ? (
+            <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="signin">Se connecter</TabsTrigger>
+                <TabsTrigger value="signup">S'inscrire</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="signin">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <Input 
+                      id="signin-email" 
+                      type="email" 
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Mot de passe</Label>
+                    <Input 
+                      id="signin-password" 
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Connexion..." : "Se connecter"}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="signup">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input 
+                      id="signup-email" 
+                      type="email" 
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required
+                      disabled={!!invitationEmail}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Input 
+                      id="signup-password" 
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Création..." : "Créer un compte"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="invitation-email">Email</Label>
                 <Input 
-                  id="email" 
+                  id="invitation-email" 
                   type="email" 
-                  placeholder="votre@email.com" 
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)} 
                   required
+                  disabled={!!invitationEmail}
                 />
               </div>
-              
               <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="invitation-password">Mot de passe</Label>
                 <Input 
-                  id="password" 
-                  type="password" 
+                  id="invitation-password" 
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
-            </CardContent>
-            
-            <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={loading}
-              >
-                {loading 
-                  ? 'Chargement...' 
-                  : isLogin ? 'Se connecter' : 'S\'inscrire'}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Acceptation..." : "Accepter l'invitation"}
               </Button>
-              
-              <Button 
-                type="button" 
-                variant="link" 
-                className="w-full" 
-                onClick={() => setIsLogin(!isLogin)}
-              >
-                {isLogin 
-                  ? "Vous n'avez pas de compte ? S'inscrire" 
-                  : 'Déjà un compte ? Se connecter'}
-              </Button>
-              
-              {isLogin && (
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  className="w-full text-sm text-gray-500" 
-                  onClick={handleNeedConfirmation}
-                >
-                  Problème de confirmation d'email ?
-                </Button>
-              )}
-            </CardFooter>
-          </form>
-        </Card>
-      </div>
+            </form>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-500">
+            © {new Date().getFullYear()} Votre application
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
-}
+};
+
+export default AuthPage;

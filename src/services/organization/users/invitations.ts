@@ -54,13 +54,19 @@ export const resendInvitation = async (email: string, organizationId: string): P
       // Continue even if deletion fails (might not exist)
     }
 
-    // Create a new invitation
+    // Create a new invitation with a token
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // Token valid for 24 hours
+
     const { error: createError } = await supabase
       .from('organization_invitations')
       .insert({
         email,
         organization_id: organizationId,
-        status: 'pending'
+        status: 'pending',
+        token: token,
+        expires_at: expiresAt.toISOString()
       });
       
     if (createError) {
@@ -68,10 +74,30 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw createError;
     }
 
-    // Instead of using the admin API, we'll just show a success message
-    // and inform the user that the invitation has been refreshed in the database
-    console.log('Invitation refreshed successfully for:', email);
-    toast(`L'invitation pour ${email} a été rafraîchie. Un email sera envoyé automatiquement par le système.`);
+    // Build the invitation URL
+    const invitationUrl = `${window.location.origin}/auth?invitation=${token}&email=${encodeURIComponent(email)}`;
+    
+    // Send the email via our edge function
+    const response = await fetch(`${window.location.origin}/functions/v1/send-invitation-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabase.auth.getSession() ? (await supabase.auth.getSession()).data.session?.access_token : ''}`
+      },
+      body: JSON.stringify({
+        email,
+        organizationName: organizationData?.name || 'Notre organisation',
+        invitationUrl
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to send invitation email: ${errorData.error || response.statusText}`);
+    }
+
+    console.log('Invitation email sent successfully');
+    toast(`L'invitation a été envoyée à ${email}`);
   } catch (error: any) {
     console.error('Error in resendInvitation:', error);
     toast("Erreur lors du renvoi de l'invitation: " + error.message);

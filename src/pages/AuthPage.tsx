@@ -7,12 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showConfirmationHelp, setShowConfirmationHelp] = useState(false);
   const { user, signIn, signUp } = useAuth();
 
   // If already logged in, redirect to home
@@ -30,12 +33,21 @@ export default function AuthPage() {
       } else {
         await signUp(email, password);
         setIsLogin(true);
+        setShowConfirmationHelp(true);
       }
     } catch (error) {
       console.error('Auth error:', error);
+      // Show confirmation help if there's any auth error during login
+      if (isLogin) {
+        setShowConfirmationHelp(true);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNeedConfirmation = () => {
+    setShowConfirmationHelp(true);
   };
 
   return (
@@ -48,6 +60,23 @@ export default function AuthPage() {
             className="h-12 w-auto" 
           />
         </div>
+        
+        {showConfirmationHelp && (
+          <Alert className="mb-4 bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-sm text-blue-700">
+              Si vous venez de vous inscrire, veuillez vérifier votre email pour confirmer votre compte. 
+              Consultez votre boîte de réception et vos spams.
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-blue-700 underline" 
+                onClick={() => setShowConfirmationHelp(false)}
+              >
+                Fermer
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Card className="w-full">
           <CardHeader>
@@ -108,6 +137,17 @@ export default function AuthPage() {
                   ? "Vous n'avez pas de compte ? S'inscrire" 
                   : 'Déjà un compte ? Se connecter'}
               </Button>
+              
+              {isLogin && (
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full text-sm text-gray-500" 
+                  onClick={handleNeedConfirmation}
+                >
+                  Problème de confirmation d'email ?
+                </Button>
+              )}
             </CardFooter>
           </form>
         </Card>

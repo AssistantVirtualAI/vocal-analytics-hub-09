@@ -85,8 +85,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      navigate('/');
+      if (error) {
+        // Special case for "Email not confirmed" error
+        if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
+          toast("Veuillez vérifier votre email pour confirmer votre inscription. Consultez votre boîte de réception et vos spams.");
+          
+          // Send another confirmation email
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email,
+          });
+          
+          if (!resendError) {
+            toast("Un nouvel email de confirmation vous a été envoyé.");
+          }
+        } else {
+          // Handle other errors
+          throw error;
+        }
+      } else {
+        navigate('/');
+        toast("Connexion réussie!");
+      }
     } catch (error: any) {
       toast("Erreur de connexion: " + error.message);
       throw error;
@@ -95,7 +115,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + '/auth' // Ensure redirect goes back to auth page
+        }
+      });
       if (error) throw error;
       toast("Inscription réussie. Veuillez vérifier votre email pour confirmer votre inscription.");
     } catch (error: any) {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserX, RefreshCw, KeyRound, ShieldCheck, Shield } from 'lucide-react';
@@ -46,6 +47,11 @@ export const UserActions = ({
   }, [user]);
   
   const handleResendInvitation = async () => {
+    if (!user.email) {
+      toast.error("Adresse email non disponible");
+      return;
+    }
+    
     setLocalLoading(true);
     console.log("Resending invitation for:", user.email);
     try {

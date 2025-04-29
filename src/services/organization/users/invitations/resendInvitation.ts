@@ -32,6 +32,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
     const invitationId = invitations[0].id;
     console.log(`Updating invitation ${invitationId}`);
 
+    // Use maybeSingle() instead of single() to handle the case where no rows are returned
     const { data: updatedInvitation, error: updateError } = await supabase
       .from('organization_invitations')
       .update({
@@ -39,7 +40,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
       })
       .eq('id', invitationId)
       .select('token')
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       console.error('Error refreshing invitation:', updateError);
@@ -61,7 +62,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
       .from('organizations')
       .select('name')
       .eq('id', organizationId)
-      .single();
+      .maybeSingle();
 
     if (orgError) {
       console.error('Error retrieving organization name:', orgError);

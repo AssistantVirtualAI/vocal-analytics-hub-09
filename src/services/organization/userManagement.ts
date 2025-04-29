@@ -8,20 +8,10 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
   try {
     console.log(`Fetching users for organization: ${organizationId}`);
     
-    // First, get profiles of users in the organization using a direct join
+    // First, get user IDs in the organization
     const { data: userOrgData, error: userOrgError } = await supabase
       .from('user_organizations')
-      .select(`
-        user_id,
-        organization_id,
-        profiles:user_id(
-          id,
-          email,
-          display_name,
-          avatar_url,
-          created_at
-        )
-      `)
+      .select('user_id')
       .eq('organization_id', organizationId);
 
     if (userOrgError) {
@@ -29,17 +19,73 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       throw userOrgError;
     }
 
+    const userIds = userOrgData.map(item => item.user_id);
+    
+    // If no users in the organization, just return pending invitations
+    if (userIds.length === 0) {
+      console.log('No users found in organization, checking for pending invitations');
+      return await fetchPendingInvitations(organizationId);
+    }
+
+    // Get the user profiles
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+      
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError);
+      throw profilesError;
+    }
+
     // Get the user roles to determine admin status
     const { data: rolesData, error: rolesError } = await supabase
       .from('user_roles')
-      .select('*');
+      .select('*')
+      .in('user_id', userIds);
 
     if (rolesError) {
       console.error('Error fetching user roles:', rolesError);
       throw rolesError;
     }
 
-    // Then, get pending invitations
+    // Format active users
+    const activeUsers: OrganizationUser[] = [];
+    
+    if (profilesData) {
+      for (const profile of profilesData) {
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+        const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+        
+        activeUsers.push({
+          id: profile.id,
+          email: profile.email || '',
+          displayName: profile.display_name || '',
+          avatarUrl: profile.avatar_url || '',
+          role: role as 'admin' | 'user',
+          createdAt: profile.created_at || new Date().toISOString(),
+          isPending: false
+        });
+      }
+    }
+
+    // Get pending invitations
+    const pendingUsers = await fetchPendingInvitations(organizationId);
+    
+    console.log(`Found ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
+    
+    // Combine active users and pending invitations
+    return [...activeUsers, ...pendingUsers];
+  } catch (error) {
+    console.error('Error in fetchOrganizationUsers:', error);
+    throw error;
+  }
+};
+
+// Helper function to fetch pending invitations
+const fetchPendingInvitations = async (organizationId: string): Promise<OrganizationUser[]> => {
+  try {
+    // Get pending invitations
     const { data: invitationsData, error: invitationsError } = await supabase
       .from('organization_invitations')
       .select('*')
@@ -51,31 +97,8 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       throw invitationsError;
     }
 
-    // Format active users
-    const activeUsers: OrganizationUser[] = [];
-    
-    if (userOrgData) {
-      for (const item of userOrgData) {
-        if (item.profiles) {
-          const profile = item.profiles;
-          const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-          const role = userRoles.length > 0 ? userRoles[0].role : 'user';
-          
-          activeUsers.push({
-            id: profile.id,
-            email: profile.email || '',
-            displayName: profile.display_name || '',
-            avatarUrl: profile.avatar_url || '',
-            role: role as 'admin' | 'user',
-            createdAt: profile.created_at || new Date().toISOString(),
-            isPending: false
-          });
-        }
-      }
-    }
-
     // Format pending invitations
-    const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invitation => ({
+    return (invitationsData || []).map(invitation => ({
       id: invitation.id,
       email: invitation.email,
       displayName: invitation.email.split('@')[0] || '',
@@ -84,14 +107,9 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       createdAt: invitation.created_at,
       isPending: true
     }));
-
-    console.log(`Found ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
-    
-    // Combine active users and pending invitations
-    return [...activeUsers, ...pendingUsers];
   } catch (error) {
-    console.error('Error in fetchOrganizationUsers:', error);
-    throw error;
+    console.error('Error fetching pending invitations:', error);
+    return [];
   }
 };
 

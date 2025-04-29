@@ -112,7 +112,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
       invitationUrl
     });
     
-    // Attempt to send invitation email with better error handling
+    // Improved error handling for edge function
     try {
       const { data, error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
@@ -129,26 +129,45 @@ export const resendInvitation = async (email: string, organizationId: string): P
         throw edgeFunctionError;
       } 
       
-      // Fix: Handle different error response formats properly
+      // Fix: Better handling for edge function responses with errors
       if (data && data.error) {
         console.error('Edge function returned an error:', data.error);
         
-        // Fix: Check if error is an object or string and handle accordingly
-        const errorMessage = typeof data.error === 'object' ? 
-          (data.error.message || JSON.stringify(data.error)) : 
-          String(data.error);
+        // Better error object handling
+        let errorMessage = "Erreur inconnue";
         
-        // Handle Resend validation errors specifically
-        if (typeof errorMessage === 'string' && errorMessage.includes("verify a domain")) {
+        if (typeof data.error === 'object' && data.error !== null) {
+          // Handle Resend API error object format
+          if (data.error.message) {
+            errorMessage = data.error.message;
+          } else {
+            errorMessage = JSON.stringify(data.error);
+          }
+        } else if (typeof data.error === 'string') {
+          errorMessage = data.error;
+        }
+        
+        // Handle known error types with user-friendly messages
+        if (errorMessage.includes("verify a domain") || 
+            errorMessage.includes("change the `from` address")) {
           toast.error("L'email n'a pas pu être envoyé: Vous devez vérifier un domaine dans Resend et utiliser ce domaine comme adresse d'expéditeur.");
+        } else if (errorMessage.includes("rate limit")) {
+          toast.error("Limite d'envoi d'emails atteinte. Veuillez réessayer plus tard.");
         } else {
           toast.error(`Erreur du serveur: ${errorMessage}`);
         }
+        
         throw new Error(errorMessage);
-      } else {
-        console.log('Email function response:', data);
-        toast.success("Email d'invitation envoyé avec succès.");
       }
+      
+      if (!data || !data.success) {
+        console.error('Unexpected edge function response format:', data);
+        toast.error("Format de réponse inattendu du serveur.");
+        throw new Error("Unexpected edge function response format");
+      }
+      
+      console.log('Email function response:', data);
+      toast.success("Email d'invitation envoyé avec succès.");
     } catch (emailError: any) {
       console.error('Error sending invitation email:', emailError);
       

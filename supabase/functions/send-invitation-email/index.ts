@@ -80,10 +80,12 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("Email sent successfully:", emailResponse);
 
+      // Improved error handling for Resend API responses
       if (emailResponse.error) {
+        console.error("Resend API error:", emailResponse.error);
         return new Response(
           JSON.stringify({ 
-            error: emailResponse.error.message || "Erreur lors de l'envoi de l'email"
+            error: emailResponse.error 
           }),
           {
             status: 400,
@@ -92,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      return new Response(JSON.stringify(emailResponse), {
+      return new Response(JSON.stringify({ success: true, data: emailResponse }), {
         status: 200,
         headers: {
           "Content-Type": "application/json",

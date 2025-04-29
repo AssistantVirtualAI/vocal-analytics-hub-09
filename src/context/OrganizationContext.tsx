@@ -15,7 +15,7 @@ import {
   removeUserFromOrganization as removeUser,
   setUserRole as setRole,
   fetchOrganizationUsers as fetchOrgUsers
-} from '@/services/organizationService';
+} from '@/services/organization';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 
 interface OrganizationContextType {

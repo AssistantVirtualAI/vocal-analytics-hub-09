@@ -30,7 +30,19 @@ export const resendInvitation = async (email: string, organizationId: string): P
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
-    // First, check if invitation exists
+    // First, check if invitation exists and get the organization details for the email
+    const { data: organizationData, error: orgError } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single();
+      
+    if (orgError) {
+      console.error('Error retrieving organization:', orgError);
+      throw orgError;
+    }
+
+    // Check if the invitation exists
     const { data: invitationData, error: invitationError } = await supabase
       .from('organization_invitations')
       .select('id')
@@ -43,9 +55,9 @@ export const resendInvitation = async (email: string, organizationId: string): P
       console.error('Error checking invitation:', invitationError);
       throw invitationError;
     }
-    
+
+    // If no invitation found, create a new one
     if (!invitationData) {
-      // No invitation found, create a new one
       const { error: createError } = await supabase
         .from('organization_invitations')
         .insert({
@@ -60,13 +72,23 @@ export const resendInvitation = async (email: string, organizationId: string): P
       }
     }
     
-    // For now, this is a placeholder that will be replaced with actual email sending logic
-    // We're just showing a toast message to confirm the action was triggered
-    toast(`Invitation renvoyée à ${email}`);
+    // Send the actual email via Supabase Auth API's invite user functionality
+    // This will send a magic link to the user to set up their account
+    const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: {
+        organization_id: organizationId,
+        organization_name: organizationData?.name || 'Notre organisation'
+      },
+      redirectTo: `${window.location.origin}/auth?org=${organizationId}`
+    });
     
-    // In a real implementation, you would call an API endpoint or edge function to send the email
-    // For example:
-    // await supabase.functions.invoke('resend-invitation', { body: { email, organizationId } });
+    if (authError) {
+      console.error('Error sending invitation email:', authError);
+      throw authError;
+    }
+    
+    console.log('Invitation email sent successfully:', authData);
+    toast(`Invitation renvoyée à ${email}`);
   } catch (error: any) {
     console.error('Error in resendInvitation:', error);
     toast("Erreur lors du renvoi de l'invitation: " + error.message);

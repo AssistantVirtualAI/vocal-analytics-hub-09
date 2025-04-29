@@ -29,8 +29,19 @@ export const UserActions = ({
   onResendInvitation,
   onResetPassword
 }: UserActionsProps) => {
+  const [localLoading, setLocalLoading] = useState(false);
+  
   // Log for debugging
   console.log("UserActions - Processing user:", user.email, "isPending:", user.isPending);
+  
+  const handleResendInvitation = async () => {
+    setLocalLoading(true);
+    try {
+      await onResendInvitation(user.email);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
   
   if (user.isPending) {
     return (
@@ -38,17 +49,21 @@ export const UserActions = ({
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={() => onResendInvitation(user.email)}
-          disabled={actionLoading}
+          onClick={handleResendInvitation}
+          disabled={actionLoading || localLoading}
         >
-          <RefreshCw className="h-4 w-4 mr-1" />
+          {(actionLoading || localLoading) ? (
+            <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-1" />
+          )}
           Renvoyer
         </Button>
         <Button 
           variant="destructive" 
           size="sm" 
           onClick={() => onCancelInvitation(user.id)}
-          disabled={actionLoading}
+          disabled={actionLoading || localLoading}
         >
           <UserX className="h-4 w-4 mr-1" />
           Annuler
@@ -60,14 +75,14 @@ export const UserActions = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={actionLoading || user.id === currentUserId}>
+        <Button variant="outline" size="sm" disabled={actionLoading || localLoading || user.id === currentUserId}>
           Actions
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem 
           onClick={() => onResetPassword(user.email)}
-          disabled={actionLoading}
+          disabled={actionLoading || localLoading}
         >
           <KeyRound className="h-4 w-4 mr-2" />
           Réinitialiser mot de passe
@@ -75,7 +90,7 @@ export const UserActions = ({
         <DropdownMenuItem 
           className="text-destructive"
           onClick={() => onRemoveUser(user.id)}
-          disabled={actionLoading || user.id === currentUserId}
+          disabled={actionLoading || localLoading || user.id === currentUserId}
         >
           <UserX className="h-4 w-4 mr-2" />
           Retirer de l'organisation

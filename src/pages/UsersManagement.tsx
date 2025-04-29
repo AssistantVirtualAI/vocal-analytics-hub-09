@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
-import { OrganizationUser } from '@/types/organization';
+import { OrganizationUser, OrganizationInvitation } from '@/types/organization';
 import { toast } from 'sonner';
 import {
   Select,
@@ -207,6 +207,26 @@ export default function UsersManagement() {
     }
   };
 
+  const cancelInvitation = async (invitationId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('organization_invitations')
+        .delete()
+        .eq('id', invitationId);
+
+      if (error) throw error;
+
+      toast("L'invitation a été annulée avec succès.");
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error canceling invitation:', error);
+      toast("Erreur lors de l'annulation de l'invitation: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeUserRole = async (userId: string, newRole: 'admin' | 'user') => {
     setLoading(true);
     try {
@@ -254,14 +274,10 @@ export default function UsersManagement() {
 
   return (
     <DashboardLayout>
-      
-      
       <div className="container p-4 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
           <h1 className="text-2xl sm:text-3xl font-bold">Gestion des utilisateurs</h1>
         </div>
-
-        
 
         <Card>
           <CardHeader>

@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Organization, OrganizationUser } from '@/types/organization';
+import { Organization, OrganizationUser, OrganizationInvitation } from '@/types/organization';
 import { DEFAULT_ORGANIZATION_ID } from '@/config/organizations';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -144,6 +144,15 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) throw error;
 
+      // Get pending invitations
+      const { data: invitationsData, error: invitationsError } = await supabase
+        .from('organization_invitations')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+
+      if (invitationsError) throw invitationsError;
+
       // Make sure data is not null and properly structured
       const formattedUsers: OrganizationUser[] = (data || [])
         .filter(item => item && typeof item === 'object' && item.profiles)
@@ -166,7 +175,17 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         })
         .filter((user): user is OrganizationUser => user !== null);
 
-      setUsers(formattedUsers);
+      // Add pending invitations to the list
+      const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
+        id: invite.id,
+        email: invite.email,
+        displayName: invite.email.split('@')[0] || '',
+        role: 'user' as const,
+        createdAt: invite.created_at,
+        isPending: true
+      }));
+
+      setUsers([...formattedUsers, ...pendingUsers]);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);

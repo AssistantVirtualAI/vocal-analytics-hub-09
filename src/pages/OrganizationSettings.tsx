@@ -30,7 +30,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
-import { Organization } from '@/types/organization';
+import { Organization, OrganizationInvitation } from '@/types/organization';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -48,7 +48,7 @@ export default function OrganizationSettings() {
   });
   const [newUserEmail, setNewUserEmail] = useState('');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
-  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<OrganizationInvitation[]>([]);
 
   const handleAddOrganization = async () => {
     await createOrganization(newOrg);
@@ -85,6 +85,13 @@ export default function OrganizationSettings() {
     }
   };
 
+  const handleRemoveUser = async (userId: string) => {
+    if (currentOrganization) {
+      await removeUserFromOrganization(userId, currentOrganization.id);
+      await fetchOrganizationUsers(currentOrganization.id);
+    }
+  };
+
   const handleCancelInvitation = async (invitationId: string) => {
     try {
       const { error } = await supabase
@@ -111,7 +118,16 @@ export default function OrganizationSettings() {
         .eq('status', 'pending');
         
       if (error) throw error;
-      setPendingInvitations(data || []);
+      
+      const formattedInvitations: OrganizationInvitation[] = (data || []).map(invite => ({
+        id: invite.id,
+        email: invite.email,
+        organizationId: invite.organization_id,
+        status: invite.status as 'pending' | 'accepted' | 'rejected',
+        createdAt: invite.created_at
+      }));
+      
+      setPendingInvitations(formattedInvitations);
     } catch (error: any) {
       console.error('Error fetching invitations:', error);
     }

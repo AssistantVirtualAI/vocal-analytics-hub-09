@@ -38,6 +38,9 @@ export const UserActions = ({
     setLocalLoading(true);
     try {
       await onResendInvitation(user.email);
+      console.log("Invitation resent successfully for:", user.email);
+    } catch (error) {
+      console.error("Error resending invitation:", error);
     } finally {
       setLocalLoading(false);
     }

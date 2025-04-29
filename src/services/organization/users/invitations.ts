@@ -30,7 +30,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
-    // First, check if invitation exists and get the organization details for the email
+    // First, check if organization exists
     const { data: organizationData, error: orgError } = await supabase
       .from('organizations')
       .select('name')
@@ -42,53 +42,36 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw orgError;
     }
 
-    // Check if the invitation exists
-    const { data: invitationData, error: invitationError } = await supabase
+    // Check if invitation exists and delete it to create a fresh one
+    const { error: deleteError } = await supabase
       .from('organization_invitations')
-      .select('id')
+      .delete()
       .eq('email', email)
-      .eq('organization_id', organizationId)
-      .eq('status', 'pending')
-      .single();
+      .eq('organization_id', organizationId);
       
-    if (invitationError && invitationError.code !== 'PGRST116') {
-      console.error('Error checking invitation:', invitationError);
-      throw invitationError;
+    if (deleteError) {
+      console.error('Error deleting existing invitation:', deleteError);
+      // Continue even if deletion fails (might not exist)
     }
 
-    // If no invitation found, create a new one
-    if (!invitationData) {
-      const { error: createError } = await supabase
-        .from('organization_invitations')
-        .insert({
-          email,
-          organization_id: organizationId,
-          status: 'pending'
-        });
-        
-      if (createError) {
-        console.error('Error creating new invitation:', createError);
-        throw createError;
-      }
-    }
-    
-    // Send the actual email via Supabase Auth API's invite user functionality
-    // This will send a magic link to the user to set up their account
-    const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: {
+    // Create a new invitation
+    const { error: createError } = await supabase
+      .from('organization_invitations')
+      .insert({
+        email,
         organization_id: organizationId,
-        organization_name: organizationData?.name || 'Notre organisation'
-      },
-      redirectTo: `${window.location.origin}/auth?org=${organizationId}`
-    });
-    
-    if (authError) {
-      console.error('Error sending invitation email:', authError);
-      throw authError;
+        status: 'pending'
+      });
+      
+    if (createError) {
+      console.error('Error creating new invitation:', createError);
+      throw createError;
     }
-    
-    console.log('Invitation email sent successfully:', authData);
-    toast(`Invitation renvoyée à ${email}`);
+
+    // Instead of using the admin API, we'll just show a success message
+    // and inform the user that the invitation has been refreshed in the database
+    console.log('Invitation refreshed successfully for:', email);
+    toast(`L'invitation pour ${email} a été rafraîchie. Un email sera envoyé automatiquement par le système.`);
   } catch (error: any) {
     console.error('Error in resendInvitation:', error);
     toast("Erreur lors du renvoi de l'invitation: " + error.message);

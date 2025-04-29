@@ -83,27 +83,31 @@ const AuthPage = () => {
       
       // If there's an invitation token, accept it
       if (invitationToken && email) {
-        // Check if token is valid
-        const { data: invitationData, error: invitationError } = await supabase
-          .from('organization_invitations')
-          .select('*')
-          .eq('token', invitationToken)
-          .eq('email', email)
-          .eq('status', 'pending')
-          .single();
-
-        if (invitationError) {
-          console.error('Error validating invitation:', invitationError);
-        } else if (invitationData) {
-          // Valid invitation, mark it as accepted
-          const { error: updateError } = await supabase
+        try {
+          // Check if token is valid
+          const { data: invitationData, error: invitationError } = await supabase
             .from('organization_invitations')
-            .update({ status: 'accepted' })
-            .eq('id', invitationData.id);
+            .select('*')
+            .eq('token', invitationToken)
+            .eq('email', email)
+            .eq('status', 'pending')
+            .single();
 
-          if (updateError) {
-            console.error('Error accepting invitation:', updateError);
+          if (invitationError) {
+            console.error('Error validating invitation:', invitationError);
+          } else if (invitationData) {
+            // Valid invitation, mark it as accepted
+            const { error: updateError } = await supabase
+              .from('organization_invitations')
+              .update({ status: 'accepted' })
+              .eq('id', invitationData.id);
+
+            if (updateError) {
+              console.error('Error accepting invitation:', updateError);
+            }
           }
+        } catch (inviteError) {
+          console.error('Error processing invitation:', inviteError);
         }
       }
       

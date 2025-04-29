@@ -54,35 +54,34 @@ export const resendInvitation = async (email: string, organizationId: string): P
       // Continue even if deletion fails (might not exist)
     }
 
-    // Create a new invitation with a token
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Token valid for 24 hours
-
-    const { error: createError } = await supabase
+    // Create a new invitation - the token and expiry will be set by the trigger
+    const { data: inviteData, error: createError } = await supabase
       .from('organization_invitations')
       .insert({
         email,
         organization_id: organizationId,
-        status: 'pending',
-        token: token,
-        expires_at: expiresAt.toISOString()
-      });
+        status: 'pending'
+      })
+      .select('token')
+      .single();
       
     if (createError) {
       console.error('Error creating new invitation:', createError);
       throw createError;
     }
 
-    // Build the invitation URL
-    const invitationUrl = `${window.location.origin}/auth?invitation=${token}&email=${encodeURIComponent(email)}`;
+    if (!inviteData?.token) {
+      throw new Error("No token generated for invitation");
+    }
+
+    // Build the invitation URL with the token
+    const invitationUrl = `${window.location.origin}/auth?invitation=${inviteData.token}&email=${encodeURIComponent(email)}`;
     
     // Send the email via our edge function
     const response = await fetch(`${window.location.origin}/functions/v1/send-invitation-email`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.auth.getSession() ? (await supabase.auth.getSession()).data.session?.access_token : ''}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         email,

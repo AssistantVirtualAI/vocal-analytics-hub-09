@@ -21,7 +21,9 @@ export const useOrganizationInvitations = (organizationId: string | null) => {
         email: invite.email,
         organizationId: invite.organization_id,
         status: invite.status as 'pending' | 'accepted' | 'rejected',
-        createdAt: invite.created_at
+        createdAt: invite.created_at,
+        token: invite.token || undefined,
+        expiresAt: invite.expires_at || undefined
       }));
       
       setPendingInvitations(formattedInvitations);

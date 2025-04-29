@@ -43,4 +43,6 @@ export interface OrganizationInvitation {
   organizationId: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
+  token?: string;
+  expiresAt?: string;
 }

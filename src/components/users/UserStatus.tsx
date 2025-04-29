@@ -15,12 +15,20 @@ export const UserStatus = ({ user }: UserStatusProps) => {
     );
   }
   
-  return null;
+  return (
+    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+      Actif
+    </Badge>
+  );
 };
 
 export const UserRole = ({ user }: UserStatusProps) => {
   if (user.isPending) {
-    return null;
+    return (
+      <span className="text-xs text-gray-500">
+        (En attente)
+      </span>
+    );
   }
   
   return (

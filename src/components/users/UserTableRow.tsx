@@ -3,6 +3,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
 import { UserStatus, UserRole } from './UserStatus';
 import { UserActions } from './UserActions';
+import { useEffect } from 'react';
 
 interface UserTableRowProps {
   user: OrganizationUser;
@@ -24,7 +25,9 @@ export const UserTableRow = ({
   onResetPassword
 }: UserTableRowProps) => {
   // Log for debugging
-  console.log("UserTableRow - Rendering user:", user.email);
+  useEffect(() => {
+    console.log("UserTableRow - Rendering user:", user);
+  }, [user]);
   
   return (
     <TableRow key={user.id}>

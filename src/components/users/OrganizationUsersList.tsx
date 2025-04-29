@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
 import { useAuth } from '@/context/AuthContext';
@@ -29,11 +29,21 @@ export const OrganizationUsersList = ({
 }: OrganizationUsersListProps) => {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
+  const [userCount, setUserCount] = useState(0);
   
-  // Log for debugging
-  console.log("OrganizationUsersList - Current users:", users);
-  console.log("OrganizationUsersList - Organization ID:", organizationId);
-  console.log("OrganizationUsersList - Current auth user:", user);
+  useEffect(() => {
+    // Track changes to user count for debugging
+    if (users.length !== userCount) {
+      console.log(`OrganizationUsersList - User count changed from ${userCount} to ${users.length}`);
+      console.log("Current users:", users);
+      setUserCount(users.length);
+    }
+  }, [users, userCount]);
+
+  // Log when loading changes
+  useEffect(() => {
+    console.log(`OrganizationUsersList - Loading state: ${loading}`);
+  }, [loading]);
 
   const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId) {
@@ -107,22 +117,27 @@ export const OrganizationUsersList = ({
         <UserTableSkeleton />
       ) : (
         <TableBody>
-          {users.map((userItem) => (
-            <UserTableRow
-              key={userItem.id}
-              user={userItem}
-              currentUserId={user?.id}
-              actionLoading={actionLoading}
-              onRemoveUser={handleRemoveUserFromOrg}
-              onCancelInvitation={handleCancelInvitation}
-              onResendInvitation={handleResendInvitation}
-              onResetPassword={handleResetPassword}
-            />
-          ))}
-          {users.length === 0 && (
+          {users.length > 0 ? (
+            users.map((userItem) => (
+              <UserTableRow
+                key={userItem.id}
+                user={userItem}
+                currentUserId={user?.id}
+                actionLoading={actionLoading}
+                onRemoveUser={handleRemoveUserFromOrg}
+                onCancelInvitation={handleCancelInvitation}
+                onResendInvitation={handleResendInvitation}
+                onResetPassword={handleResetPassword}
+              />
+            ))
+          ) : (
             <TableRow>
               <TableCell colSpan={5} className="text-center py-8">
-                Aucun utilisateur dans cette organisation
+                {loading ? (
+                  "Chargement des utilisateurs..."
+                ) : (
+                  "Aucun utilisateur dans cette organisation"
+                )}
               </TableCell>
             </TableRow>
           )}

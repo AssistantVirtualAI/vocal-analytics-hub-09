@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 // Fetch users for a specific organization
 export const fetchOrganizationUsers = async (organizationId: string): Promise<OrganizationUser[]> => {
   try {
-    console.log(`Fetching users for organization: ${organizationId}`);
+    console.log(`[fetchOrganizationUsers] Starting fetch for organization: ${organizationId}`);
     
     // First, get user IDs in the organization
     const { data: userOrgData, error: userOrgError } = await supabase
@@ -15,17 +15,19 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       .eq('organization_id', organizationId);
 
     if (userOrgError) {
-      console.error('Error fetching user_organizations:', userOrgError);
+      console.error('[fetchOrganizationUsers] Error fetching user_organizations:', userOrgError);
       throw userOrgError;
     }
 
     const userIds = userOrgData?.map(item => item.user_id) || [];
-    console.log(`Found ${userIds.length} users in organization`);
+    console.log(`[fetchOrganizationUsers] Found ${userIds.length} users in organization:`, userIds);
     
     // If no users in the organization, just return pending invitations
     if (userIds.length === 0) {
-      console.log('No users found in organization, checking for pending invitations');
-      return await fetchPendingInvitations(organizationId);
+      console.log('[fetchOrganizationUsers] No users found in organization, checking for pending invitations');
+      const pendingUsers = await fetchPendingInvitations(organizationId);
+      console.log(`[fetchOrganizationUsers] Found ${pendingUsers.length} pending invitations`);
+      return pendingUsers;
     }
 
     // Get the user profiles
@@ -35,11 +37,11 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       .in('id', userIds);
       
     if (profilesError) {
-      console.error('Error fetching user profiles:', profilesError);
+      console.error('[fetchOrganizationUsers] Error fetching user profiles:', profilesError);
       throw profilesError;
     }
 
-    console.log(`Fetched ${profilesData?.length || 0} user profiles`);
+    console.log(`[fetchOrganizationUsers] Fetched ${profilesData?.length || 0} user profiles:`, profilesData);
 
     // Get the user roles to determine admin status
     const { data: rolesData, error: rolesError } = await supabase
@@ -48,9 +50,11 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       .in('user_id', userIds);
 
     if (rolesError) {
-      console.error('Error fetching user roles:', rolesError);
+      console.error('[fetchOrganizationUsers] Error fetching user roles:', rolesError);
       throw rolesError;
     }
+
+    console.log(`[fetchOrganizationUsers] Fetched ${rolesData?.length || 0} user roles`);
 
     // Format active users
     const activeUsers: OrganizationUser[] = [];
@@ -75,12 +79,12 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     // Get pending invitations
     const pendingUsers = await fetchPendingInvitations(organizationId);
     
-    console.log(`Found ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
+    console.log(`[fetchOrganizationUsers] Result: ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
     
     // Combine active users and pending invitations
     return [...activeUsers, ...pendingUsers];
   } catch (error: any) {
-    console.error('Error in fetchOrganizationUsers:', error);
+    console.error('[fetchOrganizationUsers] Error in fetchOrganizationUsers:', error);
     toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     throw error;
   }
@@ -89,19 +93,21 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
 // Helper function to fetch pending invitations
 export const fetchPendingInvitations = async (organizationId: string): Promise<OrganizationUser[]> => {
   try {
+    console.log(`[fetchPendingInvitations] Checking for pending invitations for org: ${organizationId}`);
+    
     // Get pending invitations
     const { data: invitationsData, error: invitationsError } = await supabase
       .from('organization_invitations')
-      .select('id, email, created_at, token, expires_at')
+      .select('id, email, created_at, token, expires_at, status')
       .eq('organization_id', organizationId)
       .eq('status', 'pending');
 
     if (invitationsError) {
-      console.error('Error fetching invitations:', invitationsError);
+      console.error('[fetchPendingInvitations] Error fetching invitations:', invitationsError);
       throw invitationsError;
     }
 
-    console.log(`Found ${invitationsData?.length || 0} pending invitations`);
+    console.log(`[fetchPendingInvitations] Found ${invitationsData?.length || 0} pending invitations:`, invitationsData);
 
     // Format pending invitations
     return (invitationsData || []).map(invitation => ({
@@ -114,7 +120,7 @@ export const fetchPendingInvitations = async (organizationId: string): Promise<O
       isPending: true
     }));
   } catch (error) {
-    console.error('Error fetching pending invitations:', error);
+    console.error('[fetchPendingInvitations] Error fetching pending invitations:', error);
     return [];
   }
 };

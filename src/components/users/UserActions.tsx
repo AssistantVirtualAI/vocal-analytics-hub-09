@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserX, RefreshCw, KeyRound } from 'lucide-react';
 import { 
@@ -31,8 +31,10 @@ export const UserActions = ({
 }: UserActionsProps) => {
   const [localLoading, setLocalLoading] = useState(false);
   
-  // Log for debugging
-  console.log("UserActions - Processing user:", user.email, "isPending:", user.isPending);
+  // Log for debugging whenever the component renders
+  useEffect(() => {
+    console.log("UserActions - Rendering for user:", user.email, "isPending:", user.isPending);
+  }, [user]);
   
   const handleResendInvitation = async () => {
     setLocalLoading(true);

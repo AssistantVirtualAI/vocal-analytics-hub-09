@@ -6,6 +6,7 @@ import { AllUsersSection } from '@/components/users/AllUsersSection';
 import { OrganizationUsersSection } from '@/components/users/OrganizationUsersSection';
 import { AdminProtectedRoute } from '@/components/users/AdminProtectedRoute';
 import { useUsersManagement } from '@/hooks/users/useUsersManagement';
+import { toast } from 'sonner';
 
 export default function UsersManagement() {
   const { organizations } = useOrganization();
@@ -34,6 +35,16 @@ export default function UsersManagement() {
   console.log('UsersManagement - Selected org:', selectedOrg);
   console.log('UsersManagement - Organizations:', organizations);
   console.log('UsersManagement - Org users:', orgUsers);
+  console.log('UsersManagement - Loading states:', { loading, orgUsersLoading, allUsersLoading });
+
+  // Add a more visible log for troubleshooting
+  useEffect(() => {
+    if (!orgUsersLoading && orgUsers.length === 0 && selectedOrg) {
+      console.log('⚠️ No users found for organization:', selectedOrg);
+    } else if (!orgUsersLoading && orgUsers.length > 0) {
+      console.log('✅ Found', orgUsers.length, 'users for organization:', selectedOrg);
+    }
+  }, [orgUsers, orgUsersLoading, selectedOrg]);
 
   return (
     <AdminProtectedRoute>

@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { UserX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { OrganizationUser } from '@/types/organization';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { removeUserFromOrganization, cancelInvitation } from '@/services/organization/userManagement';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -19,45 +18,27 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const removeUserFromOrg = async (userId: string) => {
+  const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId) return;
     
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('user_organizations')
-        .delete()
-        .eq('user_id', userId)
-        .eq('organization_id', organizationId);
-
-      if (error) throw error;
-
-      toast("L'utilisateur a été retiré de l'organisation avec succès.");
-
+      await removeUserFromOrganization(userId, organizationId);
       await fetchUsers();
-    } catch (error: any) {
-      console.error('Error removing user from organization:', error);
-      toast("Erreur lors du retrait de l'utilisateur: " + error.message);
+    } catch (error) {
+      // Error is already handled in the service function
     } finally {
       setLoading(false);
     }
   };
 
-  const cancelInvitation = async (invitationId: string) => {
+  const handleCancelInvitation = async (invitationId: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('organization_invitations')
-        .delete()
-        .eq('id', invitationId);
-
-      if (error) throw error;
-
-      toast("L'invitation a été annulée avec succès.");
+      await cancelInvitation(invitationId);
       await fetchUsers();
-    } catch (error: any) {
-      console.error('Error canceling invitation:', error);
-      toast("Erreur lors de l'annulation de l'invitation: " + error.message);
+    } catch (error) {
+      // Error is already handled in the service function
     } finally {
       setLoading(false);
     }
@@ -102,7 +83,8 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
                 <Button 
                   variant="destructive" 
                   size="sm" 
-                  onClick={() => cancelInvitation(user_item.id)}
+                  onClick={() => handleCancelInvitation(user_item.id)}
+                  disabled={loading}
                 >
                   <UserX className="h-4 w-4 mr-1" />
                   Annuler l'invitation
@@ -111,8 +93,8 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
                 <Button 
                   variant="destructive" 
                   size="sm" 
-                  onClick={() => removeUserFromOrg(user_item.id)}
-                  disabled={user_item.id === user?.id}
+                  onClick={() => handleRemoveUserFromOrg(user_item.id)}
+                  disabled={loading || user_item.id === user?.id}
                 >
                   <UserX className="h-4 w-4 mr-1" />
                   Retirer

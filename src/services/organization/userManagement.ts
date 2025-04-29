@@ -123,7 +123,8 @@ export const addUserToOrganization = async (email: string, organizationId: strin
   if (linkCheckError) throw linkCheckError;
   
   if (existingLink) {
-    throw new Error(`L'utilisateur est déjà membre de cette organisation.`);
+    toast(`L'utilisateur est déjà membre de cette organisation.`);
+    return;
   }
 
   // Add user to organization
@@ -140,11 +141,36 @@ export const addUserToOrganization = async (email: string, organizationId: strin
 };
 
 export const removeUserFromOrganization = async (userId: string, organizationId: string): Promise<void> => {
-  const { error } = await supabase
-    .from('user_organizations')
-    .delete()
-    .eq('user_id', userId)
-    .eq('organization_id', organizationId);
+  try {
+    const { error } = await supabase
+      .from('user_organizations')
+      .delete()
+      .eq('user_id', userId)
+      .eq('organization_id', organizationId);
 
-  if (error) throw error;
+    if (error) throw error;
+    
+    toast("L'utilisateur a été retiré de l'organisation avec succès.");
+  } catch (error: any) {
+    console.error('Error removing user from organization:', error);
+    toast(`Erreur lors du retrait de l'utilisateur: ${error.message}`);
+    throw error;
+  }
+};
+
+export const cancelInvitation = async (invitationId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('organization_invitations')
+      .delete()
+      .eq('id', invitationId);
+
+    if (error) throw error;
+    
+    toast("L'invitation a été annulée avec succès.");
+  } catch (error: any) {
+    console.error('Error canceling invitation:', error);
+    toast(`Erreur lors de l'annulation de l'invitation: ${error.message}`);
+    throw error;
+  }
 };

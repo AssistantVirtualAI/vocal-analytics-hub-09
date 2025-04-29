@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { OrganizationUser } from '@/types/organization';
+import { toast } from 'sonner';
 
 interface UserActionsProps {
   user: OrganizationUser;
@@ -40,9 +41,11 @@ export const UserActions = ({
     setLocalLoading(true);
     try {
       await onResendInvitation(user.email);
+      toast.success(`Invitation renvoyée à ${user.email}`);
       console.log("Invitation resent successfully for:", user.email);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error resending invitation:", error);
+      toast.error(`Erreur: ${error.message || "Impossible de renvoyer l'invitation"}`);
     } finally {
       setLocalLoading(false);
     }

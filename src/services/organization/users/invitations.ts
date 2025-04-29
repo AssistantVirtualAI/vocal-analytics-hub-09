@@ -100,14 +100,32 @@ export const resendInvitation = async (email: string, organizationId: string): P
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
     // Update the invitation to refresh the token and expiration
-    const { data: invitation, error: updateError } = await supabase
+    // Use maybeSingle() instead of single() to avoid errors when multiple or no rows are found
+    const { data: invitations, error: queryError } = await supabase
+      .from('organization_invitations')
+      .select('id, token')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending');
+
+    if (queryError) {
+      console.error('Error querying invitation:', queryError);
+      throw queryError;
+    }
+
+    if (!invitations || invitations.length === 0) {
+      throw new Error('Aucune invitation en attente trouvée');
+    }
+
+    // Update the invitation (first one if multiple found)
+    const invitationId = invitations[0].id;
+
+    const { data: updatedInvitation, error: updateError } = await supabase
       .from('organization_invitations')
       .update({
         status: 'pending'  // This will trigger the database function to update token and expiration
       })
-      .eq('email', email)
-      .eq('organization_id', organizationId)
-      .eq('status', 'pending')
+      .eq('id', invitationId)
       .select('token')
       .single();
 
@@ -116,18 +134,14 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw updateError;
     }
 
-    if (!invitation) {
-      throw new Error('No invitation found');
-    }
-
     // Attempt to send invitation email
     try {
       const { error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
           body: {
             email,
-            organizationId,
-            token: invitation.token
+            organizationName: "Votre organisation", // Ideally get this from a query
+            invitationUrl: `${window.location.origin}/auth?invitation=${updatedInvitation.token}`
           }
         });
 
@@ -140,10 +154,10 @@ export const resendInvitation = async (email: string, organizationId: string): P
       // Don't throw, we'll still refresh the invitation even if email fails
     }
     
-    toast("Invitation renvoyée avec succès.");
+    toast.success("Invitation renvoyée avec succès.");
   } catch (error: any) {
     console.error('Error in resendInvitation:', error);
-    toast("Erreur lors du renvoi de l'invitation: " + error.message);
+    toast.error("Erreur lors du renvoi de l'invitation: " + error.message);
     throw error;
   }
 };

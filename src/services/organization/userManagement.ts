@@ -19,7 +19,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       throw userOrgError;
     }
 
-    const userIds = userOrgData.map(item => item.user_id);
+    const userIds = userOrgData?.map(item => item.user_id) || [];
     
     // If no users in the organization, just return pending invitations
     if (userIds.length === 0) {
@@ -76,8 +76,9 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     
     // Combine active users and pending invitations
     return [...activeUsers, ...pendingUsers];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in fetchOrganizationUsers:', error);
+    toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     throw error;
   }
 };
@@ -238,6 +239,36 @@ export const cancelInvitation = async (invitationId: string): Promise<void> => {
 export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
+    
+    // First, check if invitation exists
+    const { data: invitationData, error: invitationError } = await supabase
+      .from('organization_invitations')
+      .select('id')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .single();
+      
+    if (invitationError && invitationError.code !== 'PGRST116') {
+      console.error('Error checking invitation:', invitationError);
+      throw invitationError;
+    }
+    
+    if (!invitationData) {
+      // No invitation found, create a new one
+      const { error: createError } = await supabase
+        .from('organization_invitations')
+        .insert({
+          email,
+          organization_id: organizationId,
+          status: 'pending'
+        });
+        
+      if (createError) {
+        console.error('Error creating new invitation:', createError);
+        throw createError;
+      }
+    }
     
     // For now, this is a placeholder that will be replaced with actual email sending logic
     // We're just showing a toast message to confirm the action was triggered

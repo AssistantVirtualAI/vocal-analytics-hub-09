@@ -125,12 +125,18 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
-        toast.error("Erreur lors de l'envoi de l'email d'invitation: " + edgeFunctionError.message);
+        toast.error(`Erreur lors de l'envoi de l'email d'invitation: ${edgeFunctionError.message}`);
         throw edgeFunctionError;
       } else if (data && data.error) {
         // Handle error response from the edge function itself
         console.error('Edge function returned an error:', data.error);
-        toast.error("Erreur du serveur lors de l'envoi de l'email: " + data.error);
+        
+        // Handle Resend validation errors specifically
+        if (data.error.includes("verify a domain")) {
+          toast.error("L'email n'a pas pu être envoyé: Vous devez vérifier un domaine dans Resend et utiliser ce domaine comme adresse d'expéditeur.");
+        } else {
+          toast.error(`Erreur du serveur: ${data.error}`);
+        }
         throw new Error(data.error);
       } else {
         console.log('Email function response:', data);
@@ -140,9 +146,19 @@ export const resendInvitation = async (email: string, organizationId: string): P
       console.error('Error sending invitation email:', emailError);
       
       // More user-friendly error message
-      const errorMessage = emailError.message && emailError.message.includes('Failed to fetch') 
-        ? "Impossible de contacter le serveur d'emails. Veuillez réessayer plus tard."
-        : "Erreur lors de l'envoi de l'email d'invitation: " + (emailError.message || 'Erreur inconnue');
+      let errorMessage;
+      
+      if (emailError.message && emailError.message.includes('Failed to fetch')) {
+        errorMessage = "Impossible de contacter le serveur d'emails. Veuillez réessayer plus tard.";
+      } else if (typeof emailError === 'object' && emailError !== null) {
+        // Handle object errors better
+        errorMessage = "Erreur lors de l'envoi de l'email: " + 
+          (emailError.message || 
+           (typeof emailError.toString === 'function' ? emailError.toString() : 'Erreur inconnue'));
+      } else {
+        errorMessage = "Erreur lors de l'envoi de l'email d'invitation: " + 
+          (emailError?.message || 'Erreur inconnue');
+      }
       
       toast.error(errorMessage);
       throw emailError;
@@ -155,8 +171,19 @@ export const resendInvitation = async (email: string, organizationId: string): P
     // Only show the toast if it's not already shown in a specific catch block
     if (!error.message?.includes('Token d\'invitation') && 
         !error.message?.includes('invitation en attente') &&
-        !error.message?.includes('email d\'invitation')) {
-      toast.error("Erreur lors du renvoi de l'invitation: " + error.message);
+        !error.message?.includes('email d\'invitation') &&
+        !error.message?.includes('du serveur') &&
+        !error.message?.includes('Impossible de contacter')) {
+      
+      // Handle object errors better
+      let errorMsg;
+      if (typeof error === 'object' && error !== null) {
+        errorMsg = error.message || (typeof error.toString === 'function' ? error.toString() : 'Erreur inconnue');
+      } else {
+        errorMsg = String(error);
+      }
+      
+      toast.error(`Erreur lors du renvoi de l'invitation: ${errorMsg}`);
     }
     
     throw error;

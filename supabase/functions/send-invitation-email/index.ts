@@ -59,37 +59,75 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending invitation email to ${email} for organization ${organizationName}`);
     console.log(`Invitation URL: ${invitationUrl}`);
 
-    const emailResponse = await resend.emails.send({
-      from: "Invitations <onboarding@resend.dev>",
-      to: [email],
-      subject: `Invitation à rejoindre ${organizationName}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Vous êtes invité à rejoindre ${organizationName}</h1>
-          <p>Vous avez reçu une invitation pour rejoindre l'organisation "${organizationName}".</p>
-          <p>Pour accepter cette invitation, veuillez cliquer sur le lien ci-dessous:</p>
-          <a href="${invitationUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-            Accepter l'invitation
-          </a>
-          <p>Ce lien est valable pour 24 heures.</p>
-          <p>Si vous n'avez pas demandé cette invitation, vous pouvez ignorer cet email.</p>
-        </div>
-      `,
-    });
+    try {
+      const emailResponse = await resend.emails.send({
+        from: "Invitations <onboarding@resend.dev>",
+        to: [email],
+        subject: `Invitation à rejoindre ${organizationName}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1>Vous êtes invité à rejoindre ${organizationName}</h1>
+            <p>Vous avez reçu une invitation pour rejoindre l'organisation "${organizationName}".</p>
+            <p>Pour accepter cette invitation, veuillez cliquer sur le lien ci-dessous:</p>
+            <a href="${invitationUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">
+              Accepter l'invitation
+            </a>
+            <p>Ce lien est valable pour 24 heures.</p>
+            <p>Si vous n'avez pas demandé cette invitation, vous pouvez ignorer cet email.</p>
+          </div>
+        `,
+      });
 
-    console.log("Email sent successfully:", emailResponse);
+      console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+      if (emailResponse.error) {
+        return new Response(
+          JSON.stringify({ 
+            error: emailResponse.error.message || "Erreur lors de l'envoi de l'email"
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+
+      return new Response(JSON.stringify(emailResponse), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      });
+    } catch (emailError: any) {
+      // Handle Resend API errors
+      console.error("Resend API error:", emailError);
+      
+      // Extract the error message
+      const errorMessage = typeof emailError === 'object' ? 
+        (emailError.message || JSON.stringify(emailError)) : 
+        String(emailError);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: errorMessage
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
   } catch (error: any) {
     console.error("Error in send-invitation-email function:", error);
+    
+    // Make sure we convert any error object to a string
+    const errorMessage = typeof error === 'object' ? 
+      (error.message || JSON.stringify(error)) : 
+      String(error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

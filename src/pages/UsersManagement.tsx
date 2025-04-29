@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -57,7 +56,6 @@ export default function UsersManagement() {
 
       if (error) throw error;
 
-      // Get pending invitations
       const { data: invitationsData, error: invitationsError } = await supabase
         .from('organization_invitations')
         .select('*')
@@ -66,7 +64,6 @@ export default function UsersManagement() {
 
       if (invitationsError) throw invitationsError;
 
-      // Format existing users
       const formattedUsers: OrganizationUser[] = (data || [])
         .filter(item => item && typeof item === 'object' && item.profiles)
         .map(item => {
@@ -88,7 +85,6 @@ export default function UsersManagement() {
         })
         .filter((user): user is OrganizationUser => user !== null);
 
-      // Add pending invitations to the list
       const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
         id: invite.id,
         email: invite.email,

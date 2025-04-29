@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -38,24 +37,28 @@ export default function UsersManagement() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: orgUserLinks, error: orgUserError } = await supabase
         .from('user_organizations')
-        .select(`
-          user_id,
-          profiles (
-            id,
-            email,
-            display_name,
-            avatar_url,
-            created_at
-          ),
-          user_roles (
-            role
-          )
-        `)
+        .select('user_id, organization_id')
         .eq('organization_id', selectedOrg);
 
-      if (error) throw error;
+      if (orgUserError) throw orgUserError;
+
+      const userIds = orgUserLinks?.map(link => link.user_id) || [];
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+      if (profilesError) throw profilesError;
+
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+      if (rolesError) throw rolesError;
 
       const { data: invitationsData, error: invitationsError } = await supabase
         .from('organization_invitations')
@@ -65,32 +68,26 @@ export default function UsersManagement() {
 
       if (invitationsError) throw invitationsError;
 
-      const formattedUsers: OrganizationUser[] = (data || [])
-        .filter(item => item && typeof item === 'object' && item.profiles)
-        .map(item => {
-          const profile = item.profiles as Record<string, any> | null;
-          const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
-          const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
-          
-          if (!profile) return null;
-          
-          return {
-            id: profile?.id || '',
-            email: profile?.email || '',
-            displayName: profile?.display_name || profile?.email?.split('@')[0] || '',
-            avatarUrl: profile?.avatar_url || '',  // Provide empty string as default
-            role: (role as 'admin' | 'user'),
-            createdAt: profile?.created_at || new Date().toISOString(),
-            isPending: false
-          };
-        })
-        .filter((user): user is OrganizationUser => user !== null);
+      const formattedUsers: OrganizationUser[] = (profiles || []).map(profile => {
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+        const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+        
+        return {
+          id: profile.id,
+          email: profile.email,
+          displayName: profile.display_name || profile.email?.split('@')[0] || '',
+          avatarUrl: profile.avatar_url || '',
+          role: role as 'admin' | 'user',
+          createdAt: profile.created_at,
+          isPending: false
+        };
+      });
 
       const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
         id: invite.id,
         email: invite.email,
         displayName: invite.email.split('@')[0] || '',
-        avatarUrl: '',  // Provide empty string as default
+        avatarUrl: '',
         role: 'user' as const,
         createdAt: invite.created_at,
         isPending: true
@@ -110,32 +107,28 @@ export default function UsersManagement() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          email,
-          display_name,
-          avatar_url,
-          created_at,
-          user_roles (
-            role
-          )
-        `);
+        .select('*');
 
       if (error) throw error;
 
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*');
+
+      if (rolesError) throw rolesError;
+
       const formattedUsers: OrganizationUser[] = (data || [])
-        .filter(item => item && typeof item === 'object')
-        .map(item => {
-          const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
-          const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
+        .map(profile => {
+          const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+          const role = userRoles.length > 0 ? userRoles[0].role : 'user';
           
           return {
-            id: item.id || '',
-            email: item.email || '',
-            displayName: item.display_name || item.email?.split('@')[0] || '',
-            avatarUrl: item.avatar_url || '', // Ensure default value for required property
+            id: profile.id || '',
+            email: profile.email || '',
+            displayName: profile.display_name || profile.email?.split('@')[0] || '',
+            avatarUrl: profile.avatar_url || '', // Ensure default value for required property
             role: (role as 'admin' | 'user'),
-            createdAt: item.created_at || new Date().toISOString(),
+            createdAt: profile.created_at || new Date().toISOString(),
             isPending: false // Add the required isPending property
           };
         });

@@ -26,13 +26,15 @@ export const useInvitationManagement = (
 
   const resendUserInvitation = useCallback(async (email: string) => {
     if (!selectedOrg) {
-      toast("Aucune organisation sélectionnée");
+      toast.error("Aucune organisation sélectionnée");
       return;
     }
     
+    console.log(`useInvitationManagement: Resending invitation to ${email} for org ${selectedOrg}`);
     setLoading(true);
     try {
       await resendInvitation(email, selectedOrg);
+      console.log("Invitation resent successfully, refreshing users...");
       if (refreshUsers) {
         await refreshUsers();
       }

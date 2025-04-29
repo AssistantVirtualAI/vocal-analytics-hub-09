@@ -17,6 +17,8 @@ interface InvitationEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Invitation email function called");
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,7 +28,10 @@ const handler = async (req: Request): Promise<Response> => {
     const requestData: InvitationEmailRequest = await req.json();
     const { email, organizationName = "Votre organisation", invitationUrl } = requestData;
     
+    console.log(`Received request with email: ${email}, organizationName: ${organizationName}`);
+    
     if (!email || !invitationUrl) {
+      console.error("Missing required parameters:", { email, invitationUrl });
       return new Response(
         JSON.stringify({ 
           error: "Missing required parameters: email or invitationUrl" 
@@ -40,6 +45,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending invitation email to ${email} for organization ${organizationName}`);
     console.log(`Invitation URL: ${invitationUrl}`);
+    
+    // Check if RESEND_API_KEY is set
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      console.error("RESEND_API_KEY is not set");
+      return new Response(
+        JSON.stringify({ error: "RESEND_API_KEY is not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
     const emailResponse = await resend.emails.send({
       from: "Invitations <onboarding@resend.dev>",

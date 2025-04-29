@@ -39,13 +39,12 @@ export const UserActions = ({
   
   const handleResendInvitation = async () => {
     setLocalLoading(true);
+    console.log("Resending invitation for:", user.email);
     try {
       await onResendInvitation(user.email);
-      toast.success(`Invitation renvoyée à ${user.email}`);
       console.log("Invitation resent successfully for:", user.email);
     } catch (error: any) {
       console.error("Error resending invitation:", error);
-      toast.error(`Erreur: ${error.message || "Impossible de renvoyer l'invitation"}`);
     } finally {
       setLocalLoading(false);
     }

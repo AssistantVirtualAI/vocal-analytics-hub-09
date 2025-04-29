@@ -133,9 +133,10 @@ export default function UsersManagement() {
             id: item.id || '',
             email: item.email || '',
             displayName: item.display_name || item.email?.split('@')[0] || '',
-            avatarUrl: item.avatar_url,
+            avatarUrl: item.avatar_url || '', // Ensure default value for required property
             role: (role as 'admin' | 'user'),
             createdAt: item.created_at || new Date().toISOString(),
+            isPending: false // Add the required isPending property
           };
         });
 

@@ -61,6 +61,9 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
     console.log('Updated invitation response:', updatedInvitation);
 
+    // Define a variable to hold the token
+    let invitationToken: string;
+
     if (!updatedInvitation || !updatedInvitation.token) {
       // If token is still missing, fetch it directly
       const { data: fetchedInvitation, error: fetchError } = await supabase
@@ -83,7 +86,9 @@ export const resendInvitation = async (email: string, organizationId: string): P
       }
       
       console.log(`Invitation fetched, token: ${fetchedInvitation.token}`);
-      updatedInvitation.token = fetchedInvitation.token;
+      invitationToken = fetchedInvitation.token;
+    } else {
+      invitationToken = updatedInvitation.token;
     }
 
     // Get organization name for better email customization
@@ -99,7 +104,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
     }
 
     const organizationName = organization?.name || "Votre organisation";
-    const invitationUrl = `${window.location.origin}/auth?invitation=${updatedInvitation.token}`;
+    const invitationUrl = `${window.location.origin}/auth?invitation=${invitationToken}`;
 
     console.log('Preparing to send invitation email with params:', {
       email, 

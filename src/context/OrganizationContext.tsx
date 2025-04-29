@@ -145,16 +145,23 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       if (error) throw error;
 
       // Make sure data is not null and properly structured
-      const formattedUsers: OrganizationUser[] = data
-        .filter(item => item.profiles && typeof item.profiles === 'object')
-        .map(item => ({
-          id: item.profiles?.id || '',
-          email: item.profiles?.email || '',
-          displayName: item.profiles?.display_name || item.profiles?.email?.split('@')[0] || '',
-          avatarUrl: item.profiles?.avatar_url,
-          role: Array.isArray(item.user_roles) && item.user_roles[0] ? item.user_roles[0].role as 'admin' | 'user' : 'user',
-          createdAt: item.profiles?.created_at || new Date().toISOString(),
-        }));
+      const formattedUsers: OrganizationUser[] = (data || [])
+        .filter(item => item && typeof item === 'object' && item.profiles)
+        .map(item => {
+          // Safely access properties with type checking
+          const profile = item.profiles as Record<string, any> | null;
+          const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
+          const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
+          
+          return {
+            id: profile?.id || '',
+            email: profile?.email || '',
+            displayName: profile?.display_name || profile?.email?.split('@')[0] || '',
+            avatarUrl: profile?.avatar_url,
+            role: (role as 'admin' | 'user'),
+            createdAt: profile?.created_at || new Date().toISOString(),
+          };
+        });
 
       setUsers(formattedUsers);
     } catch (error: any) {

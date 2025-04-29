@@ -88,9 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       navigate('/');
     } catch (error: any) {
-      toast("Erreur de connexion: " + error.message, {
-        variant: "destructive",
-      });
+      toast("Erreur de connexion: " + error.message);
       throw error;
     }
   };
@@ -101,9 +99,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       toast("Inscription réussie. Veuillez vérifier votre email pour confirmer votre inscription.");
     } catch (error: any) {
-      toast("Erreur d'inscription: " + error.message, {
-        variant: "destructive",
-      });
+      toast("Erreur d'inscription: " + error.message);
       throw error;
     }
   };
@@ -113,9 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await supabase.auth.signOut();
       navigate('/auth');
     } catch (error: any) {
-      toast("Erreur de déconnexion: " + error.message, {
-        variant: "destructive",
-      });
+      toast("Erreur de déconnexion: " + error.message);
     }
   };
 

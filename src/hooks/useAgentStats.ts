@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AGENT_ID } from "@/config/agent";
+import { useOrganization } from "@/context/OrganizationContext";
 
 export interface AgentStat {
   name: string;
@@ -11,13 +11,16 @@ export interface AgentStat {
 }
 
 export const useAgentStats = () => {
+  const { currentOrganization } = useOrganization();
+  const agentId = currentOrganization?.agentId || 'QNdB45Jpgh06Hr67TzFO';
+  
   return useQuery({
-    queryKey: ["agentStats", AGENT_ID],
+    queryKey: ["agentStats", agentId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("calls_view")
         .select("agent_name, duration, satisfaction_score")
-        .eq('agent_id', AGENT_ID);
+        .eq('agent_id', agentId);
 
       if (error) throw error;
 

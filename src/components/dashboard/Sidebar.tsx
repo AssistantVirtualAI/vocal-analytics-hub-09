@@ -1,5 +1,5 @@
 
-import { BarChart3, Home, Phone, Users } from 'lucide-react';
+import { BarChart3, Building, Home, Phone, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { Link, useLocation } from 'react-router-dom';
+import { useOrganization } from '@/context/OrganizationContext';
 
 const menuItems = [
   {
@@ -36,10 +37,16 @@ const menuItems = [
     icon: BarChart3,
     url: '/stats',
   },
+  {
+    title: 'Organisations',
+    icon: Building,
+    url: '/organizations',
+  }
 ];
 
 export function DashboardSidebar() {
   const location = useLocation();
+  const { currentOrganization } = useOrganization();
   
   return (
     <Sidebar className="bg-blue-600">
@@ -51,6 +58,11 @@ export function DashboardSidebar() {
             className="h-12 w-auto" 
           />
           <span className="text-xl font-semibold text-white">AI Agent Dashboard</span>
+          {currentOrganization && (
+            <div className="px-3 py-1 bg-blue-700 rounded-full text-xs text-white mt-1">
+              {currentOrganization.name}
+            </div>
+          )}
         </div>
       </SidebarHeader>
       <SidebarContent>

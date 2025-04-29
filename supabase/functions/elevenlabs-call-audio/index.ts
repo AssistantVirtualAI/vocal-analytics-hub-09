@@ -49,6 +49,7 @@ serve(async (req) => {
     let audioUrl = call.audio_url;
     let transcript = '';
     let summary = '';
+    let statistics = null;
 
     // Check if this is an ElevenLabs API URL
     if (audioUrl.includes('api.elevenlabs.io')) {
@@ -76,11 +77,43 @@ serve(async (req) => {
       audioUrl = data.audio_url || audioUrl;
       transcript = data.transcript || "";
       summary = data.summary || "";
+      
+      // Extract statistics from ElevenLabs response
+      if (data.statistics) {
+        statistics = data.statistics;
+        console.log("Received statistics from ElevenLabs:", JSON.stringify(statistics));
+      } else {
+        console.log("No statistics available in ElevenLabs response");
+        
+        // Try to fetch statistics separately if not included in the call data
+        try {
+          const statsResponse = await fetch(
+            `https://api.elevenlabs.io/v1/calls/${callId}/statistics`,
+            {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'xi-api-key': elevenlabsApiKey,
+              },
+            }
+          );
+          
+          if (statsResponse.ok) {
+            statistics = await statsResponse.json();
+            console.log("Fetched statistics separately:", JSON.stringify(statistics));
+          } else {
+            console.log("Failed to fetch statistics separately:", statsResponse.status);
+          }
+        } catch (statsError) {
+          console.error("Error fetching statistics:", statsError);
+        }
+      }
 
       console.log(`Received data from ElevenLabs API:
         - Audio URL: ${audioUrl.substring(0, 30)}...
         - Transcript: ${transcript.length} characters
-        - Summary: ${summary.length} characters`);
+        - Summary: ${summary.length} characters
+        - Statistics: ${statistics ? 'Available' : 'Not available'}`);
       
       // Store the transcript and summary in the database
       if (transcript || summary) {
@@ -88,14 +121,15 @@ serve(async (req) => {
           .from('calls')
           .update({
             transcript: transcript || null,
-            summary: summary || null
+            summary: summary || null,
+            elevenlabs_statistics: statistics
           })
           .eq('id', callId);
         
         if (updateError) {
-          console.error('Error updating call with transcript/summary:', updateError);
+          console.error('Error updating call with transcript/summary/statistics:', updateError);
         } else {
-          console.log('Successfully updated call with transcript and summary');
+          console.log('Successfully updated call with transcript, summary, and statistics');
         }
       }
     }
@@ -104,7 +138,8 @@ serve(async (req) => {
       JSON.stringify({ 
         audioUrl,
         transcript,
-        summary
+        summary,
+        statistics
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -122,6 +157,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Helper function to create a Supabase client
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

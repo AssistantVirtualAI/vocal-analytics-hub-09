@@ -11,6 +11,7 @@ import { CallInformationCard } from '@/components/calls/CallInformationCard';
 import { AudioPlayer } from '@/components/calls/AudioPlayer';
 import { ElevenLabsAudioPlayer } from '@/components/calls/ElevenLabsAudioPlayer';
 import { CallContent } from '@/components/calls/CallContent';
+import { ElevenLabsStatsCard } from '@/components/calls/ElevenLabsStatsCard';
 
 export default function CallDetails() {
   const { id } = useParams();
@@ -60,6 +61,8 @@ export default function CallDetails() {
   const summary = audioData?.summary || call.summary;
   // Use ElevenLabs audio URL if available, otherwise fall back to the call's audioUrl
   const audioUrl = audioData?.audioUrl || call.audioUrl;
+  // Get ElevenLabs statistics if available
+  const statistics = audioData?.statistics || null;
 
   return (
     <DashboardLayout>
@@ -95,6 +98,12 @@ export default function CallDetails() {
               error={audioError}
               transcript={audioData?.transcript}
               onRetry={refetchAudio}
+            />
+            
+            {/* ElevenLabs statistics card */}
+            <ElevenLabsStatsCard 
+              statistics={statistics}
+              isLoading={isLoadingAudio}
             />
             
             <CallContent 

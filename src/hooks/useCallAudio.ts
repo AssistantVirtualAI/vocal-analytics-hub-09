@@ -6,6 +6,7 @@ interface CallAudioResponse {
   audioUrl: string;
   transcript: string;
   summary: string;
+  statistics?: any; // ElevenLabs statistics object
 }
 
 export const useCallAudio = (callId: string | undefined) => {
@@ -30,7 +31,8 @@ export const useCallAudio = (callId: string | undefined) => {
       return {
         audioUrl: data.audioUrl,
         transcript: data.transcript,
-        summary: data.summary
+        summary: data.summary,
+        statistics: data.statistics
       };
     },
     enabled: !!callId,

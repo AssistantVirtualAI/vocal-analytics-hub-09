@@ -4,70 +4,79 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const fetchOrganizationUsers = async (organizationId: string): Promise<OrganizationUser[]> => {
-  // Get user IDs for this organization
-  const { data: orgUserLinks, error: orgUserError } = await supabase
-    .from('user_organizations')
-    .select('user_id, organization_id')
-    .eq('organization_id', organizationId);
+  try {
+    // Step 1: Get user IDs for this organization
+    const { data: orgUserLinks, error: orgUserError } = await supabase
+      .from('user_organizations')
+      .select('user_id, organization_id')
+      .eq('organization_id', organizationId);
 
-  if (orgUserError) throw orgUserError;
+    if (orgUserError) throw orgUserError;
 
-  // Extract user IDs
-  const userIds = orgUserLinks?.map(link => link.user_id) || [];
+    // Extract user IDs
+    const userIds = orgUserLinks?.map(link => link.user_id) || [];
 
-  // Fetch user profiles for these IDs if there are any users
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('*')
-    .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']); // Dummy ID to avoid empty IN clause
+    // Step 2: Fetch user profiles for these IDs if there are any users
+    const { data: profiles, error: profilesError } = userIds.length > 0 
+      ? await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds)
+      : { data: [], error: null };
 
-  if (profilesError) throw profilesError;
+    if (profilesError) throw profilesError;
 
-  // Fetch user roles
-  const { data: rolesData, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('*')
-    .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']); // Dummy ID to avoid empty IN clause
+    // Step 3: Fetch user roles
+    const { data: rolesData, error: rolesError } = userIds.length > 0
+      ? await supabase
+          .from('user_roles')
+          .select('*')
+          .in('user_id', userIds)
+      : { data: [], error: null };
 
-  if (rolesError) throw rolesError;
+    if (rolesError) throw rolesError;
 
-  // Fetch pending invitations
-  const { data: invitationsData, error: invitationsError } = await supabase
-    .from('organization_invitations')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .eq('status', 'pending');
+    // Step 4: Fetch pending invitations
+    const { data: invitationsData, error: invitationsError } = await supabase
+      .from('organization_invitations')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending');
 
-  if (invitationsError) throw invitationsError;
+    if (invitationsError) throw invitationsError;
 
-  // Map profiles to users with roles
-  const formattedUsers: OrganizationUser[] = (profiles || []).map(profile => {
-    const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-    const role = userRoles.length > 0 ? userRoles[0].role : 'user';
-    
-    return {
-      id: profile.id,
-      email: profile.email,
-      displayName: profile.display_name || profile.email?.split('@')[0] || '',
-      avatarUrl: profile.avatar_url || '',
-      role: role as 'admin' | 'user',
-      createdAt: profile.created_at,
-      isPending: false
-    };
-  });
+    // Map profiles to users with roles
+    const formattedUsers: OrganizationUser[] = (profiles || []).map(profile => {
+      const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+      const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+      
+      return {
+        id: profile.id,
+        email: profile.email,
+        displayName: profile.display_name || profile.email?.split('@')[0] || '',
+        avatarUrl: profile.avatar_url || '',
+        role: role as 'admin' | 'user',
+        createdAt: profile.created_at,
+        isPending: false
+      };
+    });
 
-  // Add pending invitations
-  const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
-    id: invite.id,
-    email: invite.email,
-    displayName: invite.email.split('@')[0] || '',
-    avatarUrl: '',
-    role: 'user' as const,
-    createdAt: invite.created_at,
-    isPending: true
-  }));
+    // Add pending invitations
+    const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
+      id: invite.id,
+      email: invite.email,
+      displayName: invite.email.split('@')[0] || '',
+      avatarUrl: '',
+      role: 'user' as const,
+      createdAt: invite.created_at,
+      isPending: true
+    }));
 
-  return [...formattedUsers, ...pendingUsers];
+    return [...formattedUsers, ...pendingUsers];
+  } catch (error: any) {
+    console.error('Error fetching organization users:', error);
+    throw error;
+  }
 };
 
 export const addUserToOrganization = async (email: string, organizationId: string): Promise<void> => {

@@ -84,10 +84,10 @@ const AuthPage = () => {
       // If there's an invitation token, accept it
       if (invitationToken && email) {
         try {
-          // Check if token is valid
+          // Check if token is valid - explicitly type the response data
           const { data: invitationData, error: invitationError } = await supabase
             .from('organization_invitations')
-            .select('*')
+            .select('id')
             .eq('token', invitationToken)
             .eq('email', email)
             .eq('status', 'pending')

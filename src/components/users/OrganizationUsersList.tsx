@@ -15,19 +15,24 @@ import { UserTableSkeleton } from './UserTableSkeleton';
 import { UserTableRow } from './UserTableRow';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { setOrganizationAdminStatus, setSuperAdminStatus } from '@/services/organization/users/adminRoles';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
   fetchUsers: () => Promise<void>;
   organizationId: string;
   loading?: boolean;
+  currentUserIsOrgAdmin?: boolean;
+  currentUserIsSuperAdmin?: boolean;
 }
 
 export const OrganizationUsersList = ({ 
   users, 
   fetchUsers, 
   organizationId, 
-  loading = false 
+  loading = false,
+  currentUserIsOrgAdmin = false,
+  currentUserIsSuperAdmin = false
 }: OrganizationUsersListProps) => {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
@@ -58,7 +63,7 @@ export const OrganizationUsersList = ({
 
   const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId) {
-      toast("ID d'organisation non spécifié");
+      toast.error("ID d'organisation non spécifié");
       return;
     }
     
@@ -91,7 +96,7 @@ export const OrganizationUsersList = ({
 
   const handleResendInvitation = async (email: string) => {
     if (!organizationId) {
-      toast("ID d'organisation non spécifié");
+      toast.error("ID d'organisation non spécifié");
       return;
     }
     
@@ -121,6 +126,35 @@ export const OrganizationUsersList = ({
     }
   };
 
+  const handleToggleOrgAdmin = async (userId: string, makeAdmin: boolean) => {
+    if (!organizationId) {
+      toast.error("ID d'organisation non spécifié");
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      await setOrganizationAdminStatus(userId, organizationId, makeAdmin);
+      await fetchUsers();
+    } catch (error) {
+      console.error("Error toggling org admin status:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleSuperAdmin = async (userId: string, makeAdmin: boolean) => {
+    setActionLoading(true);
+    try {
+      await setSuperAdminStatus(userId, makeAdmin);
+      await fetchUsers();
+    } catch (error) {
+      console.error("Error toggling super admin status:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex justify-between items-center">
@@ -137,7 +171,7 @@ export const OrganizationUsersList = ({
       </div>
       
       <Table>
-        <UserTableHeader />
+        <UserTableHeader showAdminColumns={currentUserIsOrgAdmin || currentUserIsSuperAdmin} />
         {loading ? (
           <UserTableSkeleton />
         ) : (
@@ -153,11 +187,15 @@ export const OrganizationUsersList = ({
                   onCancelInvitation={handleCancelInvitation}
                   onResendInvitation={handleResendInvitation}
                   onResetPassword={handleResetPassword}
+                  onToggleOrgAdmin={currentUserIsOrgAdmin || currentUserIsSuperAdmin ? handleToggleOrgAdmin : undefined}
+                  onToggleSuperAdmin={currentUserIsSuperAdmin ? handleToggleSuperAdmin : undefined}
+                  currentUserIsOrgAdmin={currentUserIsOrgAdmin}
+                  currentUserIsSuperAdmin={currentUserIsSuperAdmin}
                 />
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={currentUserIsOrgAdmin || currentUserIsSuperAdmin ? 6 : 5} className="text-center py-8">
                   {loading ? (
                     "Chargement des utilisateurs..."
                   ) : (

@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserX, RefreshCw, KeyRound } from 'lucide-react';
+import { UserX, RefreshCw, KeyRound, ShieldCheck, Shield } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
@@ -19,6 +20,10 @@ interface UserActionsProps {
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
   onResetPassword: (email: string) => Promise<void>;
+  onToggleOrgAdmin?: (userId: string, makeAdmin: boolean) => Promise<void>;
+  onToggleSuperAdmin?: (userId: string, makeAdmin: boolean) => Promise<void>;
+  currentUserIsOrgAdmin?: boolean;
+  currentUserIsSuperAdmin?: boolean;
 }
 
 export const UserActions = ({
@@ -28,7 +33,11 @@ export const UserActions = ({
   onRemoveUser,
   onCancelInvitation,
   onResendInvitation,
-  onResetPassword
+  onResetPassword,
+  onToggleOrgAdmin,
+  onToggleSuperAdmin,
+  currentUserIsOrgAdmin = false,
+  currentUserIsSuperAdmin = false
 }: UserActionsProps) => {
   const [localLoading, setLocalLoading] = useState(false);
   
@@ -94,6 +103,47 @@ export const UserActions = ({
           <KeyRound className="h-4 w-4 mr-2" />
           Réinitialiser mot de passe
         </DropdownMenuItem>
+        
+        {onToggleOrgAdmin && currentUserIsOrgAdmin && user.id !== currentUserId && (
+          <DropdownMenuItem 
+            onClick={() => onToggleOrgAdmin(user.id, !user.isOrgAdmin)}
+            disabled={actionLoading || localLoading}
+          >
+            {user.isOrgAdmin ? (
+              <>
+                <Shield className="h-4 w-4 mr-2" />
+                Révoquer admin d'organisation
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                Nommer admin d'organisation
+              </>
+            )}
+          </DropdownMenuItem>
+        )}
+
+        {onToggleSuperAdmin && currentUserIsSuperAdmin && user.id !== currentUserId && (
+          <DropdownMenuItem 
+            onClick={() => onToggleSuperAdmin(user.id, !user.isSuperAdmin)}
+            disabled={actionLoading || localLoading}
+          >
+            {user.isSuperAdmin ? (
+              <>
+                <Shield className="h-4 w-4 mr-2" />
+                Révoquer super admin
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                Nommer super admin
+              </>
+            )}
+          </DropdownMenuItem>
+        )}
+        
+        <DropdownMenuSeparator />
+        
         <DropdownMenuItem 
           className="text-destructive"
           onClick={() => onRemoveUser(user.id)}
@@ -106,3 +156,4 @@ export const UserActions = ({
     </DropdownMenu>
   );
 };
+

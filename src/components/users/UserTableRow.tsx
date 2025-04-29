@@ -4,6 +4,7 @@ import { OrganizationUser } from '@/types/organization';
 import { UserStatus, UserRole } from './UserStatus';
 import { UserActions } from './UserActions';
 import { useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 
 interface UserTableRowProps {
   user: OrganizationUser;
@@ -13,6 +14,10 @@ interface UserTableRowProps {
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
   onResetPassword: (email: string) => Promise<void>;
+  onToggleOrgAdmin?: (userId: string, makeAdmin: boolean) => Promise<void>;
+  onToggleSuperAdmin?: (userId: string, makeAdmin: boolean) => Promise<void>;
+  currentUserIsOrgAdmin?: boolean;
+  currentUserIsSuperAdmin?: boolean;
 }
 
 export const UserTableRow = ({
@@ -22,7 +27,11 @@ export const UserTableRow = ({
   onRemoveUser,
   onCancelInvitation,
   onResendInvitation,
-  onResetPassword
+  onResetPassword,
+  onToggleOrgAdmin,
+  onToggleSuperAdmin,
+  currentUserIsOrgAdmin = false,
+  currentUserIsSuperAdmin = false
 }: UserTableRowProps) => {
   // Log for debugging
   useEffect(() => {
@@ -39,6 +48,22 @@ export const UserTableRow = ({
       <TableCell>
         <UserRole user={user} />
       </TableCell>
+      {(currentUserIsOrgAdmin || currentUserIsSuperAdmin) && (
+        <TableCell>
+          <div className="flex flex-wrap gap-1">
+            {user.isOrgAdmin && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                Admin Org
+              </Badge>
+            )}
+            {user.isSuperAdmin && (
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                Super Admin
+              </Badge>
+            )}
+          </div>
+        </TableCell>
+      )}
       <TableCell className="text-right">
         <UserActions 
           user={user} 
@@ -48,6 +73,10 @@ export const UserTableRow = ({
           onCancelInvitation={onCancelInvitation}
           onResendInvitation={onResendInvitation}
           onResetPassword={onResetPassword}
+          onToggleOrgAdmin={onToggleOrgAdmin}
+          onToggleSuperAdmin={onToggleSuperAdmin}
+          currentUserIsOrgAdmin={currentUserIsOrgAdmin}
+          currentUserIsSuperAdmin={currentUserIsSuperAdmin}
         />
       </TableCell>
     </TableRow>

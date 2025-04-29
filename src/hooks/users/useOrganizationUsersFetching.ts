@@ -3,6 +3,10 @@ import { useState, useCallback, useEffect } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
 import { fetchOrganizationUsers } from '@/services/organization/users/fetchUsers';
+import { 
+  checkOrganizationAdminStatus, 
+  checkSuperAdminStatus 
+} from '@/services/organization/users/adminRoles';
 
 export const useOrganizationUsersFetching = (organizationId: string | null) => {
   const [users, setUsers] = useState<OrganizationUser[]>([]);
@@ -19,10 +23,24 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
       console.log(`Fetching users for organization: ${organizationId}`);
       const fetchedUsers = await fetchOrganizationUsers(organizationId);
       console.log(`Fetched ${fetchedUsers.length} users:`, fetchedUsers);
-      setUsers(fetchedUsers);
+      
+      // Enhance users with admin status
+      const enhancedUsers = await Promise.all(
+        fetchedUsers.map(async (user) => {
+          const isOrgAdmin = await checkOrganizationAdminStatus(user.id, organizationId);
+          const isSuperAdmin = await checkSuperAdminStatus(user.id);
+          return {
+            ...user,
+            isOrgAdmin,
+            isSuperAdmin
+          };
+        })
+      );
+      
+      setUsers(enhancedUsers);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
-      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+      toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
       // Even on error, make sure to clear loading state
     } finally {
       setLoading(false);

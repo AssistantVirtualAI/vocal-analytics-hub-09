@@ -1,7 +1,11 @@
 
 import { TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-export const UserTableHeader = () => {
+interface UserTableHeaderProps {
+  showAdminColumns?: boolean;
+}
+
+export const UserTableHeader = ({ showAdminColumns = false }: UserTableHeaderProps) => {
   return (
     <TableHeader>
       <TableRow>
@@ -9,6 +13,9 @@ export const UserTableHeader = () => {
         <TableHead>Nom</TableHead>
         <TableHead>Statut</TableHead>
         <TableHead>Rôle</TableHead>
+        {showAdminColumns && (
+          <TableHead>Permissions</TableHead>
+        )}
         <TableHead className="text-right">Actions</TableHead>
       </TableRow>
     </TableHeader>

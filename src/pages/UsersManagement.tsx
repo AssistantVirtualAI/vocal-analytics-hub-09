@@ -9,9 +9,13 @@ import { useUsersManagement } from '@/hooks/users/useUsersManagement';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useAdminRoles } from '@/hooks/users/useAdminRoles';
+import { useEffect as useEffectOnce } from 'react';
 
 export default function UsersManagement() {
   const { organizations } = useOrganization();
+  const { user } = useAuth();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   
   // Initialize organization selection
@@ -33,12 +37,28 @@ export default function UsersManagement() {
     addUserToOrg,
     refreshAllData
   } = useUsersManagement(selectedOrg);
+  
+  // Get admin roles status
+  const {
+    checkCurrentUserPermissions,
+    currentUserIsOrgAdmin,
+    currentUserIsSuperAdmin
+  } = useAdminRoles(selectedOrg, user?.id, fetchUsers);
+
+  // Check admin permissions on mount and when organization changes
+  useEffect(() => {
+    if (user?.id && selectedOrg) {
+      console.log("Checking admin permissions for user:", user.id);
+      checkCurrentUserPermissions();
+    }
+  }, [user?.id, selectedOrg, checkCurrentUserPermissions]);
 
   // Debug logging
   console.log('UsersManagement - Selected org:', selectedOrg);
   console.log('UsersManagement - Organizations:', organizations);
   console.log('UsersManagement - Org users:', orgUsers);
   console.log('UsersManagement - Loading states:', { loading, orgUsersLoading, allUsersLoading });
+  console.log('UsersManagement - Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
 
   // Add a more visible log for troubleshooting
   useEffect(() => {
@@ -53,6 +73,7 @@ export default function UsersManagement() {
     try {
       toast.info("Actualisation des données utilisateurs...");
       await refreshAllData();
+      await checkCurrentUserPermissions();
       toast.success("Données utilisateurs actualisées");
     } catch (error) {
       console.error("Error refreshing data:", error);
@@ -96,9 +117,11 @@ export default function UsersManagement() {
             onAddUser={addUserToOrg}
             loading={loading}
             usersLoading={orgUsersLoading}
+            currentUserIsOrgAdmin={currentUserIsOrgAdmin}
+            currentUserIsSuperAdmin={currentUserIsSuperAdmin}
           />
         </div>
       </DashboardLayout>
     </AdminProtectedRoute>
   );
-}
+};

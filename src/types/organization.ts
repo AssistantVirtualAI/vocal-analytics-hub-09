@@ -16,11 +16,13 @@ export interface OrganizationWithAgent extends Organization {
 export interface OrganizationUser {
   id: string;
   email: string;
-  displayName: string; // We make this required to match our implementation
-  avatarUrl: string; // Changed from optional to required to match the implementation
+  displayName: string;
+  avatarUrl: string;
   role: 'admin' | 'user';
   createdAt: string;
-  isPending: boolean; // Changed from optional to required to match the implementation
+  isPending: boolean;
+  isOrgAdmin?: boolean; // Organization admin
+  isSuperAdmin?: boolean; // Super admin (can control everything)
 }
 
 export interface UserRole {
@@ -35,6 +37,7 @@ export interface UserOrganization {
   userId: string;
   organizationId: string;
   createdAt: string;
+  isOrgAdmin?: boolean;
 }
 
 export interface OrganizationInvitation {
@@ -46,3 +49,4 @@ export interface OrganizationInvitation {
   token?: string;
   expiresAt?: string;
 }
+

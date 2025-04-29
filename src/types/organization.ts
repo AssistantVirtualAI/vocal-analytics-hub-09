@@ -17,7 +17,7 @@ export interface OrganizationUser {
   id: string;
   email: string;
   displayName: string; // We make this required to match our implementation
-  avatarUrl?: string;
+  avatarUrl: string; // Changed from optional to required to match the implementation
   role: 'admin' | 'user';
   createdAt: string;
   isPending?: boolean;

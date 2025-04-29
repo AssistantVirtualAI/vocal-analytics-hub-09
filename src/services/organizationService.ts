@@ -130,7 +130,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
         id: profile?.id || '',
         email: profile?.email || '',
         displayName: profile?.display_name || profile?.email?.split('@')[0] || '',
-        avatarUrl: profile?.avatar_url,
+        avatarUrl: profile?.avatar_url || '', // Provide empty string as default
         role: (role as 'admin' | 'user'),
         createdAt: profile?.created_at || new Date().toISOString(),
       };
@@ -142,6 +142,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     id: invite.id,
     email: invite.email,
     displayName: invite.email.split('@')[0] || '',
+    avatarUrl: '', // Provide empty string as default
     role: 'user' as const,
     createdAt: invite.created_at,
     isPending: true

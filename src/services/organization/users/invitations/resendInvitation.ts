@@ -32,12 +32,23 @@ export const resendInvitation = async (email: string, organizationId: string): P
     const invitationId = invitations[0].id;
     console.log(`Updating invitation ${invitationId}`);
 
-    // Use maybeSingle() instead of single() to handle the case where no rows are returned
+    // Update status to refresh token and expiration via database trigger
+    // First step: set status to something else temporarily
+    const { error: tempUpdateError } = await supabase
+      .from('organization_invitations')
+      .update({ status: 'refreshing' })
+      .eq('id', invitationId);
+
+    if (tempUpdateError) {
+      console.error('Error in temporary status update:', tempUpdateError);
+      toast.error(`Erreur lors du rafraîchissement de l'invitation: ${tempUpdateError.message}`);
+      throw tempUpdateError;
+    }
+    
+    // Second step: set status back to pending to trigger token refresh
     const { data: updatedInvitation, error: updateError } = await supabase
       .from('organization_invitations')
-      .update({
-        status: 'pending'  // This will trigger the database function to update token and expiration
-      })
+      .update({ status: 'pending' })
       .eq('id', invitationId)
       .select('token')
       .maybeSingle();
@@ -48,14 +59,32 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw updateError;
     }
 
-    if (!updatedInvitation?.token) {
-      const errorMsg = "Token d'invitation non généré";
-      console.error(errorMsg);
-      toast.error(errorMsg);
-      throw new Error(errorMsg);
-    }
+    console.log('Updated invitation response:', updatedInvitation);
 
-    console.log(`Invitation updated, new token: ${updatedInvitation.token}`);
+    if (!updatedInvitation || !updatedInvitation.token) {
+      // If token is still missing, fetch it directly
+      const { data: fetchedInvitation, error: fetchError } = await supabase
+        .from('organization_invitations')
+        .select('token')
+        .eq('id', invitationId)
+        .maybeSingle();
+      
+      if (fetchError) {
+        console.error('Error fetching updated invitation:', fetchError);
+        toast.error(`Erreur lors de la récupération de l'invitation: ${fetchError.message}`);
+        throw fetchError;
+      }
+
+      if (!fetchedInvitation?.token) {
+        const errorMsg = "Token d'invitation non généré";
+        console.error(errorMsg);
+        toast.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      console.log(`Invitation fetched, token: ${fetchedInvitation.token}`);
+      updatedInvitation.token = fetchedInvitation.token;
+    }
 
     // Get organization name for better email customization
     const { data: organization, error: orgError } = await supabase

@@ -18,22 +18,36 @@ export const useCallStats = () => {
         throw new Error("Authentication required");
       }
       
-      const { data, error } = await supabase.functions.invoke("get-stats", {
-        body: { agentId }
-      });
+      console.log(`Fetching call stats for agent: ${agentId}`);
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("get-stats", {
+          body: { agentId }
+        });
 
-      if (error) throw error;
+        if (error) {
+          console.error("Error fetching call stats:", error);
+          throw error;
+        }
 
-      // Format the response to match our CallStats type
-      const statsData: CallStats = {
-        totalCalls: data.totalCalls,
-        avgDuration: data.avgDuration,
-        avgSatisfaction: data.avgSatisfaction,
-        callsPerDay: data.callsPerDay,
-      };
+        console.log("Call stats data received:", data);
 
-      return statsData;
+        // Format the response to match our CallStats type
+        const statsData: CallStats = {
+          totalCalls: data.totalCalls || 0,
+          avgDuration: data.avgDuration || 0,
+          avgSatisfaction: data.avgSatisfaction || 0,
+          callsPerDay: data.callsPerDay || {},
+        };
+
+        return statsData;
+      } catch (error) {
+        console.error("Error in useCallStats:", error);
+        throw error;
+      }
     },
     enabled: !!user, // Only run the query if the user is authenticated
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 2,
   });
 };

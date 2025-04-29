@@ -19,9 +19,19 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   } = useAllUsersFetching();
 
   const { 
-    loading, 
+    loading: addUserLoading, 
     addUserToOrg 
   } = useUserOrganizationManagement(selectedOrg, fetchUsers);
+
+  // Combine loadings for a single loading state
+  const loading = addUserLoading;
+
+  // Function to add a user and refresh the list
+  const addUser = useCallback(async (email: string) => {
+    if (!selectedOrg) return;
+    await addUserToOrg(email);
+    // The fetchUsers call is handled within the addUserToOrg function
+  }, [selectedOrg, addUserToOrg]);
 
   return {
     orgUsers,
@@ -32,6 +42,6 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     fetchUsers,
     fetchAllUsers,
     loadAllUsers,
-    addUserToOrg
+    addUserToOrg: addUser
   };
 };

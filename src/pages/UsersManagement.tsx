@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -10,6 +11,14 @@ export default function UsersManagement() {
   const { organizations } = useOrganization();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   
+  // Initialize organization selection
+  useEffect(() => {
+    if (organizations.length > 0 && !selectedOrg) {
+      console.log('Setting initial organization:', organizations[0].id);
+      setSelectedOrg(organizations[0].id);
+    }
+  }, [organizations, selectedOrg]);
+
   const {
     orgUsers,
     allUsers,
@@ -21,11 +30,10 @@ export default function UsersManagement() {
     addUserToOrg
   } = useUsersManagement(selectedOrg);
 
-  useEffect(() => {
-    if (organizations.length > 0 && !selectedOrg) {
-      setSelectedOrg(organizations[0].id);
-    }
-  }, [organizations, selectedOrg]);
+  // Log for debugging
+  console.log('UsersManagement - Selected org:', selectedOrg);
+  console.log('UsersManagement - Organizations:', organizations);
+  console.log('UsersManagement - Org users:', orgUsers);
 
   return (
     <AdminProtectedRoute>
@@ -45,7 +53,10 @@ export default function UsersManagement() {
           <OrganizationUsersSection
             organizations={organizations}
             selectedOrg={selectedOrg}
-            onSelectOrg={setSelectedOrg}
+            onSelectOrg={(orgId) => {
+              console.log('Selecting organization:', orgId);
+              setSelectedOrg(orgId);
+            }}
             users={orgUsers}
             fetchUsers={fetchUsers}
             onAddUser={addUserToOrg}

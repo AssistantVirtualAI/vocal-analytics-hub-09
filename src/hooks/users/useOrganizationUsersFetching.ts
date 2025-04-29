@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
 import { fetchOrganizationUsers } from '@/services/organization/users/fetchUsers';
@@ -13,7 +13,9 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
     
     setLoading(true);
     try {
+      console.log(`Fetching users for organization: ${organizationId}`);
       const fetchedUsers = await fetchOrganizationUsers(organizationId);
+      console.log(`Fetched ${fetchedUsers.length} users:`, fetchedUsers);
       setUsers(fetchedUsers);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
@@ -22,6 +24,13 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
       setLoading(false);
     }
   }, [organizationId]);
+
+  // Automatically fetch users when organizationId changes
+  useEffect(() => {
+    if (organizationId) {
+      fetchUsers();
+    }
+  }, [organizationId, fetchUsers]);
 
   return {
     users,

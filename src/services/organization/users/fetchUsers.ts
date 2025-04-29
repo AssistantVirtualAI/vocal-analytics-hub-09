@@ -20,6 +20,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     }
 
     const userIds = userOrgData?.map(item => item.user_id) || [];
+    console.log(`Found ${userIds.length} users in organization`);
     
     // If no users in the organization, just return pending invitations
     if (userIds.length === 0) {
@@ -37,6 +38,8 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       console.error('Error fetching user profiles:', profilesError);
       throw profilesError;
     }
+
+    console.log(`Fetched ${profilesData?.length || 0} user profiles`);
 
     // Get the user roles to determine admin status
     const { data: rolesData, error: rolesError } = await supabase
@@ -60,7 +63,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
         activeUsers.push({
           id: profile.id,
           email: profile.email || '',
-          displayName: profile.display_name || '',
+          displayName: profile.display_name || profile.email?.split('@')[0] || '',
           avatarUrl: profile.avatar_url || '',
           role: role as 'admin' | 'user',
           createdAt: profile.created_at || new Date().toISOString(),
@@ -97,6 +100,8 @@ export const fetchPendingInvitations = async (organizationId: string): Promise<O
       console.error('Error fetching invitations:', invitationsError);
       throw invitationsError;
     }
+
+    console.log(`Found ${invitationsData?.length || 0} pending invitations`);
 
     // Format pending invitations
     return (invitationsData || []).map(invitation => ({

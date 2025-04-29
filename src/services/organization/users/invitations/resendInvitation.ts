@@ -127,17 +127,24 @@ export const resendInvitation = async (email: string, organizationId: string): P
         console.error('Error invoking edge function:', edgeFunctionError);
         toast.error(`Erreur lors de l'envoi de l'email d'invitation: ${edgeFunctionError.message}`);
         throw edgeFunctionError;
-      } else if (data && data.error) {
-        // Handle error response from the edge function itself
+      } 
+      
+      // Fix: Handle different error response formats properly
+      if (data && data.error) {
         console.error('Edge function returned an error:', data.error);
         
+        // Fix: Check if error is an object or string and handle accordingly
+        const errorMessage = typeof data.error === 'object' ? 
+          (data.error.message || JSON.stringify(data.error)) : 
+          String(data.error);
+        
         // Handle Resend validation errors specifically
-        if (data.error.includes("verify a domain")) {
+        if (typeof errorMessage === 'string' && errorMessage.includes("verify a domain")) {
           toast.error("L'email n'a pas pu être envoyé: Vous devez vérifier un domaine dans Resend et utiliser ce domaine comme adresse d'expéditeur.");
         } else {
-          toast.error(`Erreur du serveur: ${data.error}`);
+          toast.error(`Erreur du serveur: ${errorMessage}`);
         }
-        throw new Error(data.error);
+        throw new Error(errorMessage);
       } else {
         console.log('Email function response:', data);
         toast.success("Email d'invitation envoyé avec succès.");

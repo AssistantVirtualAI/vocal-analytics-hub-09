@@ -29,6 +29,9 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
   useEffect(() => {
     if (organizationId) {
       fetchUsers();
+    } else {
+      // Clear users if no organization is selected
+      setUsers([]);
     }
   }, [organizationId, fetchUsers]);
 

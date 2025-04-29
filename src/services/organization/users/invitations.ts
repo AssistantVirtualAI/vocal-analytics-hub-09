@@ -2,10 +2,156 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Send an invitation to join an organization
+export const sendInvitation = async (email: string, organizationId: string): Promise<void> => {
+  try {
+    console.log(`Sending invitation to ${email} for organization ${organizationId}`);
+
+    // Check if invitation already exists
+    const { data: existingInvitation, error: checkError } = await supabase
+      .from('organization_invitations')
+      .select('*')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing invitation:', checkError);
+      throw checkError;
+    }
+
+    if (existingInvitation) {
+      console.log('Invitation already exists, refreshing it');
+      
+      // Refresh existing invitation
+      const { error: updateError } = await supabase
+        .from('organization_invitations')
+        .update({
+          status: 'pending'  // This will trigger the database function to update token and expiration
+        })
+        .eq('id', existingInvitation.id);
+
+      if (updateError) {
+        console.error('Error refreshing invitation:', updateError);
+        throw updateError;
+      }
+    } else {
+      // Create new invitation
+      const { error: insertError } = await supabase
+        .from('organization_invitations')
+        .insert({
+          email,
+          organization_id: organizationId,
+          status: 'pending'
+        });
+
+      if (insertError) {
+        console.error('Error creating invitation:', insertError);
+        throw insertError;
+      }
+    }
+
+    // Retrieve the token for the invitation
+    const { data: invitation, error: invitationError } = await supabase
+      .from('organization_invitations')
+      .select('token')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .single();
+
+    if (invitationError) {
+      console.error('Error retrieving invitation token:', invitationError);
+      throw invitationError;
+    }
+
+    // Attempt to send invitation email
+    try {
+      const { error: edgeFunctionError } = await supabase
+        .functions.invoke('send-invitation-email', {
+          body: {
+            email,
+            organizationId,
+            token: invitation.token
+          }
+        });
+
+      if (edgeFunctionError) {
+        console.error('Error invoking edge function:', edgeFunctionError);
+        // Don't throw, we'll still create the invitation even if email fails
+      }
+    } catch (emailError) {
+      console.error('Error sending invitation email:', emailError);
+      // Don't throw, we'll still create the invitation even if email fails
+    }
+
+    toast("Invitation envoyée avec succès.");
+  } catch (error: any) {
+    console.error('Error in sendInvitation:', error);
+    toast("Erreur lors de l'envoi de l'invitation: " + error.message);
+    throw error;
+  }
+};
+
+// Resend an invitation
+export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
+  try {
+    console.log(`Resending invitation to ${email} for organization ${organizationId}`);
+    
+    // Update the invitation to refresh the token and expiration
+    const { data: invitation, error: updateError } = await supabase
+      .from('organization_invitations')
+      .update({
+        status: 'pending'  // This will trigger the database function to update token and expiration
+      })
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .select('token')
+      .single();
+
+    if (updateError) {
+      console.error('Error refreshing invitation:', updateError);
+      throw updateError;
+    }
+
+    if (!invitation) {
+      throw new Error('No invitation found');
+    }
+
+    // Attempt to send invitation email
+    try {
+      const { error: edgeFunctionError } = await supabase
+        .functions.invoke('send-invitation-email', {
+          body: {
+            email,
+            organizationId,
+            token: invitation.token
+          }
+        });
+
+      if (edgeFunctionError) {
+        console.error('Error invoking edge function:', edgeFunctionError);
+        // Don't throw, we'll still refresh the invitation even if email fails
+      }
+    } catch (emailError) {
+      console.error('Error sending invitation email:', emailError);
+      // Don't throw, we'll still refresh the invitation even if email fails
+    }
+    
+    toast("Invitation renvoyée avec succès.");
+  } catch (error: any) {
+    console.error('Error in resendInvitation:', error);
+    toast("Erreur lors du renvoi de l'invitation: " + error.message);
+    throw error;
+  }
+};
+
 // Cancel an invitation
 export const cancelInvitation = async (invitationId: string): Promise<void> => {
   try {
-    console.log(`Cancelling invitation ${invitationId}`);
+    console.log(`Canceling invitation ${invitationId}`);
     
     const { error } = await supabase
       .from('organization_invitations')
@@ -13,11 +159,11 @@ export const cancelInvitation = async (invitationId: string): Promise<void> => {
       .eq('id', invitationId);
 
     if (error) {
-      console.error('Error cancelling invitation:', error);
+      console.error('Error canceling invitation:', error);
       throw error;
     }
 
-    toast("L'invitation a été annulée avec succès.");
+    toast("Invitation annulée avec succès.");
   } catch (error: any) {
     console.error('Error in cancelInvitation:', error);
     toast("Erreur lors de l'annulation de l'invitation: " + error.message);
@@ -25,81 +171,61 @@ export const cancelInvitation = async (invitationId: string): Promise<void> => {
   }
 };
 
-// Resend invitation
-export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
+// Accept an invitation
+export const acceptInvitation = async (token: string, userId: string): Promise<void> => {
   try {
-    console.log(`Resending invitation to ${email} for organization ${organizationId}`);
+    console.log(`Accepting invitation with token ${token} for user ${userId}`);
     
-    // First, check if organization exists
-    const { data: organizationData, error: orgError } = await supabase
-      .from('organizations')
-      .select('name')
-      .eq('id', organizationId)
+    // Find the invitation
+    const { data: invitation, error: invitationError } = await supabase
+      .from('organization_invitations')
+      .select('id, organization_id, email, expires_at')
+      .eq('token', token)
+      .eq('status', 'pending')
       .single();
-      
-    if (orgError) {
-      console.error('Error retrieving organization:', orgError);
-      throw orgError;
+
+    if (invitationError) {
+      console.error('Error finding invitation:', invitationError);
+      throw invitationError;
     }
 
-    // Check if invitation exists and delete it to create a fresh one
-    const { error: deleteError } = await supabase
-      .from('organization_invitations')
-      .delete()
-      .eq('email', email)
-      .eq('organization_id', organizationId);
-      
-    if (deleteError) {
-      console.error('Error deleting existing invitation:', deleteError);
-      // Continue even if deletion fails (might not exist)
+    if (!invitation) {
+      throw new Error("Invitation non trouvée ou déjà utilisée.");
     }
 
-    // Create a new invitation - the token and expiry will be set by the trigger
-    const { data: inviteData, error: createError } = await supabase
-      .from('organization_invitations')
+    // Check if invitation has expired
+    if (invitation.expires_at && new Date(invitation.expires_at) < new Date()) {
+      throw new Error("Cette invitation a expiré.");
+    }
+
+    // Add user to organization
+    const { error: userOrgError } = await supabase
+      .from('user_organizations')
       .insert({
-        email,
-        organization_id: organizationId,
-        status: 'pending'
-      })
-      .select('token')
-      .single();
-      
-    if (createError) {
-      console.error('Error creating new invitation:', createError);
-      throw createError;
+        user_id: userId,
+        organization_id: invitation.organization_id
+      });
+
+    if (userOrgError) {
+      console.error('Error adding user to organization:', userOrgError);
+      throw userOrgError;
     }
 
-    if (!inviteData?.token) {
-      throw new Error("No token generated for invitation");
+    // Mark invitation as accepted
+    const { error: updateError } = await supabase
+      .from('organization_invitations')
+      .update({ status: 'accepted' })
+      .eq('id', invitation.id);
+
+    if (updateError) {
+      console.error('Error marking invitation as accepted:', updateError);
+      throw updateError;
     }
 
-    // Build the invitation URL with the token
-    const invitationUrl = `${window.location.origin}/auth?invitation=${inviteData.token}&email=${encodeURIComponent(email)}`;
-    
-    // Send the email via our edge function
-    const response = await fetch(`${window.location.origin}/functions/v1/send-invitation-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email,
-        organizationName: organizationData?.name || 'Notre organisation',
-        invitationUrl
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to send invitation email: ${errorData.error || response.statusText}`);
-    }
-
-    console.log('Invitation email sent successfully');
-    toast(`L'invitation a été envoyée à ${email}`);
+    toast("Vous avez rejoint l'organisation avec succès.");
   } catch (error: any) {
-    console.error('Error in resendInvitation:', error);
-    toast("Erreur lors du renvoi de l'invitation: " + error.message);
+    console.error('Error in acceptInvitation:', error);
+    toast("Erreur lors de l'acceptation de l'invitation: " + error.message);
     throw error;
   }
 };

@@ -92,7 +92,7 @@ export const fetchPendingInvitations = async (organizationId: string): Promise<O
     // Get pending invitations
     const { data: invitationsData, error: invitationsError } = await supabase
       .from('organization_invitations')
-      .select('*')
+      .select('id, email, created_at, token, expires_at')
       .eq('organization_id', organizationId)
       .eq('status', 'pending');
 

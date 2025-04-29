@@ -5,7 +5,7 @@ import { useOrganization } from '@/context/OrganizationContext';
 import { AllUsersSection } from '@/components/users/AllUsersSection';
 import { OrganizationUsersSection } from '@/components/users/OrganizationUsersSection';
 import { AdminProtectedRoute } from '@/components/users/AdminProtectedRoute';
-import { useUsersManagement } from '@/hooks/users';
+import { useUsersManagement } from '@/hooks/users/useUsersManagement';
 
 export default function UsersManagement() {
   const { organizations } = useOrganization();
@@ -30,7 +30,7 @@ export default function UsersManagement() {
     addUserToOrg
   } = useUsersManagement(selectedOrg);
 
-  // Log for debugging
+  // Debug logging
   console.log('UsersManagement - Selected org:', selectedOrg);
   console.log('UsersManagement - Organizations:', organizations);
   console.log('UsersManagement - Org users:', orgUsers);

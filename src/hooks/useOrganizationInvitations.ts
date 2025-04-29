@@ -10,7 +10,7 @@ export const useOrganizationInvitations = (organizationId: string | null) => {
     try {
       const { data, error } = await supabase
         .from('organization_invitations')
-        .select('*')
+        .select('id, email, organization_id, status, created_at, token, expires_at')
         .eq('organization_id', orgId)
         .eq('status', 'pending');
         
@@ -52,6 +52,9 @@ export const useOrganizationInvitations = (organizationId: string | null) => {
   useEffect(() => {
     if (organizationId) {
       fetchPendingInvitations(organizationId);
+    } else {
+      // Clear invitations if no organization is selected
+      setPendingInvitations([]);
     }
   }, [organizationId]);
 

@@ -12,8 +12,10 @@ const corsHeaders = {
 
 interface InvitationEmailRequest {
   email: string;
-  organizationName: string;
-  invitationUrl: string;
+  organizationId?: string;
+  token?: string;
+  organizationName?: string;
+  invitationUrl?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -23,12 +25,34 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, organizationName, invitationUrl }: InvitationEmailRequest = await req.json();
-
-    if (!email || !organizationName || !invitationUrl) {
+    const requestData: InvitationEmailRequest = await req.json();
+    const { email } = requestData;
+    
+    // Support both parameter formats for backward compatibility
+    const organizationName = requestData.organizationName || "Votre organisation";
+    let invitationUrl;
+    
+    if (requestData.invitationUrl) {
+      invitationUrl = requestData.invitationUrl;
+    } else if (requestData.token && requestData.organizationId) {
+      // Construct URL from token and organizationId for backward compatibility
+      invitationUrl = `${new URL(req.url).origin}/auth?invitation=${requestData.token}`;
+    } else {
       return new Response(
         JSON.stringify({ 
-          error: "Missing required parameters: email, organizationName, or invitationUrl" 
+          error: "Missing required parameters: invitationUrl or (token and organizationId)" 
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    if (!email) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Missing required parameter: email" 
         }),
         {
           status: 400,
@@ -38,6 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Sending invitation email to ${email} for organization ${organizationName}`);
+    console.log(`Invitation URL: ${invitationUrl}`);
 
     const emailResponse = await resend.emails.send({
       from: "Invitations <onboarding@resend.dev>",

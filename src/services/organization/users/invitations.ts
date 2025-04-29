@@ -66,30 +66,53 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
       throw invitationError;
     }
 
+    // Get organization name for better email customization
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single();
+
+    if (orgError) {
+      console.error('Error retrieving organization name:', orgError);
+      // Don't throw here, we can continue with default name
+    }
+
+    const organizationName = organization?.name || "Votre organisation";
+    const invitationUrl = `${window.location.origin}/auth?invitation=${invitation.token}`;
+
     // Attempt to send invitation email
     try {
-      const { error: edgeFunctionError } = await supabase
+      console.log('Sending invitation email with params:', {
+        email, 
+        organizationName, 
+        invitationUrl
+      });
+      
+      const { data, error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
           body: {
             email,
-            organizationId,
-            token: invitation.token
+            organizationName,
+            invitationUrl
           }
         });
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
         // Don't throw, we'll still create the invitation even if email fails
+      } else {
+        console.log('Email function response:', data);
       }
     } catch (emailError) {
       console.error('Error sending invitation email:', emailError);
       // Don't throw, we'll still create the invitation even if email fails
     }
 
-    toast("Invitation envoyée avec succès.");
+    toast.success("Invitation envoyée avec succès.");
   } catch (error: any) {
     console.error('Error in sendInvitation:', error);
-    toast("Erreur lors de l'envoi de l'invitation: " + error.message);
+    toast.error("Erreur lors de l'envoi de l'invitation: " + error.message);
     throw error;
   }
 };
@@ -134,20 +157,43 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw updateError;
     }
 
+    // Get organization name for better email customization
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single();
+
+    if (orgError) {
+      console.error('Error retrieving organization name:', orgError);
+      // Don't throw here, we can continue with default name
+    }
+
+    const organizationName = organization?.name || "Votre organisation";
+    const invitationUrl = `${window.location.origin}/auth?invitation=${updatedInvitation.token}`;
+
     // Attempt to send invitation email
     try {
-      const { error: edgeFunctionError } = await supabase
+      console.log('Resending invitation email with params:', {
+        email, 
+        organizationName, 
+        invitationUrl
+      });
+      
+      const { data, error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
           body: {
             email,
-            organizationName: "Votre organisation", // Ideally get this from a query
-            invitationUrl: `${window.location.origin}/auth?invitation=${updatedInvitation.token}`
+            organizationName,
+            invitationUrl
           }
         });
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
         // Don't throw, we'll still refresh the invitation even if email fails
+      } else {
+        console.log('Email function response:', data);
       }
     } catch (emailError) {
       console.error('Error sending invitation email:', emailError);
@@ -177,10 +223,10 @@ export const cancelInvitation = async (invitationId: string): Promise<void> => {
       throw error;
     }
 
-    toast("Invitation annulée avec succès.");
+    toast.success("Invitation annulée avec succès.");
   } catch (error: any) {
     console.error('Error in cancelInvitation:', error);
-    toast("Erreur lors de l'annulation de l'invitation: " + error.message);
+    toast.error("Erreur lors de l'annulation de l'invitation: " + error.message);
     throw error;
   }
 };
@@ -236,10 +282,10 @@ export const acceptInvitation = async (token: string, userId: string): Promise<v
       throw updateError;
     }
 
-    toast("Vous avez rejoint l'organisation avec succès.");
+    toast.success("Vous avez rejoint l'organisation avec succès.");
   } catch (error: any) {
     console.error('Error in acceptInvitation:', error);
-    toast("Erreur lors de l'acceptation de l'invitation: " + error.message);
+    toast.error("Erreur lors de l'acceptation de l'invitation: " + error.message);
     throw error;
   }
 };

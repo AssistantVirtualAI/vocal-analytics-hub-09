@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -13,7 +12,7 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { OrganizationUser } from '@/types/organization';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -58,14 +57,14 @@ export default function UsersManagement() {
         .from('user_organizations')
         .select(`
           user_id,
-          profiles:user_id (
+          profiles (
             id,
             email,
             display_name,
             avatar_url,
             created_at
           ),
-          user_roles:user_id (
+          user_roles (
             role
           )
         `)
@@ -73,23 +72,21 @@ export default function UsersManagement() {
 
       if (error) throw error;
 
-      const formattedUsers: OrganizationUser[] = data.map(item => ({
-        id: item.profiles.id,
-        email: item.profiles.email,
-        displayName: item.profiles.display_name || item.profiles.email.split('@')[0],
-        avatarUrl: item.profiles.avatar_url,
-        role: (item.user_roles && item.user_roles[0]) ? item.user_roles[0].role : 'user',
-        createdAt: item.profiles.created_at,
-      }));
+      const formattedUsers: OrganizationUser[] = data
+        .filter(item => item.profiles && typeof item.profiles === 'object')
+        .map(item => ({
+          id: item.profiles?.id || '',
+          email: item.profiles?.email || '',
+          displayName: item.profiles?.display_name || item.profiles?.email?.split('@')[0] || '',
+          avatarUrl: item.profiles?.avatar_url,
+          role: Array.isArray(item.user_roles) && item.user_roles[0] ? item.user_roles[0].role as 'admin' | 'user' : 'user',
+          createdAt: item.profiles?.created_at || new Date().toISOString(),
+        }));
 
       setOrgUsers(formattedUsers);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
-      toast({
-        title: "Erreur lors de la récupération des utilisateurs",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -106,25 +103,28 @@ export default function UsersManagement() {
           display_name,
           avatar_url,
           created_at,
-          user_roles!inner (
+          user_roles (
             role
           )
         `);
 
       if (error) throw error;
 
-      const formattedUsers: OrganizationUser[] = data.map(item => ({
-        id: item.id,
-        email: item.email,
-        displayName: item.display_name || item.email.split('@')[0],
-        avatarUrl: item.avatar_url,
-        role: item.user_roles[0].role,
-        createdAt: item.created_at,
-      }));
+      const formattedUsers: OrganizationUser[] = data
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          id: item.id || '',
+          email: item.email || '',
+          displayName: item.display_name || item.email?.split('@')[0] || '',
+          avatarUrl: item.avatar_url,
+          role: Array.isArray(item.user_roles) && item.user_roles[0] ? item.user_roles[0].role as 'admin' | 'user' : 'user',
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
 
       setAllUsers(formattedUsers);
     } catch (error: any) {
       console.error('Error fetching all users:', error);
+      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,6 @@ export default function UsersManagement() {
     
     setLoading(true);
     try {
-      // First, check if user exists
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('id')
@@ -148,7 +147,6 @@ export default function UsersManagement() {
         throw new Error(`Utilisateur avec l'email ${newUserEmail} non trouvé.`);
       }
 
-      // Check if user already in organization
       const { data: existingLink, error: linkCheckError } = await supabase
         .from('user_organizations')
         .select('*')
@@ -162,7 +160,6 @@ export default function UsersManagement() {
         throw new Error(`L'utilisateur est déjà membre de cette organisation.`);
       }
 
-      // Add user to organization
       const { error: addError } = await supabase
         .from('user_organizations')
         .insert({
@@ -172,22 +169,14 @@ export default function UsersManagement() {
 
       if (addError) throw addError;
 
-      toast({
-        title: "Utilisateur ajouté",
-        description: `${newUserEmail} a été ajouté à l'organisation avec succès.`,
-      });
+      toast(`${newUserEmail} a été ajouté à l'organisation avec succès.`);
 
-      // Refresh users list
       await fetchUsers();
       setNewUserEmail('');
       setAddDialogOpen(false);
     } catch (error: any) {
       console.error('Error adding user to organization:', error);
-      toast({
-        title: "Erreur lors de l'ajout de l'utilisateur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -206,20 +195,12 @@ export default function UsersManagement() {
 
       if (error) throw error;
 
-      toast({
-        title: "Utilisateur retiré",
-        description: "L'utilisateur a été retiré de l'organisation avec succès.",
-      });
+      toast("L'utilisateur a été retiré de l'organisation avec succès.");
 
-      // Refresh users list
       await fetchUsers();
     } catch (error: any) {
       console.error('Error removing user from organization:', error);
-      toast({
-        title: "Erreur lors du retrait de l'utilisateur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors du retrait de l'utilisateur: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -228,7 +209,6 @@ export default function UsersManagement() {
   const changeUserRole = async (userId: string, newRole: 'admin' | 'user') => {
     setLoading(true);
     try {
-      // Remove existing roles
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
@@ -236,7 +216,6 @@ export default function UsersManagement() {
 
       if (deleteError) throw deleteError;
 
-      // Add new role
       const { error: addError } = await supabase
         .from('user_roles')
         .insert({
@@ -246,27 +225,18 @@ export default function UsersManagement() {
 
       if (addError) throw addError;
 
-      toast({
-        title: "Rôle mis à jour",
-        description: `Le rôle de l'utilisateur a été mis à jour avec succès.`,
-      });
+      toast("Le rôle de l'utilisateur a été mis à jour avec succès.");
 
-      // Refresh users list
       await fetchUsers();
       await fetchAllUsers();
     } catch (error: any) {
       console.error('Error changing user role:', error);
-      toast({
-        title: "Erreur lors de la mise à jour du rôle",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la mise à jour du rôle: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Check if the current user has admin rights
   if (!isAdmin) {
     return (
       <DashboardLayout>

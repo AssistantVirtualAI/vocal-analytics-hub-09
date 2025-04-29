@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Organization, OrganizationUser } from '@/types/organization';
 import { DEFAULT_ORGANIZATION_ID } from '@/config/organizations';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 
 interface OrganizationContextType {
@@ -114,11 +114,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       }
     } catch (error: any) {
       console.error('Error fetching organizations:', error);
-      toast({
-        title: "Erreur lors de la récupération des organisations",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la récupération des organisations: " + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -133,14 +129,14 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         .from('user_organizations')
         .select(`
           user_id,
-          profiles:user_id (
+          profiles (
             id,
             email,
             display_name,
             avatar_url,
             created_at
           ),
-          user_roles:user_id (
+          user_roles (
             role
           )
         `)
@@ -148,23 +144,22 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) throw error;
 
-      const formattedUsers: OrganizationUser[] = data.map(item => ({
-        id: item.profiles.id,
-        email: item.profiles.email,
-        displayName: item.profiles.display_name || item.profiles.email.split('@')[0],
-        avatarUrl: item.profiles.avatar_url,
-        role: (item.user_roles && item.user_roles.length > 0) ? item.user_roles[0].role : 'user',
-        createdAt: item.profiles.created_at,
-      }));
+      // Make sure data is not null and properly structured
+      const formattedUsers: OrganizationUser[] = data
+        .filter(item => item.profiles && typeof item.profiles === 'object')
+        .map(item => ({
+          id: item.profiles?.id || '',
+          email: item.profiles?.email || '',
+          displayName: item.profiles?.display_name || item.profiles?.email?.split('@')[0] || '',
+          avatarUrl: item.profiles?.avatar_url,
+          role: Array.isArray(item.user_roles) && item.user_roles[0] ? item.user_roles[0].role as 'admin' | 'user' : 'user',
+          createdAt: item.profiles?.created_at || new Date().toISOString(),
+        }));
 
       setUsers(formattedUsers);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
-      toast({
-        title: "Erreur lors de la récupération des utilisateurs",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     }
   };
 
@@ -199,10 +194,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         if (linkError) throw linkError;
       }
 
-      toast({
-        title: "Organisation créée",
-        description: "L'organisation a été créée avec succès.",
-      });
+      toast("Organisation créée avec succès.");
 
       // Refresh organizations list
       await fetchOrganizations();
@@ -212,11 +204,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       
     } catch (error: any) {
       console.error('Error creating organization:', error);
-      toast({
-        title: "Erreur lors de la création de l'organisation",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la création de l'organisation: " + error.message);
       throw error;
     }
   };
@@ -234,20 +222,13 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) throw error;
 
-      toast({
-        title: "Organisation mise à jour",
-        description: "L'organisation a été mise à jour avec succès.",
-      });
+      toast("Organisation mise à jour avec succès.");
 
       // Refresh organizations list
       await fetchOrganizations();
     } catch (error: any) {
       console.error('Error updating organization:', error);
-      toast({
-        title: "Erreur lors de la mise à jour de l'organisation",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la mise à jour de l'organisation: " + error.message);
       throw error;
     }
   };
@@ -261,10 +242,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) throw error;
 
-      toast({
-        title: "Organisation supprimée",
-        description: "L'organisation a été supprimée avec succès.",
-      });
+      toast("Organisation supprimée avec succès.");
 
       // Refresh organizations list
       await fetchOrganizations();
@@ -278,11 +256,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       }
     } catch (error: any) {
       console.error('Error deleting organization:', error);
-      toast({
-        title: "Erreur lors de la suppression de l'organisation",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la suppression de l'organisation: " + error.message);
       throw error;
     }
   };
@@ -326,20 +300,13 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (addError) throw addError;
 
-      toast({
-        title: "Utilisateur ajouté",
-        description: `${email} a été ajouté à l'organisation avec succès.`,
-      });
+      toast(`${email} a été ajouté à l'organisation avec succès.`);
 
       // Refresh users list
       await fetchOrganizationUsers(organizationId);
     } catch (error: any) {
       console.error('Error adding user to organization:', error);
-      toast({
-        title: "Erreur lors de l'ajout de l'utilisateur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
       throw error;
     }
   };
@@ -354,20 +321,13 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) throw error;
 
-      toast({
-        title: "Utilisateur retiré",
-        description: "L'utilisateur a été retiré de l'organisation avec succès.",
-      });
+      toast("L'utilisateur a été retiré de l'organisation avec succès.");
 
       // Refresh users list
       await fetchOrganizationUsers(organizationId);
     } catch (error: any) {
       console.error('Error removing user from organization:', error);
-      toast({
-        title: "Erreur lors du retrait de l'utilisateur",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors du retrait de l'utilisateur: " + error.message);
       throw error;
     }
   };
@@ -407,21 +367,14 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (addError) throw addError;
 
-      toast({
-        title: "Rôle mis à jour",
-        description: `Le rôle de l'utilisateur a été mis à jour avec succès.`,
-      });
+      toast("Le rôle de l'utilisateur a été mis à jour avec succès.");
 
       if (currentOrganization) {
         await fetchOrganizationUsers(currentOrganization.id);
       }
     } catch (error: any) {
       console.error('Error setting user role:', error);
-      toast({
-        title: "Erreur lors de la mise à jour du rôle",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast("Erreur lors de la mise à jour du rôle: " + error.message);
       throw error;
     }
   };

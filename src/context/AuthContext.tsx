@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -88,9 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       navigate('/');
     } catch (error: any) {
-      toast({
-        title: "Erreur de connexion",
-        description: error.message,
+      toast("Erreur de connexion: " + error.message, {
         variant: "destructive",
       });
       throw error;
@@ -101,14 +99,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
-      toast({
-        title: "Inscription réussie",
-        description: "Veuillez vérifier votre email pour confirmer votre inscription.",
-      });
+      toast("Inscription réussie. Veuillez vérifier votre email pour confirmer votre inscription.");
     } catch (error: any) {
-      toast({
-        title: "Erreur d'inscription",
-        description: error.message,
+      toast("Erreur d'inscription: " + error.message, {
         variant: "destructive",
       });
       throw error;
@@ -120,9 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await supabase.auth.signOut();
       navigate('/auth');
     } catch (error: any) {
-      toast({
-        title: "Erreur de déconnexion",
-        description: error.message,
+      toast("Erreur de déconnexion: " + error.message, {
         variant: "destructive",
       });
     }

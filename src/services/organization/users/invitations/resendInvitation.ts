@@ -112,7 +112,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
       invitationUrl
     });
     
-    // Attempt to send invitation email
+    // Attempt to send invitation email with better error handling
     try {
       const { data, error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
@@ -127,20 +127,38 @@ export const resendInvitation = async (email: string, organizationId: string): P
         console.error('Error invoking edge function:', edgeFunctionError);
         toast.error("Erreur lors de l'envoi de l'email d'invitation: " + edgeFunctionError.message);
         throw edgeFunctionError;
+      } else if (data && data.error) {
+        // Handle error response from the edge function itself
+        console.error('Edge function returned an error:', data.error);
+        toast.error("Erreur du serveur lors de l'envoi de l'email: " + data.error);
+        throw new Error(data.error);
       } else {
         console.log('Email function response:', data);
         toast.success("Email d'invitation envoyé avec succès.");
       }
     } catch (emailError: any) {
       console.error('Error sending invitation email:', emailError);
-      toast.error("Erreur lors de l'envoi de l'email d'invitation: " + (emailError.message || 'Erreur inconnue'));
+      
+      // More user-friendly error message
+      const errorMessage = emailError.message && emailError.message.includes('Failed to fetch') 
+        ? "Impossible de contacter le serveur d'emails. Veuillez réessayer plus tard."
+        : "Erreur lors de l'envoi de l'email d'invitation: " + (emailError.message || 'Erreur inconnue');
+      
+      toast.error(errorMessage);
       throw emailError;
     }
     
     toast.success("Invitation renvoyée avec succès.");
   } catch (error: any) {
     console.error('Error in resendInvitation:', error);
-    toast.error("Erreur lors du renvoi de l'invitation: " + error.message);
+    
+    // Only show the toast if it's not already shown in a specific catch block
+    if (!error.message?.includes('Token d\'invitation') && 
+        !error.message?.includes('invitation en attente') &&
+        !error.message?.includes('email d\'invitation')) {
+      toast.error("Erreur lors du renvoi de l'invitation: " + error.message);
+    }
+    
     throw error;
   }
 };

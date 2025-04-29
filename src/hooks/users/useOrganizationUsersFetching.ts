@@ -23,6 +23,7 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+      // Even on error, make sure to clear loading state
     } finally {
       setLoading(false);
     }
@@ -44,5 +45,6 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
     users,
     loading,
     fetchUsers,
+    setUsers // Export setUsers to allow direct updates if needed
   };
 };

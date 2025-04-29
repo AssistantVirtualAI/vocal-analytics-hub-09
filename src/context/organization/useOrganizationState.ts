@@ -32,6 +32,7 @@ export const useOrganizationState = () => {
     setIsLoading(true);
     try {
       const orgs = await fetchOrganizations(isAdmin, user?.id);
+      console.log('Fetched organizations:', orgs);
       setOrganizations(orgs);
       
       if (orgs.length > 0 && !orgs.some(org => org.id === currentOrganizationId)) {
@@ -49,7 +50,9 @@ export const useOrganizationState = () => {
     if (!organizationId) return;
     
     try {
+      console.log('Fetching users for organization:', organizationId);
       const orgUsers = await fetchOrgUsers(organizationId);
+      console.log('Fetched organization users:', orgUsers);
       setUsers(orgUsers);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
@@ -58,6 +61,7 @@ export const useOrganizationState = () => {
   };
 
   const changeOrganization = (organizationId: string) => {
+    console.log('Changing organization to:', organizationId);
     localStorage.setItem('currentOrganizationId', organizationId);
     setCurrentOrganizationId(organizationId);
   };
@@ -107,13 +111,16 @@ export const useOrganizationState = () => {
 
   const addUserToOrganization = async (email: string, organizationId: string) => {
     try {
+      console.log(`Adding user ${email} to org ${organizationId}`);
       await addUser(email, organizationId);
-      if (currentOrganization) {
-        await fetchOrganizationUsers(currentOrganization.id);
+      if (organizationId === currentOrganization?.id) {
+        await fetchOrganizationUsers(organizationId);
+        console.log('User added, refreshed organization users');
       }
+      toast.success(`Invitation envoyée à ${email}`);
     } catch (error: any) {
       console.error('Error adding user to organization:', error);
-      toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
+      toast.error("Erreur: " + error.message);
       throw error;
     }
   };
@@ -121,13 +128,13 @@ export const useOrganizationState = () => {
   const removeUserFromOrganization = async (userId: string, organizationId: string) => {
     try {
       await removeUser(userId, organizationId);
-      toast("L'utilisateur a été retiré de l'organisation avec succès.");
+      toast.success("L'utilisateur a été retiré de l'organisation.");
       if (currentOrganization) {
         await fetchOrganizationUsers(currentOrganization.id);
       }
     } catch (error: any) {
       console.error('Error removing user from organization:', error);
-      toast("Erreur lors du retrait de l'utilisateur: " + error.message);
+      toast.error("Erreur: " + error.message);
       throw error;
     }
   };
@@ -135,13 +142,13 @@ export const useOrganizationState = () => {
   const setUserRole = async (userId: string, role: 'admin' | 'user') => {
     try {
       await setRole(userId, role);
-      toast("Le rôle de l'utilisateur a été mis à jour avec succès.");
+      toast.success("Le rôle de l'utilisateur a été mis à jour.");
       if (currentOrganization) {
         await fetchOrganizationUsers(currentOrganization.id);
       }
     } catch (error: any) {
       console.error('Error setting user role:', error);
-      toast("Erreur lors de la mise à jour du rôle: " + error.message);
+      toast.error("Erreur: " + error.message);
       throw error;
     }
   };

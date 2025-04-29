@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { UserTableHeader } from './UserTableHeader';
 import { UserTableSkeleton } from './UserTableSkeleton';
 import { UserTableRow } from './UserTableRow';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -44,6 +46,15 @@ export const OrganizationUsersList = ({
   useEffect(() => {
     console.log(`OrganizationUsersList - Loading state: ${loading}`);
   }, [loading]);
+
+  const handleRefresh = async () => {
+    try {
+      await fetchUsers();
+      toast.success("Liste des utilisateurs actualisée");
+    } catch (error: any) {
+      toast.error("Erreur lors de l'actualisation: " + error.message);
+    }
+  };
 
   const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId) {
@@ -111,38 +122,53 @@ export const OrganizationUsersList = ({
   };
 
   return (
-    <Table>
-      <UserTableHeader />
-      {loading ? (
-        <UserTableSkeleton />
-      ) : (
-        <TableBody>
-          {users.length > 0 ? (
-            users.map((userItem) => (
-              <UserTableRow
-                key={userItem.id}
-                user={userItem}
-                currentUserId={user?.id}
-                actionLoading={actionLoading}
-                onRemoveUser={handleRemoveUserFromOrg}
-                onCancelInvitation={handleCancelInvitation}
-                onResendInvitation={handleResendInvitation}
-                onResetPassword={handleResetPassword}
-              />
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center py-8">
-                {loading ? (
-                  "Chargement des utilisateurs..."
-                ) : (
-                  "Aucun utilisateur dans cette organisation"
-                )}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      )}
-    </Table>
+    <div>
+      <div className="mb-4 flex justify-between items-center">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={loading}
+          className="ml-auto"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
+      </div>
+      
+      <Table>
+        <UserTableHeader />
+        {loading ? (
+          <UserTableSkeleton />
+        ) : (
+          <TableBody>
+            {users.length > 0 ? (
+              users.map((userItem) => (
+                <UserTableRow
+                  key={userItem.id}
+                  user={userItem}
+                  currentUserId={user?.id}
+                  actionLoading={actionLoading}
+                  onRemoveUser={handleRemoveUserFromOrg}
+                  onCancelInvitation={handleCancelInvitation}
+                  onResendInvitation={handleResendInvitation}
+                  onResetPassword={handleResetPassword}
+                />
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  {loading ? (
+                    "Chargement des utilisateurs..."
+                  ) : (
+                    "Aucun utilisateur dans cette organisation"
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        )}
+      </Table>
+    </div>
   );
 };

@@ -7,6 +7,8 @@ import { OrganizationUsersSection } from '@/components/users/OrganizationUsersSe
 import { AdminProtectedRoute } from '@/components/users/AdminProtectedRoute';
 import { useUsersManagement } from '@/hooks/users/useUsersManagement';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 export default function UsersManagement() {
   const { organizations } = useOrganization();
@@ -28,7 +30,8 @@ export default function UsersManagement() {
     allUsersLoading,
     fetchUsers,
     loadAllUsers,
-    addUserToOrg
+    addUserToOrg,
+    refreshAllData
   } = useUsersManagement(selectedOrg);
 
   // Debug logging
@@ -46,12 +49,32 @@ export default function UsersManagement() {
     }
   }, [orgUsers, orgUsersLoading, selectedOrg]);
 
+  const handleRefresh = async () => {
+    try {
+      toast.info("Actualisation des données utilisateurs...");
+      await refreshAllData();
+      toast.success("Données utilisateurs actualisées");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast.error("Erreur lors de l'actualisation des données");
+    }
+  };
+
   return (
     <AdminProtectedRoute>
       <DashboardLayout>
         <div className="container p-4 sm:p-6 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
             <h1 className="text-2xl sm:text-3xl font-bold">Gestion des utilisateurs</h1>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh} 
+              className="ml-auto"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
           </div>
 
           <AllUsersSection 

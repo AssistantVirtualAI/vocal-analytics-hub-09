@@ -8,7 +8,8 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   const { 
     users: orgUsers, 
     loading: orgUsersLoading, 
-    fetchUsers 
+    fetchUsers,
+    setUsers: setOrgUsers
   } = useOrganizationUsersFetching(selectedOrg);
   
   const { 
@@ -23,25 +24,36 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     addUserToOrg 
   } = useUserOrganizationManagement(selectedOrg, fetchUsers);
 
-  // Combine loadings for a single loading state
-  const loading = addUserLoading;
-
   // Function to add a user and refresh the list
   const addUser = useCallback(async (email: string) => {
     if (!selectedOrg) return;
-    await addUserToOrg(email);
-    // The fetchUsers call is handled within the addUserToOrg function
+    try {
+      await addUserToOrg(email);
+      // The fetchUsers call is handled within the addUserToOrg function
+    } catch (error) {
+      console.error("Error in addUser:", error);
+    }
   }, [selectedOrg, addUserToOrg]);
+
+  // Force refresh both user lists
+  const refreshAllData = useCallback(async () => {
+    console.log("Force refreshing all user data");
+    if (selectedOrg) {
+      await fetchUsers();
+    }
+    await fetchAllUsers();
+  }, [selectedOrg, fetchUsers, fetchAllUsers]);
 
   return {
     orgUsers,
     allUsers,
-    loading,
+    loading: addUserLoading,
     orgUsersLoading,
     allUsersLoading,
     fetchUsers,
     fetchAllUsers,
     loadAllUsers,
-    addUserToOrg: addUser
+    addUserToOrg: addUser,
+    refreshAllData
   };
 };

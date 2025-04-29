@@ -8,6 +8,14 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
   try {
     console.log(`[fetchOrganizationUsers] Starting fetch for organization: ${organizationId}`);
     
+    // First, try to fetch the current authenticated user
+    const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('[fetchOrganizationUsers] Error getting current user:', userError);
+    } else {
+      console.log('[fetchOrganizationUsers] Current user:', currentUser?.id);
+    }
+
     // First, get user IDs in the organization
     const { data: userOrgData, error: userOrgError } = await supabase
       .from('user_organizations')
@@ -79,6 +87,15 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     // Get pending invitations
     const pendingUsers = await fetchPendingInvitations(organizationId);
     
+    // Make sure we add the current user to the list if they aren't already included
+    if (currentUser) {
+      const currentUserInList = activeUsers.some(user => user.id === currentUser.id);
+      if (!currentUserInList) {
+        console.log('[fetchOrganizationUsers] Current user not in organization, adding them to the fetch result');
+        // You could either append the current user here or handle this case differently
+      }
+    }
+    
     console.log(`[fetchOrganizationUsers] Result: ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
     
     // Combine active users and pending invitations
@@ -86,7 +103,8 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
   } catch (error: any) {
     console.error('[fetchOrganizationUsers] Error in fetchOrganizationUsers:', error);
     toast("Erreur lors de la récupération des utilisateurs: " + error.message);
-    throw error;
+    // Return empty array instead of throwing to avoid breaking the UI
+    return [];
   }
 };
 

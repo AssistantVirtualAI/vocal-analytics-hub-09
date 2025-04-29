@@ -9,6 +9,7 @@ import Calls from '@/pages/Calls';
 import CallDetails from '@/pages/CallDetails';
 import Stats from '@/pages/Stats';
 import Customers from '@/pages/Customers';
+import CustomerDetails from '@/pages/CustomerDetails';
 import NotFound from '@/pages/NotFound';
 
 import { OrganizationProvider } from './context/OrganizationContext';
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route path="/calls/:id" element={<RequireAuth><CallDetails /></RequireAuth>} />
       <Route path="/stats" element={<RequireAuth><Stats /></RequireAuth>} />
       <Route path="/customers" element={<RequireAuth><Customers /></RequireAuth>} />
+      <Route path="/customers/:id" element={<RequireAuth><CustomerDetails /></RequireAuth>} />
       <Route path="/organizations" element={<RequireAuth><OrganizationSettings /></RequireAuth>} />
       <Route path="/users" element={<RequireAdmin><UsersManagement /></RequireAdmin>} />
       <Route path="*" element={<NotFound />} />

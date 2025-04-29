@@ -96,20 +96,61 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
-        toast.error("Erreur lors de l'envoi de l'email d'invitation");
+        toast.error(`Erreur lors de l'envoi de l'email d'invitation: ${edgeFunctionError.message}`);
+      } else if (data && !data.success) {
+        console.error('Edge function returned an error:', data.error);
+        
+        let errorMessage = "Erreur inconnue";
+        
+        // Extract error message from the response
+        if (data.error) {
+          if (typeof data.error === 'object' && data.error !== null) {
+            // We have a structured error object
+            if (data.error.message) {
+              errorMessage = data.error.message;
+            } else {
+              errorMessage = JSON.stringify(data.error);
+            }
+          } else if (typeof data.error === 'string') {
+            // We have a string error
+            errorMessage = data.error;
+          }
+        }
+        
+        // Special handling for Resend validation error (testing mode)
+        if (errorMessage.includes("verify a domain") || 
+            errorMessage.includes("send testing emails to your own email") || 
+            errorMessage.includes("change the `from` address")) {
+          
+          toast.error("La configuration d'email n'est pas terminée: Vous devez vérifier un domaine dans Resend.com et configurer une adresse d'expéditeur utilisant ce domaine. En mode test, vous ne pouvez envoyer des emails qu'à votre propre adresse.");
+        } 
+        // Handle rate limiting
+        else if (errorMessage.toLowerCase().includes("rate limit")) {
+          toast.error("Limite d'envoi d'emails atteinte. Veuillez réessayer plus tard.");
+        } 
+        // Generic error
+        else {
+          toast.error(`Erreur lors de l'envoi de l'email: ${errorMessage}`);
+        }
       } else {
         console.log('Email function response:', data);
         toast.success("Email d'invitation envoyé avec succès.");
       }
-    } catch (emailError) {
+    } catch (emailError: any) {
       console.error('Error sending invitation email:', emailError);
-      toast.error("Erreur lors de l'envoi de l'email d'invitation");
+      toast.error("Erreur lors de l'envoi de l'email d'invitation: " + 
+        (typeof emailError === 'object' ? 
+          (emailError.message || JSON.stringify(emailError)) : 
+          String(emailError)));
     }
 
     toast.success("Invitation créée avec succès.");
   } catch (error: any) {
     console.error('Error in sendInvitation:', error);
-    toast.error("Erreur lors de l'envoi de l'invitation: " + error.message);
+    toast.error("Erreur lors de l'envoi de l'invitation: " + 
+      (typeof error === 'object' ? 
+        (error.message || JSON.stringify(error)) : 
+        String(error)));
     throw error;
   }
 };

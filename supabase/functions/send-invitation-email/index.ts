@@ -28,7 +28,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (!apiKey) {
       console.error("RESEND_API_KEY is not set");
       return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY is not configured" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "RESEND_API_KEY is not configured" 
+        }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -47,6 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Missing required parameters:", { email, invitationUrl });
       return new Response(
         JSON.stringify({ 
+          success: false,
           error: "Missing required parameters: email or invitationUrl" 
         }),
         {
@@ -78,15 +82,24 @@ const handler = async (req: Request): Promise<Response> => {
         `,
       });
 
-      console.log("Email sent successfully:", emailResponse);
+      console.log("Email response:", emailResponse);
 
-      // Improved error handling for Resend API responses
+      // Handle errors from Resend API
       if (emailResponse.error) {
         console.error("Resend API error:", emailResponse.error);
+        
+        // Format the error for the client side
+        const errorObj = {
+          success: false,
+          error: {
+            message: emailResponse.error.message || "Unknown error",
+            code: emailResponse.error.statusCode || 500,
+            name: emailResponse.error.name || "error"
+          }
+        };
+        
         return new Response(
-          JSON.stringify({ 
-            error: emailResponse.error 
-          }),
+          JSON.stringify(errorObj),
           {
             status: 400,
             headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -94,26 +107,35 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      return new Response(JSON.stringify({ success: true, data: emailResponse }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      });
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          data: emailResponse 
+        }), 
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
     } catch (emailError: any) {
       // Handle Resend API errors
       console.error("Resend API error:", emailError);
       
-      // Extract the error message
-      const errorMessage = typeof emailError === 'object' ? 
-        (emailError.message || JSON.stringify(emailError)) : 
-        String(emailError);
+      // Format the error consistently
+      const errorObj = {
+        success: false,
+        error: {
+          message: emailError.message || "Unknown error sending email",
+          code: emailError.statusCode || 500,
+          name: emailError.name || "error"
+        }
+      };
       
       return new Response(
-        JSON.stringify({ 
-          error: errorMessage
-        }),
+        JSON.stringify(errorObj),
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -123,13 +145,20 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-invitation-email function:", error);
     
-    // Make sure we convert any error object to a string
-    const errorMessage = typeof error === 'object' ? 
-      (error.message || JSON.stringify(error)) : 
-      String(error);
+    // Ensure consistent error format
+    const errorObj = {
+      success: false,
+      error: {
+        message: typeof error === 'object' ? 
+          (error.message || JSON.stringify(error)) : 
+          String(error),
+        code: 500,
+        name: "internal_error"
+      }
+    };
     
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify(errorObj),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -112,7 +112,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
       invitationUrl
     });
     
-    // Improved error handling for edge function
+    // Call the edge function to send the invitation email
     try {
       const { data, error: edgeFunctionError } = await supabase
         .functions.invoke('send-invitation-email', {
@@ -123,47 +123,62 @@ export const resendInvitation = async (email: string, organizationId: string): P
           }
         });
 
+      // Handle function invoke errors
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
         toast.error(`Erreur lors de l'envoi de l'email d'invitation: ${edgeFunctionError.message}`);
         throw edgeFunctionError;
-      } 
+      }
       
-      // Fix: Better handling for edge function responses with errors
-      if (data && data.error) {
+      // Handle error responses from the function
+      if (data && !data.success) {
         console.error('Edge function returned an error:', data.error);
         
-        // Better error object handling
         let errorMessage = "Erreur inconnue";
         
-        if (typeof data.error === 'object' && data.error !== null) {
-          // Handle Resend API error object format
-          if (data.error.message) {
-            errorMessage = data.error.message;
-          } else {
-            errorMessage = JSON.stringify(data.error);
+        // Check what type of error we have and extract the message
+        if (data.error) {
+          if (typeof data.error === 'object' && data.error !== null) {
+            // We have a structured error object
+            if (data.error.message) {
+              errorMessage = data.error.message;
+            } else {
+              errorMessage = JSON.stringify(data.error);
+            }
+          } else if (typeof data.error === 'string') {
+            // We have a string error
+            errorMessage = data.error;
           }
-        } else if (typeof data.error === 'string') {
-          errorMessage = data.error;
         }
         
-        // Handle known error types with user-friendly messages
+        // Special handling for Resend validation error (testing mode)
         if (errorMessage.includes("verify a domain") || 
+            errorMessage.includes("send testing emails to your own email") || 
             errorMessage.includes("change the `from` address")) {
-          toast.error("L'email n'a pas pu être envoyé: Vous devez vérifier un domaine dans Resend et utiliser ce domaine comme adresse d'expéditeur.");
-        } else if (errorMessage.includes("rate limit")) {
+          
+          toast.error("La configuration d'email n'est pas terminée: Vous devez vérifier un domaine dans Resend.com et configurer une adresse d'expéditeur utilisant ce domaine. En mode test, vous ne pouvez envoyer des emails qu'à votre propre adresse.");
+          
+          // Create a more specific error to throw
+          const resendError = new Error("Configuration Resend incomplète");
+          throw resendError;
+        } 
+        // Handle rate limiting
+        else if (errorMessage.toLowerCase().includes("rate limit")) {
           toast.error("Limite d'envoi d'emails atteinte. Veuillez réessayer plus tard.");
-        } else {
-          toast.error(`Erreur du serveur: ${errorMessage}`);
+        } 
+        // Generic error
+        else {
+          toast.error(`Erreur lors de l'envoi de l'email: ${errorMessage}`);
         }
         
         throw new Error(errorMessage);
       }
       
+      // Check if the response has the expected format
       if (!data || !data.success) {
         console.error('Unexpected edge function response format:', data);
         toast.error("Format de réponse inattendu du serveur.");
-        throw new Error("Unexpected edge function response format");
+        throw new Error("Format de réponse inattendu");
       }
       
       console.log('Email function response:', data);
@@ -171,22 +186,24 @@ export const resendInvitation = async (email: string, organizationId: string): P
     } catch (emailError: any) {
       console.error('Error sending invitation email:', emailError);
       
-      // More user-friendly error message
-      let errorMessage;
-      
-      if (emailError.message && emailError.message.includes('Failed to fetch')) {
-        errorMessage = "Impossible de contacter le serveur d'emails. Veuillez réessayer plus tard.";
-      } else if (typeof emailError === 'object' && emailError !== null) {
-        // Handle object errors better
-        errorMessage = "Erreur lors de l'envoi de l'email: " + 
-          (emailError.message || 
-           (typeof emailError.toString === 'function' ? emailError.toString() : 'Erreur inconnue'));
-      } else {
-        errorMessage = "Erreur lors de l'envoi de l'email d'invitation: " + 
-          (emailError?.message || 'Erreur inconnue');
+      // If this is not our custom Resend error (which we already toasted),
+      // show a generic error message
+      if (emailError.message !== "Configuration Resend incomplète") {
+        // More user-friendly error message
+        let errorMessage;
+        
+        if (emailError.message && emailError.message.includes('Failed to fetch')) {
+          errorMessage = "Impossible de contacter le serveur d'emails. Veuillez réessayer plus tard.";
+        } else {
+          errorMessage = "Erreur lors de l'envoi de l'email d'invitation: " + 
+            (typeof emailError === 'object' && emailError !== null ? 
+              (emailError.message || JSON.stringify(emailError)) : 
+              String(emailError));
+        }
+        
+        toast.error(errorMessage);
       }
       
-      toast.error(errorMessage);
       throw emailError;
     }
     
@@ -199,7 +216,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
         !error.message?.includes('invitation en attente') &&
         !error.message?.includes('email d\'invitation') &&
         !error.message?.includes('du serveur') &&
-        !error.message?.includes('Impossible de contacter')) {
+        !error.message?.includes('Impossible de contacter') &&
+        !error.message?.includes('Configuration Resend incomplète')) {
       
       // Handle object errors better
       let errorMsg;

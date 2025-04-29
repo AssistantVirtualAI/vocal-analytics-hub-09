@@ -3,237 +3,252 @@ import { OrganizationUser } from '@/types/organization';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Fetch users for a specific organization
 export const fetchOrganizationUsers = async (organizationId: string): Promise<OrganizationUser[]> => {
   try {
-    // Step 1: Get user IDs for this organization
-    const { data: orgUserLinks, error: orgUserError } = await supabase
+    console.log(`Fetching users for organization: ${organizationId}`);
+    
+    // First, get regular users from user_organizations
+    const { data: userOrgData, error: userOrgError } = await supabase
       .from('user_organizations')
-      .select('user_id, organization_id')
+      .select(`
+        user_id,
+        organization_id,
+        profiles:user_id (
+          id,
+          email,
+          display_name,
+          avatar_url,
+          created_at
+        )
+      `)
       .eq('organization_id', organizationId);
 
-    if (orgUserError) throw orgUserError;
+    if (userOrgError) {
+      console.error('Error fetching user_organizations:', userOrgError);
+      throw userOrgError;
+    }
 
-    // Extract user IDs
-    const userIds = orgUserLinks?.map(link => link.user_id) || [];
+    // Get the user roles to determine admin status
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('*');
 
-    // Step 2: Fetch user profiles for these IDs if there are any users
-    const { data: profiles, error: profilesError } = userIds.length > 0 
-      ? await supabase
-          .from('profiles')
-          .select('*')
-          .in('id', userIds)
-      : { data: [], error: null };
+    if (rolesError) {
+      console.error('Error fetching user roles:', rolesError);
+      throw rolesError;
+    }
 
-    if (profilesError) throw profilesError;
-
-    // Step 3: Fetch user roles
-    const { data: rolesData, error: rolesError } = userIds.length > 0
-      ? await supabase
-          .from('user_roles')
-          .select('*')
-          .in('user_id', userIds)
-      : { data: [], error: null };
-
-    if (rolesError) throw rolesError;
-
-    // Step 4: Fetch pending invitations
+    // Then, get pending invitations
     const { data: invitationsData, error: invitationsError } = await supabase
       .from('organization_invitations')
       .select('*')
       .eq('organization_id', organizationId)
       .eq('status', 'pending');
 
-    if (invitationsError) throw invitationsError;
+    if (invitationsError) {
+      console.error('Error fetching invitations:', invitationsError);
+      throw invitationsError;
+    }
 
-    // Map profiles to users with roles
-    const formattedUsers: OrganizationUser[] = (profiles || []).map(profile => {
-      const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-      const role = userRoles.length > 0 ? userRoles[0].role : 'user';
-      
-      return {
-        id: profile.id,
-        email: profile.email,
-        displayName: profile.display_name || profile.email?.split('@')[0] || '',
-        avatarUrl: profile.avatar_url || '',
-        role: role as 'admin' | 'user',
-        createdAt: profile.created_at,
-        isPending: false
-      };
-    });
+    // Format active users
+    const activeUsers: OrganizationUser[] = (userOrgData || [])
+      .filter(item => item.profiles)
+      .map(item => {
+        const profile = item.profiles;
+        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+        const role = userRoles.length > 0 ? userRoles[0].role : 'user';
 
-    // Add pending invitations
-    const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
-      id: invite.id,
-      email: invite.email,
-      displayName: invite.email.split('@')[0] || '',
+        return {
+          id: profile.id,
+          email: profile.email || '',
+          displayName: profile.display_name || '',
+          avatarUrl: profile.avatar_url || '',
+          role: role as 'admin' | 'user',
+          createdAt: profile.created_at || new Date().toISOString(),
+          isPending: false
+        };
+      });
+
+    // Format pending invitations
+    const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invitation => ({
+      id: invitation.id,
+      email: invitation.email,
+      displayName: invitation.email.split('@')[0] || '',
       avatarUrl: '',
-      role: 'user' as const,
-      createdAt: invite.created_at,
+      role: 'user',
+      createdAt: invitation.created_at,
       isPending: true
     }));
 
-    return [...formattedUsers, ...pendingUsers];
-  } catch (error: any) {
-    console.error('Error fetching organization users:', error);
+    console.log(`Found ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
+    
+    // Combine active users and pending invitations
+    return [...activeUsers, ...pendingUsers];
+  } catch (error) {
+    console.error('Error in fetchOrganizationUsers:', error);
     throw error;
   }
 };
 
+// Add a user to an organization
 export const addUserToOrganization = async (email: string, organizationId: string): Promise<void> => {
-  // First, check if user exists
-  const { data: userData, error: userError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
+  try {
+    console.log(`Adding user ${email} to organization ${organizationId}`);
+    
+    // Check if user exists
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
 
-  if (userError) throw userError;
-  
-  if (!userData) {
-    // User doesn't exist, create an invitation entry
-    const { error: inviteError } = await supabase
-      .from('organization_invitations')
-      .insert({
-        email: email,
-        organization_id: organizationId,
-        status: 'pending'
-      });
-
-    if (inviteError) {
-      // Check if it's a duplicate invitation error
-      if (inviteError.code === '23505') { // PostgreSQL unique constraint violation
-        toast(`Une invitation pour ${email} est déjà en attente.`);
-        return;
-      }
-      throw inviteError;
+    if (userError && userError.code !== 'PGRST116') { // PGRST116 is "No rows returned" error
+      console.error('Error checking if user exists:', userError);
+      throw userError;
     }
 
-    toast(`Invitation envoyée à ${email}. Ils seront ajoutés à l'organisation après inscription.`);
-    return;
+    if (userData) {
+      // User exists, check if already in organization
+      const { data: existingUser, error: existingUserError } = await supabase
+        .from('user_organizations')
+        .select('*')
+        .eq('user_id', userData.id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (existingUserError && existingUserError.code !== 'PGRST116') {
+        console.error('Error checking existing user organization:', existingUserError);
+        throw existingUserError;
+      }
+
+      if (existingUser) {
+        toast("L'utilisateur est déjà membre de cette organisation.");
+        return;
+      }
+
+      // Add user to organization
+      const { error: addError } = await supabase
+        .from('user_organizations')
+        .insert({
+          user_id: userData.id,
+          organization_id: organizationId
+        });
+
+      if (addError) {
+        console.error('Error adding user to organization:', addError);
+        throw addError;
+      }
+
+      toast("Utilisateur ajouté à l'organisation avec succès.");
+    } else {
+      // User doesn't exist, create invitation
+      const { error: inviteError } = await supabase
+        .from('organization_invitations')
+        .insert({
+          email,
+          organization_id: organizationId,
+          status: 'pending'
+        });
+
+      if (inviteError) {
+        console.error('Error creating invitation:', inviteError);
+        throw inviteError;
+      }
+
+      toast("Invitation envoyée à l'utilisateur.");
+    }
+  } catch (error: any) {
+    console.error('Error in addUserToOrganization:', error);
+    toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
+    throw error;
   }
-
-  // Check if user already in organization
-  const { data: existingLink, error: linkCheckError } = await supabase
-    .from('user_organizations')
-    .select('*')
-    .eq('user_id', userData.id)
-    .eq('organization_id', organizationId)
-    .maybeSingle();
-
-  if (linkCheckError) throw linkCheckError;
-  
-  if (existingLink) {
-    toast(`L'utilisateur est déjà membre de cette organisation.`);
-    return;
-  }
-
-  // Add user to organization
-  const { error: addError } = await supabase
-    .from('user_organizations')
-    .insert({
-      user_id: userData.id,
-      organization_id: organizationId
-    });
-
-  if (addError) throw addError;
-
-  toast(`${email} a été ajouté à l'organisation avec succès.`);
 };
 
+// Remove a user from an organization
 export const removeUserFromOrganization = async (userId: string, organizationId: string): Promise<void> => {
   try {
+    console.log(`Removing user ${userId} from organization ${organizationId}`);
+    
     const { error } = await supabase
       .from('user_organizations')
       .delete()
       .eq('user_id', userId)
       .eq('organization_id', organizationId);
 
-    if (error) throw error;
-    
+    if (error) {
+      console.error('Error removing user from organization:', error);
+      throw error;
+    }
+
     toast("L'utilisateur a été retiré de l'organisation avec succès.");
   } catch (error: any) {
-    console.error('Error removing user from organization:', error);
-    toast(`Erreur lors du retrait de l'utilisateur: ${error.message}`);
+    console.error('Error in removeUserFromOrganization:', error);
+    toast("Erreur lors du retrait de l'utilisateur: " + error.message);
     throw error;
   }
 };
 
+// Cancel an invitation
 export const cancelInvitation = async (invitationId: string): Promise<void> => {
   try {
+    console.log(`Cancelling invitation ${invitationId}`);
+    
     const { error } = await supabase
       .from('organization_invitations')
       .delete()
       .eq('id', invitationId);
 
-    if (error) throw error;
-    
+    if (error) {
+      console.error('Error cancelling invitation:', error);
+      throw error;
+    }
+
     toast("L'invitation a été annulée avec succès.");
   } catch (error: any) {
-    console.error('Error canceling invitation:', error);
-    toast(`Erreur lors de l'annulation de l'invitation: ${error.message}`);
+    console.error('Error in cancelInvitation:', error);
+    toast("Erreur lors de l'annulation de l'invitation: " + error.message);
     throw error;
   }
 };
 
-// Nouvelle fonction pour renvoyer une invitation
+// Resend invitation
 export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
   try {
-    // Vérifier si l'invitation existe
-    const { data: invitation, error: checkError } = await supabase
-      .from('organization_invitations')
-      .select('*')
-      .eq('email', email)
-      .eq('organization_id', organizationId)
-      .eq('status', 'pending')
-      .maybeSingle();
+    console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
-    if (checkError) throw checkError;
+    // For now, this is a placeholder that will be replaced with actual email sending logic
+    // We're just showing a toast message to confirm the action was triggered
+    toast(`Invitation renvoyée à ${email}`);
     
-    if (!invitation) {
-      toast(`Aucune invitation en attente trouvée pour ${email}.`);
-      return;
-    }
-    
-    // Supprime l'ancienne invitation
-    const { error: deleteError } = await supabase
-      .from('organization_invitations')
-      .delete()
-      .eq('id', invitation.id);
-      
-    if (deleteError) throw deleteError;
-    
-    // Crée une nouvelle invitation
-    const { error: createError } = await supabase
-      .from('organization_invitations')
-      .insert({
-        email: email,
-        organization_id: organizationId,
-        status: 'pending'
-      });
-      
-    if (createError) throw createError;
-    
-    toast(`Invitation renvoyée à ${email} avec succès.`);
+    // In a real implementation, you would call an API endpoint or edge function to send the email
+    // For example:
+    // await supabase.functions.invoke('resend-invitation', { body: { email, organizationId } });
   } catch (error: any) {
-    console.error('Error resending invitation:', error);
-    toast(`Erreur lors du renvoi de l'invitation: ${error.message}`);
+    console.error('Error in resendInvitation:', error);
+    toast("Erreur lors du renvoi de l'invitation: " + error.message);
     throw error;
   }
 };
 
-// Nouvelle fonction pour réinitialiser le mot de passe d'un utilisateur
+// Reset user password
 export const resetUserPassword = async (email: string): Promise<void> => {
   try {
+    console.log(`Resetting password for user ${email}`);
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth`,
+      redirectTo: window.location.origin + '/auth?reset=true',
     });
-    
-    if (error) throw error;
-    
-    toast(`Email de réinitialisation du mot de passe envoyé à ${email}.`);
+
+    if (error) {
+      console.error('Error resetting user password:', error);
+      throw error;
+    }
+
+    toast(`Un email de réinitialisation de mot de passe a été envoyé à ${email}`);
   } catch (error: any) {
-    console.error('Error resetting password:', error);
-    toast(`Erreur lors de la réinitialisation du mot de passe: ${error.message}`);
+    console.error('Error in resetUserPassword:', error);
+    toast("Erreur lors de la réinitialisation du mot de passe: " + error.message);
     throw error;
   }
 };

@@ -19,6 +19,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -30,16 +31,26 @@ interface OrganizationUsersListProps {
 export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loading = false }: OrganizationUsersListProps) => {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Log for debugging
+  console.log("OrganizationUsersList - Current users:", users);
+  console.log("OrganizationUsersList - Organization ID:", organizationId);
+  console.log("OrganizationUsersList - Current auth user:", user);
 
   const handleRemoveUserFromOrg = async (userId: string) => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      toast("ID d'organisation non spécifié");
+      return;
+    }
     
     setActionLoading(true);
     try {
+      console.log(`Attempting to remove user ${userId} from org ${organizationId}`);
       await removeUserFromOrganization(userId, organizationId);
       await fetchUsers();
     } catch (error) {
       // Error is already handled in the service function
+      console.error("Error removing user from org:", error);
     } finally {
       setActionLoading(false);
     }
@@ -48,24 +59,31 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loadi
   const handleCancelInvitation = async (invitationId: string) => {
     setActionLoading(true);
     try {
+      console.log(`Attempting to cancel invitation ${invitationId}`);
       await cancelInvitation(invitationId);
       await fetchUsers();
     } catch (error) {
       // Error is already handled in the service function
+      console.error("Error cancelling invitation:", error);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleResendInvitation = async (email: string) => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      toast("ID d'organisation non spécifié");
+      return;
+    }
     
     setActionLoading(true);
     try {
+      console.log(`Attempting to resend invitation to ${email} for org ${organizationId}`);
       await resendInvitation(email, organizationId);
       await fetchUsers();
     } catch (error) {
       // Error is already handled in the service function
+      console.error("Error resending invitation:", error);
     } finally {
       setActionLoading(false);
     }
@@ -74,9 +92,11 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loadi
   const handleResetPassword = async (email: string) => {
     setActionLoading(true);
     try {
+      console.log(`Attempting to reset password for ${email}`);
       await resetUserPassword(email);
     } catch (error) {
       // Error is already handled in the service function
+      console.error("Error resetting password:", error);
     } finally {
       setActionLoading(false);
     }

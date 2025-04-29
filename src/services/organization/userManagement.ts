@@ -8,13 +8,13 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
   try {
     console.log(`Fetching users for organization: ${organizationId}`);
     
-    // First, get regular users from user_organizations
+    // First, get profiles of users in the organization using a direct join
     const { data: userOrgData, error: userOrgError } = await supabase
       .from('user_organizations')
       .select(`
         user_id,
         organization_id,
-        profiles:user_id (
+        profiles:user_id(
           id,
           email,
           display_name,
@@ -52,23 +52,27 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     }
 
     // Format active users
-    const activeUsers: OrganizationUser[] = (userOrgData || [])
-      .filter(item => item.profiles)
-      .map(item => {
-        const profile = item.profiles;
-        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-        const role = userRoles.length > 0 ? userRoles[0].role : 'user';
-
-        return {
-          id: profile.id,
-          email: profile.email || '',
-          displayName: profile.display_name || '',
-          avatarUrl: profile.avatar_url || '',
-          role: role as 'admin' | 'user',
-          createdAt: profile.created_at || new Date().toISOString(),
-          isPending: false
-        };
-      });
+    const activeUsers: OrganizationUser[] = [];
+    
+    if (userOrgData) {
+      for (const item of userOrgData) {
+        if (item.profiles) {
+          const profile = item.profiles;
+          const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+          const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+          
+          activeUsers.push({
+            id: profile.id,
+            email: profile.email || '',
+            displayName: profile.display_name || '',
+            avatarUrl: profile.avatar_url || '',
+            role: role as 'admin' | 'user',
+            createdAt: profile.created_at || new Date().toISOString(),
+            isPending: false
+          });
+        }
+      }
+    }
 
     // Format pending invitations
     const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invitation => ({

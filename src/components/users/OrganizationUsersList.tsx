@@ -1,9 +1,6 @@
 
 import { useState } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { UserX, RefreshCw, KeyRound } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -12,14 +9,10 @@ import {
   resendInvitation, 
   resetUserPassword 
 } from '@/services/organization/userManagement';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { UserTableHeader } from './UserTableHeader';
+import { UserTableSkeleton } from './UserTableSkeleton';
+import { UserTableRow } from './UserTableRow';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -28,7 +21,12 @@ interface OrganizationUsersListProps {
   loading?: boolean;
 }
 
-export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loading = false }: OrganizationUsersListProps) => {
+export const OrganizationUsersList = ({ 
+  users, 
+  fetchUsers, 
+  organizationId, 
+  loading = false 
+}: OrganizationUsersListProps) => {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
   
@@ -102,126 +100,34 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loadi
     }
   };
 
-  if (loading) {
-    return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Nom</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Rôle</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {[...Array(3)].map((_, i) => (
-            <TableRow key={i}>
-              <TableCell><Skeleton className="h-5 w-[200px]" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-[150px]" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
-              <TableCell className="text-right"><Skeleton className="h-8 w-[120px] ml-auto" /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    );
-  }
-
   return (
     <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Nom</TableHead>
-          <TableHead>Statut</TableHead>
-          <TableHead>Rôle</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {users.map((user_item) => (
-          <TableRow key={user_item.id}>
-            <TableCell>{user_item.email}</TableCell>
-            <TableCell>{user_item.displayName || user_item.email?.split('@')[0] || ''}</TableCell>
-            <TableCell>
-              {user_item.isPending ? (
-                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                  Invitation en attente
-                </Badge>
-              ) : null}
-            </TableCell>
-            <TableCell>
-              {!user_item.isPending && (
-                <span 
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user_item.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {user_item.role === 'admin' ? 'Admin' : 'Utilisateur'}
-                </span>
-              )}
-            </TableCell>
-            <TableCell className="text-right">
-              {user_item.isPending ? (
-                <div className="flex justify-end gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleResendInvitation(user_item.email)}
-                    disabled={actionLoading}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Renvoyer
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={() => handleCancelInvitation(user_item.id)}
-                    disabled={actionLoading}
-                  >
-                    <UserX className="h-4 w-4 mr-1" />
-                    Annuler
-                  </Button>
-                </div>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={actionLoading || user_item.id === user?.id}>
-                      Actions
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
-                      onClick={() => handleResetPassword(user_item.email)}
-                      disabled={actionLoading}
-                    >
-                      <KeyRound className="h-4 w-4 mr-2" />
-                      Réinitialiser mot de passe
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive"
-                      onClick={() => handleRemoveUserFromOrg(user_item.id)}
-                      disabled={actionLoading || user_item.id === user?.id}
-                    >
-                      <UserX className="h-4 w-4 mr-2" />
-                      Retirer de l'organisation
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-        {users.length === 0 && !loading && (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center py-8">
-              Aucun utilisateur dans cette organisation
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
+      <UserTableHeader />
+      {loading ? (
+        <UserTableSkeleton />
+      ) : (
+        <TableBody>
+          {users.map((userItem) => (
+            <UserTableRow
+              key={userItem.id}
+              user={userItem}
+              currentUserId={user?.id}
+              actionLoading={actionLoading}
+              onRemoveUser={handleRemoveUserFromOrg}
+              onCancelInvitation={handleCancelInvitation}
+              onResendInvitation={handleResendInvitation}
+              onResetPassword={handleResetPassword}
+            />
+          ))}
+          {users.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8">
+                Aucun utilisateur dans cette organisation
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      )}
     </Table>
   );
 };

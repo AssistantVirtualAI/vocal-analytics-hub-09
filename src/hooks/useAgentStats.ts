@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/context/OrganizationContext";
+import { useAuth } from "@/context/AuthContext";
 
 export interface AgentStat {
   name: string;
@@ -12,11 +13,17 @@ export interface AgentStat {
 
 export const useAgentStats = () => {
   const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
   const agentId = currentOrganization?.agentId || 'QNdB45Jpgh06Hr67TzFO';
   
   return useQuery({
     queryKey: ["agentStats", agentId],
     queryFn: async () => {
+      // Only fetch if authenticated
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+      
       const { data, error } = await supabase
         .from("calls_view")
         .select("agent_name, duration, satisfaction_score")
@@ -34,5 +41,6 @@ export const useAgentStats = () => {
 
       return mockStats;
     },
+    enabled: !!user, // Only run the query if the user is authenticated
   });
 };

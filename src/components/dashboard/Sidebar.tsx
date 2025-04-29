@@ -1,5 +1,5 @@
 
-import { BarChart3, Building, Home, Phone, Users } from 'lucide-react';
+import { BarChart3, Building, Home, LogOut, Phone, Settings, Shield, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -7,46 +7,59 @@ import {
   SidebarHeader,
   SidebarTrigger,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { Link, useLocation } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
-
-const menuItems = [
-  {
-    title: 'Tableau de bord',
-    icon: Home,
-    url: '/',
-  },
-  {
-    title: 'Appels',
-    icon: Phone,
-    url: '/calls',
-  },
-  {
-    title: 'Clients',
-    icon: Users,
-    url: '/customers',
-  },
-  {
-    title: 'Statistiques',
-    icon: BarChart3,
-    url: '/stats',
-  },
-  {
-    title: 'Organisations',
-    icon: Building,
-    url: '/organizations',
-  }
-];
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export function DashboardSidebar() {
   const location = useLocation();
   const { currentOrganization } = useOrganization();
+  const { user, signOut, isAdmin } = useAuth();
+  
+  const menuItems = [
+    {
+      title: 'Tableau de bord',
+      icon: Home,
+      url: '/',
+    },
+    {
+      title: 'Appels',
+      icon: Phone,
+      url: '/calls',
+    },
+    {
+      title: 'Clients',
+      icon: Users,
+      url: '/customers',
+    },
+    {
+      title: 'Statistiques',
+      icon: BarChart3,
+      url: '/stats',
+    },
+    {
+      title: 'Organisations',
+      icon: Building,
+      url: '/organizations',
+    }
+  ];
+
+  // Add users management for admins
+  if (isAdmin) {
+    menuItems.push({
+      title: 'Gestion des utilisateurs',
+      icon: Shield,
+      url: '/users',
+    });
+  }
   
   return (
     <Sidebar className="bg-blue-600">
@@ -88,8 +101,27 @@ export function DashboardSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-4 py-2 text-blue-100">
-          <p className="text-xs">© 2025 AI Agent Dashboard</p>
+        <div className="p-4 border-t border-blue-700">
+          {user && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarFallback className="bg-blue-800 text-white">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-sm text-white">{user.email}</div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-blue-100 hover:text-white hover:bg-blue-700"
+                onClick={signOut}
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
         </div>
       </SidebarFooter>
       <div className="absolute top-4 right-2">

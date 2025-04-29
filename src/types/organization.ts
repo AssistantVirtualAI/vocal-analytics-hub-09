@@ -12,3 +12,26 @@ export interface Organization {
 export interface OrganizationWithAgent extends Organization {
   agent?: Agent;
 }
+
+export interface OrganizationUser {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
+
+export interface UserRole {
+  id: string;
+  userId: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
+
+export interface UserOrganization {
+  id: string;
+  userId: string;
+  organizationId: string;
+  createdAt: string;
+}

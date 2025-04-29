@@ -133,6 +133,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
         avatarUrl: profile?.avatar_url || '', // Provide empty string as default
         role: (role as 'admin' | 'user'),
         createdAt: profile?.created_at || new Date().toISOString(),
+        isPending: false // Explicit isPending property
       };
     })
     .filter((user): user is OrganizationUser => user !== null);

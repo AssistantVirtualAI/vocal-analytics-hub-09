@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -32,7 +33,7 @@ serve(async (req) => {
     // Fetch the call to get the audio_url
     const { data: call, error: callError } = await supabase
       .from('calls_view')
-      .select('audio_url')
+      .select('audio_url, agent_id')
       .eq('id', callId)
       .single();
 
@@ -80,6 +81,23 @@ serve(async (req) => {
         - Audio URL: ${audioUrl.substring(0, 30)}...
         - Transcript: ${transcript.length} characters
         - Summary: ${summary.length} characters`);
+      
+      // Store the transcript and summary in the database
+      if (transcript || summary) {
+        const { error: updateError } = await supabase
+          .from('calls')
+          .update({
+            transcript: transcript || null,
+            summary: summary || null
+          })
+          .eq('id', callId);
+        
+        if (updateError) {
+          console.error('Error updating call with transcript/summary:', updateError);
+        } else {
+          console.log('Successfully updated call with transcript and summary');
+        }
+      }
     }
 
     return new Response(

@@ -20,7 +20,7 @@ export interface OrganizationUser {
   avatarUrl: string; // Changed from optional to required to match the implementation
   role: 'admin' | 'user';
   createdAt: string;
-  isPending?: boolean;
+  isPending: boolean; // Changed from optional to required to match the implementation
 }
 
 export interface UserRole {

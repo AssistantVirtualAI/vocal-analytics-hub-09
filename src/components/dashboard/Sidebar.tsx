@@ -46,8 +46,8 @@ export function DashboardSidebar() {
       <SidebarHeader>
         <div className="flex items-center p-4">
           <div className="flex items-center gap-2 text-sidebar-foreground">
-            <Phone size={24} />
-            <span className="text-xl font-semibold">VoiceAnalytics</span>
+            <img src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" alt="Logo" className="h-6 w-auto" />
+            <span className="text-xl font-semibold">AI Agent Dashboard</span>
           </div>
         </div>
       </SidebarHeader>
@@ -75,7 +75,7 @@ export function DashboardSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-4 py-2 text-sidebar-foreground/80">
-          <p className="text-xs">© 2025 VoiceAnalytics</p>
+          <p className="text-xs">© 2025 AI Agent Dashboard</p>
         </div>
       </SidebarFooter>
       <div className="absolute top-4 right-2">

@@ -42,18 +42,20 @@ export function DashboardSidebar() {
   const location = useLocation();
   
   return (
-    <Sidebar>
+    <Sidebar className="bg-blue-600">
       <SidebarHeader>
-        <div className="flex items-center p-4">
-          <div className="flex items-center gap-2 text-sidebar-foreground">
-            <img src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" alt="Logo" className="h-6 w-auto" />
-            <span className="text-xl font-semibold">AI Agent Dashboard</span>
-          </div>
+        <div className="flex flex-col items-center p-4 space-y-2">
+          <img 
+            src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" 
+            alt="Logo" 
+            className="h-12 w-auto" 
+          />
+          <span className="text-xl font-semibold text-white">AI Agent Dashboard</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-blue-100">Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -61,7 +63,7 @@ export function DashboardSidebar() {
                   <SidebarMenuButton asChild>
                     <Link 
                       to={item.url} 
-                      className={`flex items-center ${location.pathname === item.url ? 'text-primary font-medium' : ''}`}
+                      className={`flex items-center ${location.pathname === item.url ? 'text-white font-medium' : 'text-blue-100 hover:text-white'}`}
                     >
                       <item.icon className="h-5 w-5 mr-2" />
                       <span>{item.title}</span>
@@ -74,7 +76,7 @@ export function DashboardSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-4 py-2 text-sidebar-foreground/80">
+        <div className="px-4 py-2 text-blue-100">
           <p className="text-xs">© 2025 AI Agent Dashboard</p>
         </div>
       </SidebarFooter>

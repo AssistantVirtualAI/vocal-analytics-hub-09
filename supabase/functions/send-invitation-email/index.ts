@@ -42,6 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(apiKey);
     
     const requestData: InvitationEmailRequest = await req.json();
+    // Changed the default organization name to "AVA AI"
     const { email, organizationName = "AVA AI", invitationUrl } = requestData;
     
     console.log(`Received request with email: ${email}, organizationName: ${organizationName}`);

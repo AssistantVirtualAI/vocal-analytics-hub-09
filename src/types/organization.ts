@@ -16,7 +16,7 @@ export interface OrganizationWithAgent extends Organization {
 export interface OrganizationUser {
   id: string;
   email: string;
-  displayName?: string;
+  displayName: string; // We make this required to match our implementation
   avatarUrl?: string;
   role: 'admin' | 'user';
   createdAt: string;

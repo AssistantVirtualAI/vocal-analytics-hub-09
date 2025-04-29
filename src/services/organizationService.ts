@@ -124,7 +124,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
       const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
       
-      if (!profile) return null; // Skip users with no profile
+      if (!profile) return null;
       
       return {
         id: profile?.id || '',

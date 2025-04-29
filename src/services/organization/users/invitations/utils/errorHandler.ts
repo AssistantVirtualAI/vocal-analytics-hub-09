@@ -9,7 +9,7 @@ export const handleInvitationError = (error: any, operation: string = "opératio
 
   // Skip showing toast if it's already handled specifically
   if (error?.message?.includes('Configuration Resend incomplète')) {
-    toast.error("La configuration d'email n'est pas terminée: Vous devez vérifier un domaine dans Resend.com et configurer une adresse d'expéditeur utilisant ce domaine. En mode test, vous ne pouvez envoyer des emails qu'à votre propre adresse.");
+    toast.error("La configuration d'email n'est pas terminée: Vous devez vérifier un domaine dans Resend.com et configurer une adresse d'expéditeur utilisant ce domaine.");
     return;
   }
 

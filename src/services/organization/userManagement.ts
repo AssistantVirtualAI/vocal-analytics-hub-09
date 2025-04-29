@@ -174,3 +174,66 @@ export const cancelInvitation = async (invitationId: string): Promise<void> => {
     throw error;
   }
 };
+
+// Nouvelle fonction pour renvoyer une invitation
+export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
+  try {
+    // Vérifier si l'invitation existe
+    const { data: invitation, error: checkError } = await supabase
+      .from('organization_invitations')
+      .select('*')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .maybeSingle();
+    
+    if (checkError) throw checkError;
+    
+    if (!invitation) {
+      toast(`Aucune invitation en attente trouvée pour ${email}.`);
+      return;
+    }
+    
+    // Supprime l'ancienne invitation
+    const { error: deleteError } = await supabase
+      .from('organization_invitations')
+      .delete()
+      .eq('id', invitation.id);
+      
+    if (deleteError) throw deleteError;
+    
+    // Crée une nouvelle invitation
+    const { error: createError } = await supabase
+      .from('organization_invitations')
+      .insert({
+        email: email,
+        organization_id: organizationId,
+        status: 'pending'
+      });
+      
+    if (createError) throw createError;
+    
+    toast(`Invitation renvoyée à ${email} avec succès.`);
+  } catch (error: any) {
+    console.error('Error resending invitation:', error);
+    toast(`Erreur lors du renvoi de l'invitation: ${error.message}`);
+    throw error;
+  }
+};
+
+// Nouvelle fonction pour réinitialiser le mot de passe d'un utilisateur
+export const resetUserPassword = async (email: string): Promise<void> => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    
+    if (error) throw error;
+    
+    toast(`Email de réinitialisation du mot de passe envoyé à ${email}.`);
+  } catch (error: any) {
+    console.error('Error resetting password:', error);
+    toast(`Erreur lors de la réinitialisation du mot de passe: ${error.message}`);
+    throw error;
+  }
+};

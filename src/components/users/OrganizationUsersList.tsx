@@ -2,12 +2,23 @@
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { UserX } from 'lucide-react';
+import { UserX, RefreshCw, KeyRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { OrganizationUser } from '@/types/organization';
 import { useAuth } from '@/context/AuthContext';
-import { removeUserFromOrganization, cancelInvitation } from '@/services/organization/userManagement';
+import { 
+  removeUserFromOrganization, 
+  cancelInvitation, 
+  resendInvitation, 
+  resetUserPassword 
+} from '@/services/organization/userManagement';
 import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -39,6 +50,31 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loadi
     try {
       await cancelInvitation(invitationId);
       await fetchUsers();
+    } catch (error) {
+      // Error is already handled in the service function
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResendInvitation = async (email: string) => {
+    if (!organizationId) return;
+    
+    setActionLoading(true);
+    try {
+      await resendInvitation(email, organizationId);
+      await fetchUsers();
+    } catch (error) {
+      // Error is already handled in the service function
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    setActionLoading(true);
+    try {
+      await resetUserPassword(email);
     } catch (error) {
       // Error is already handled in the service function
     } finally {
@@ -109,25 +145,51 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loadi
             </TableCell>
             <TableCell className="text-right">
               {user_item.isPending ? (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => handleCancelInvitation(user_item.id)}
-                  disabled={actionLoading}
-                >
-                  <UserX className="h-4 w-4 mr-1" />
-                  Annuler l'invitation
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleResendInvitation(user_item.email)}
+                    disabled={actionLoading}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Renvoyer
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleCancelInvitation(user_item.id)}
+                    disabled={actionLoading}
+                  >
+                    <UserX className="h-4 w-4 mr-1" />
+                    Annuler
+                  </Button>
+                </div>
               ) : (
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => handleRemoveUserFromOrg(user_item.id)}
-                  disabled={actionLoading || user_item.id === user?.id}
-                >
-                  <UserX className="h-4 w-4 mr-1" />
-                  Retirer
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={actionLoading || user_item.id === user?.id}>
+                      Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => handleResetPassword(user_item.email)}
+                      disabled={actionLoading}
+                    >
+                      <KeyRound className="h-4 w-4 mr-2" />
+                      Réinitialiser mot de passe
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => handleRemoveUserFromOrg(user_item.id)}
+                      disabled={actionLoading || user_item.id === user?.id}
+                    >
+                      <UserX className="h-4 w-4 mr-2" />
+                      Retirer de l'organisation
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </TableCell>
           </TableRow>

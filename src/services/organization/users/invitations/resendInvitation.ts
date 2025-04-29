@@ -7,8 +7,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
-    // Update the invitation to refresh the token and expiration
-    // Use maybeSingle() instead of single() to avoid errors when multiple or no rows are found
+    // First check if the invitation exists
     const { data: invitations, error: queryError } = await supabase
       .from('organization_invitations')
       .select('id, token')
@@ -76,13 +75,14 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
-        // Don't throw, we'll still refresh the invitation even if email fails
+        toast.error("Erreur lors de l'envoi de l'email d'invitation");
       } else {
         console.log('Email function response:', data);
+        toast.success("Email d'invitation envoyé avec succès.");
       }
     } catch (emailError) {
       console.error('Error sending invitation email:', emailError);
-      // Don't throw, we'll still refresh the invitation even if email fails
+      toast.error("Erreur lors de l'envoi de l'email d'invitation");
     }
     
     toast.success("Invitation renvoyée avec succès.");

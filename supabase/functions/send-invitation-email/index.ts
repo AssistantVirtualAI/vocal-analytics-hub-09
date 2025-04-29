@@ -12,10 +12,8 @@ const corsHeaders = {
 
 interface InvitationEmailRequest {
   email: string;
-  organizationId?: string;
-  token?: string;
   organizationName?: string;
-  invitationUrl?: string;
+  invitationUrl: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -26,33 +24,12 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const requestData: InvitationEmailRequest = await req.json();
-    const { email } = requestData;
+    const { email, organizationName = "Votre organisation", invitationUrl } = requestData;
     
-    // Support both parameter formats for backward compatibility
-    const organizationName = requestData.organizationName || "Votre organisation";
-    let invitationUrl;
-    
-    if (requestData.invitationUrl) {
-      invitationUrl = requestData.invitationUrl;
-    } else if (requestData.token && requestData.organizationId) {
-      // Construct URL from token and organizationId for backward compatibility
-      invitationUrl = `${new URL(req.url).origin}/auth?invitation=${requestData.token}`;
-    } else {
+    if (!email || !invitationUrl) {
       return new Response(
         JSON.stringify({ 
-          error: "Missing required parameters: invitationUrl or (token and organizationId)" 
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    if (!email) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Missing required parameter: email" 
+          error: "Missing required parameters: email or invitationUrl" 
         }),
         {
           status: 400,

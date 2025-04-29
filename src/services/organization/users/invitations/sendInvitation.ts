@@ -21,49 +21,45 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
       throw checkError;
     }
 
+    let invitationToken;
+    
     if (existingInvitation) {
       console.log('Invitation already exists, refreshing it');
       
       // Refresh existing invitation
-      const { error: updateError } = await supabase
+      const { data: updatedInvitation, error: updateError } = await supabase
         .from('organization_invitations')
         .update({
           status: 'pending'  // This will trigger the database function to update token and expiration
         })
-        .eq('id', existingInvitation.id);
+        .eq('id', existingInvitation.id)
+        .select('token')
+        .single();
 
       if (updateError) {
         console.error('Error refreshing invitation:', updateError);
         throw updateError;
       }
+      
+      invitationToken = updatedInvitation.token;
     } else {
       // Create new invitation
-      const { error: insertError } = await supabase
+      const { data: newInvitation, error: insertError } = await supabase
         .from('organization_invitations')
         .insert({
           email,
           organization_id: organizationId,
           status: 'pending'
-        });
+        })
+        .select('token')
+        .single();
 
       if (insertError) {
         console.error('Error creating invitation:', insertError);
         throw insertError;
       }
-    }
-
-    // Retrieve the token for the invitation
-    const { data: invitation, error: invitationError } = await supabase
-      .from('organization_invitations')
-      .select('token')
-      .eq('email', email)
-      .eq('organization_id', organizationId)
-      .eq('status', 'pending')
-      .single();
-
-    if (invitationError) {
-      console.error('Error retrieving invitation token:', invitationError);
-      throw invitationError;
+      
+      invitationToken = newInvitation.token;
     }
 
     // Get organization name for better email customization
@@ -79,7 +75,7 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
     }
 
     const organizationName = organization?.name || "Votre organisation";
-    const invitationUrl = `${window.location.origin}/auth?invitation=${invitation.token}`;
+    const invitationUrl = `${window.location.origin}/auth?invitation=${invitationToken}`;
 
     // Attempt to send invitation email
     try {
@@ -100,16 +96,17 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
 
       if (edgeFunctionError) {
         console.error('Error invoking edge function:', edgeFunctionError);
-        // Don't throw, we'll still create the invitation even if email fails
+        toast.error("Erreur lors de l'envoi de l'email d'invitation");
       } else {
         console.log('Email function response:', data);
+        toast.success("Email d'invitation envoyé avec succès.");
       }
     } catch (emailError) {
       console.error('Error sending invitation email:', emailError);
-      // Don't throw, we'll still create the invitation even if email fails
+      toast.error("Erreur lors de l'envoi de l'email d'invitation");
     }
 
-    toast.success("Invitation envoyée avec succès.");
+    toast.success("Invitation créée avec succès.");
   } catch (error: any) {
     console.error('Error in sendInvitation:', error);
     toast.error("Erreur lors de l'envoi de l'invitation: " + error.message);

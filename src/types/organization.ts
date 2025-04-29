@@ -20,6 +20,7 @@ export interface OrganizationUser {
   avatarUrl?: string;
   role: 'admin' | 'user';
   createdAt: string;
+  isPending?: boolean;
 }
 
 export interface UserRole {
@@ -33,5 +34,13 @@ export interface UserOrganization {
   id: string;
   userId: string;
   organizationId: string;
+  createdAt: string;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  email: string;
+  organizationId: string;
+  status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
 }

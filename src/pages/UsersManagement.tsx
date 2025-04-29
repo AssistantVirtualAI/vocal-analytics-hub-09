@@ -24,10 +24,11 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 export default function UsersManagement() {
   const { isAdmin, user } = useAuth();
-  const { currentOrganization, organizations } = useOrganization();
+  const { currentOrganization, organizations, addUserToOrganization } = useOrganization();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [orgUsers, setOrgUsers] = useState<OrganizationUser[]>([]);
   const [allUsers, setAllUsers] = useState<OrganizationUser[]>([]);
@@ -72,12 +73,24 @@ export default function UsersManagement() {
 
       if (error) throw error;
 
+      // Get pending invitations
+      const { data: invitationsData, error: invitationsError } = await supabase
+        .from('organization_invitations')
+        .select('*')
+        .eq('organization_id', selectedOrg)
+        .eq('status', 'pending');
+
+      if (invitationsError) throw invitationsError;
+
+      // Format existing users
       const formattedUsers: OrganizationUser[] = (data || [])
         .filter(item => item && typeof item === 'object' && item.profiles)
         .map(item => {
           const profile = item.profiles as Record<string, any> | null;
           const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
           const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
+          
+          if (!profile) return null;
           
           return {
             id: profile?.id || '',
@@ -86,10 +99,22 @@ export default function UsersManagement() {
             avatarUrl: profile?.avatar_url,
             role: (role as 'admin' | 'user'),
             createdAt: profile?.created_at || new Date().toISOString(),
+            isPending: false
           };
-        });
+        })
+        .filter((user): user is OrganizationUser => user !== null);
 
-      setOrgUsers(formattedUsers);
+      // Add pending invitations to the list
+      const pendingUsers: OrganizationUser[] = (invitationsData || []).map(invite => ({
+        id: invite.id,
+        email: invite.email,
+        displayName: invite.email.split('@')[0] || '',
+        role: 'user' as const,
+        createdAt: invite.created_at,
+        isPending: true
+      }));
+
+      setOrgUsers([...formattedUsers, ...pendingUsers]);
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
@@ -146,48 +171,13 @@ export default function UsersManagement() {
     
     setLoading(true);
     try {
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', newUserEmail)
-        .maybeSingle();
-
-      if (userError) throw userError;
-      
-      if (!userData) {
-        throw new Error(`Utilisateur avec l'email ${newUserEmail} non trouvé.`);
-      }
-
-      const { data: existingLink, error: linkCheckError } = await supabase
-        .from('user_organizations')
-        .select('*')
-        .eq('user_id', userData.id)
-        .eq('organization_id', selectedOrg)
-        .maybeSingle();
-
-      if (linkCheckError) throw linkCheckError;
-      
-      if (existingLink) {
-        throw new Error(`L'utilisateur est déjà membre de cette organisation.`);
-      }
-
-      const { error: addError } = await supabase
-        .from('user_organizations')
-        .insert({
-          user_id: userData.id,
-          organization_id: selectedOrg
-        });
-
-      if (addError) throw addError;
-
-      toast(`${newUserEmail} a été ajouté à l'organisation avec succès.`);
-
-      await fetchUsers();
+      await addUserToOrganization(newUserEmail, selectedOrg);
       setNewUserEmail('');
       setAddDialogOpen(false);
+      await fetchUsers(); // Refresh the user list
     } catch (error: any) {
       console.error('Error adding user to organization:', error);
-      toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
+      // Don't toast here, the function already does it
     } finally {
       setLoading(false);
     }
@@ -264,10 +254,14 @@ export default function UsersManagement() {
 
   return (
     <DashboardLayout>
+      
+      
       <div className="container p-4 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
           <h1 className="text-2xl sm:text-3xl font-bold">Gestion des utilisateurs</h1>
         </div>
+
+        
 
         <Card>
           <CardHeader>
@@ -363,6 +357,8 @@ export default function UsersManagement() {
                     <DialogTitle>Ajouter un utilisateur à l'organisation</DialogTitle>
                     <DialogDescription>
                       Entrez l'email de l'utilisateur que vous souhaitez ajouter à cette organisation.
+                      
+                      Si l'utilisateur n'existe pas encore, une invitation sera envoyée.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -395,6 +391,7 @@ export default function UsersManagement() {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Nom</TableHead>
+                  <TableHead>Statut</TableHead>
                   <TableHead>Rôle</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -405,30 +402,50 @@ export default function UsersManagement() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.displayName}</TableCell>
                     <TableCell>
-                      <span 
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {user.role === 'admin' ? 'Admin' : 'Utilisateur'}
-                      </span>
+                      {user.isPending ? (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                          Invitation en attente
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      {!user.isPending && (
+                        <span 
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {user.role === 'admin' ? 'Admin' : 'Utilisateur'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => removeUserFromOrg(user.id)}
-                        disabled={user.id === user?.id}
-                      >
-                        <UserX className="h-4 w-4 mr-1" />
-                        Retirer
-                      </Button>
+                      {user.isPending ? (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => cancelInvitation(user.id)}
+                        >
+                          <UserX className="h-4 w-4 mr-1" />
+                          Annuler l'invitation
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => removeUserFromOrg(user.id)}
+                          disabled={user.id === user?.id}
+                        >
+                          <UserX className="h-4 w-4 mr-1" />
+                          Retirer
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
                 {orgUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       Aucun utilisateur dans cette organisation
                     </TableCell>
                   </TableRow>

@@ -153,6 +153,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
           const roles = Array.isArray(item.user_roles) ? item.user_roles : [];
           const role = roles.length > 0 ? (roles[0] as Record<string, any>).role : 'user';
           
+          if (!profile) return null; // Skip users with no profile
+          
           return {
             id: profile?.id || '',
             email: profile?.email || '',
@@ -161,7 +163,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
             role: (role as 'admin' | 'user'),
             createdAt: profile?.created_at || new Date().toISOString(),
           };
-        });
+        })
+        .filter((user): user is OrganizationUser => user !== null);
 
       setUsers(formattedUsers);
     } catch (error: any) {
@@ -280,7 +283,26 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       if (userError) throw userError;
       
       if (!userData) {
-        throw new Error(`Utilisateur avec l'email ${email} non trouvé.`);
+        // User doesn't exist, create an invitation entry
+        const { error: inviteError } = await supabase
+          .from('organization_invitations')
+          .insert({
+            email: email,
+            organization_id: organizationId,
+            status: 'pending'
+          });
+
+        if (inviteError) {
+          // Check if it's a duplicate invitation error
+          if (inviteError.code === '23505') { // PostgreSQL unique constraint violation
+            toast(`Une invitation pour ${email} est déjà en attente.`);
+            return;
+          }
+          throw inviteError;
+        }
+
+        toast(`Invitation envoyée à ${email}. Ils seront ajoutés à l'organisation après inscription.`);
+        return;
       }
 
       // Check if user already in organization

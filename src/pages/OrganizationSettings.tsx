@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { Organization } from '@/types/organization';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function OrganizationSettings() {
   const { organizations, currentOrganization, changeOrganization, createOrganization, updateOrganization, 
@@ -47,6 +48,7 @@ export default function OrganizationSettings() {
   });
   const [newUserEmail, setNewUserEmail] = useState('');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
 
   const handleAddOrganization = async () => {
     await createOrganization(newOrg);
@@ -76,14 +78,50 @@ export default function OrganizationSettings() {
       await addUserToOrganization(newUserEmail, currentOrganization.id);
       setNewUserEmail('');
       setIsAddUserDialogOpen(false);
+      if (currentOrganization) {
+        await fetchOrganizationUsers(currentOrganization.id);
+        await fetchPendingInvitations(currentOrganization.id);
+      }
     }
   };
 
-  const handleRemoveUser = async (userId: string) => {
-    if (currentOrganization) {
-      await removeUserFromOrganization(userId, currentOrganization.id);
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('organization_invitations')
+        .delete()
+        .eq('id', invitationId);
+
+      if (error) throw error;
+      
+      if (currentOrganization) {
+        await fetchPendingInvitations(currentOrganization.id);
+      }
+    } catch (error: any) {
+      console.error('Error canceling invitation:', error);
     }
   };
+
+  const fetchPendingInvitations = async (organizationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('organization_invitations')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+        
+      if (error) throw error;
+      setPendingInvitations(data || []);
+    } catch (error: any) {
+      console.error('Error fetching invitations:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (currentOrganization) {
+      fetchPendingInvitations(currentOrganization.id);
+    }
+  }, [currentOrganization]);
 
   return (
     <DashboardLayout>
@@ -258,7 +296,8 @@ export default function OrganizationSettings() {
                   <DialogHeader>
                     <DialogTitle>Ajouter un utilisateur à l'organisation</DialogTitle>
                     <DialogDescription>
-                      Entrez l'email de l'utilisateur à ajouter à cette organisation
+                      Entrez l'email de l'utilisateur à ajouter à cette organisation.
+                      Si l'utilisateur n'est pas encore inscrit, une invitation sera créée.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -288,6 +327,7 @@ export default function OrganizationSettings() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Nom</TableHead>
+                    <TableHead>Statut</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -297,6 +337,13 @@ export default function OrganizationSettings() {
                     <TableRow key={user.id}>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{user.displayName || '-'}</TableCell>
+                      <TableCell>
+                        <span 
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          Actif
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <span 
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -318,9 +365,37 @@ export default function OrganizationSettings() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {users.length === 0 && (
+                  
+                  {pendingInvitations.map(invitation => (
+                    <TableRow key={`invitation-${invitation.id}`}>
+                      <TableCell>{invitation.email}</TableCell>
+                      <TableCell>{invitation.email.split('@')[0] || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                          Invitation en attente
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Utilisateur
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Annuler
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  
+                  {users.length === 0 && pendingInvitations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8">
+                      <TableCell colSpan={5} className="text-center py-8">
                         Aucun utilisateur dans cette organisation
                       </TableCell>
                     </TableRow>

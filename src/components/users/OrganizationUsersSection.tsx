@@ -14,6 +14,7 @@ interface OrganizationUsersSectionProps {
   fetchUsers: () => Promise<void>;
   onAddUser: (email: string) => Promise<void>;
   loading: boolean;
+  usersLoading?: boolean;
 }
 
 export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> = ({
@@ -23,7 +24,8 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
   users,
   fetchUsers,
   onAddUser,
-  loading
+  loading,
+  usersLoading = false
 }) => {
   return (
     <Card>
@@ -47,6 +49,7 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
           users={users}
           fetchUsers={fetchUsers}
           organizationId={selectedOrg || ''}
+          loading={usersLoading}
         />
       </CardContent>
     </Card>

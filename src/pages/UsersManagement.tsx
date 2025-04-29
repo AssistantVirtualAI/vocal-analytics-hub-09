@@ -15,16 +15,18 @@ export default function UsersManagement() {
     orgUsers,
     allUsers,
     loading,
+    orgUsersLoading,
+    allUsersLoading,
     fetchUsers,
-    fetchAllUsers,
+    loadAllUsers,
     addUserToOrg
   } = useUsersManagement(selectedOrg);
 
   useEffect(() => {
-    if (organizations.length > 0) {
+    if (organizations.length > 0 && !selectedOrg) {
       setSelectedOrg(organizations[0].id);
     }
-  }, [organizations]);
+  }, [organizations, selectedOrg]);
 
   return (
     <AdminProtectedRoute>
@@ -34,7 +36,12 @@ export default function UsersManagement() {
             <h1 className="text-2xl sm:text-3xl font-bold">Gestion des utilisateurs</h1>
           </div>
 
-          <AllUsersSection users={allUsers} fetchUsers={fetchAllUsers} />
+          <AllUsersSection 
+            users={allUsers} 
+            fetchUsers={fetchUsers}  
+            loading={allUsersLoading}
+            loadAllUsers={loadAllUsers}
+          />
 
           <OrganizationUsersSection
             organizations={organizations}
@@ -44,6 +51,7 @@ export default function UsersManagement() {
             fetchUsers={fetchUsers}
             onAddUser={addUserToOrg}
             loading={loading}
+            usersLoading={orgUsersLoading}
           />
         </div>
       </DashboardLayout>

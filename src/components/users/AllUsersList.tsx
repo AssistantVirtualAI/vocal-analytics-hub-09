@@ -7,17 +7,19 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AllUsersListProps {
   users: OrganizationUser[];
   fetchUsers: () => Promise<void>;
+  loading?: boolean;
 }
 
-export const AllUsersList = ({ users, fetchUsers }: AllUsersListProps) => {
-  const [loading, setLoading] = useState(false);
+export const AllUsersList = ({ users, fetchUsers, loading = false }: AllUsersListProps) => {
+  const [actionLoading, setActionLoading] = useState(false);
 
   const changeUserRole = async (userId: string, newRole: 'admin' | 'user') => {
-    setLoading(true);
+    setActionLoading(true);
     try {
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -42,9 +44,36 @@ export const AllUsersList = ({ users, fetchUsers }: AllUsersListProps) => {
       console.error('Error changing user role:', error);
       toast("Erreur lors de la mise à jour du rôle: " + error.message);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Nom</TableHead>
+            <TableHead>Rôle</TableHead>
+            <TableHead>Date de création</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(4)].map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-5 w-[200px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[150px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[120px]" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-8 w-[140px] ml-auto" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
 
   return (
     <Table>
@@ -75,7 +104,7 @@ export const AllUsersList = ({ users, fetchUsers }: AllUsersListProps) => {
             <TableCell className="text-right">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" disabled={actionLoading}>
                     {user.role === 'admin' ? <ShieldAlert className="h-4 w-4 mr-1" /> : <Shield className="h-4 w-4 mr-1" />}
                     Changer de rôle
                   </Button>
@@ -83,13 +112,13 @@ export const AllUsersList = ({ users, fetchUsers }: AllUsersListProps) => {
                 <DropdownMenuContent>
                   <DropdownMenuItem 
                     onClick={() => changeUserRole(user.id, 'admin')}
-                    disabled={user.role === 'admin'}
+                    disabled={user.role === 'admin' || actionLoading}
                   >
                     <ShieldAlert className="h-4 w-4 mr-2" /> Définir comme admin
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => changeUserRole(user.id, 'user')}
-                    disabled={user.role === 'user'}
+                    disabled={user.role === 'user' || actionLoading}
                   >
                     <Shield className="h-4 w-4 mr-2" /> Définir comme utilisateur
                   </DropdownMenuItem>
@@ -98,6 +127,13 @@ export const AllUsersList = ({ users, fetchUsers }: AllUsersListProps) => {
             </TableCell>
           </TableRow>
         ))}
+        {users.length === 0 && !loading && (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center py-8">
+              Aucun utilisateur trouvé
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   );

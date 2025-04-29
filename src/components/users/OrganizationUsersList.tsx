@@ -7,42 +7,71 @@ import { Badge } from '@/components/ui/badge';
 import { OrganizationUser } from '@/types/organization';
 import { useAuth } from '@/context/AuthContext';
 import { removeUserFromOrganization, cancelInvitation } from '@/services/organization/userManagement';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
   fetchUsers: () => Promise<void>;
   organizationId: string;
+  loading?: boolean;
 }
 
-export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: OrganizationUsersListProps) => {
+export const OrganizationUsersList = ({ users, fetchUsers, organizationId, loading = false }: OrganizationUsersListProps) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId) return;
     
-    setLoading(true);
+    setActionLoading(true);
     try {
       await removeUserFromOrganization(userId, organizationId);
       await fetchUsers();
     } catch (error) {
       // Error is already handled in the service function
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
   const handleCancelInvitation = async (invitationId: string) => {
-    setLoading(true);
+    setActionLoading(true);
     try {
       await cancelInvitation(invitationId);
       await fetchUsers();
     } catch (error) {
       // Error is already handled in the service function
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Nom</TableHead>
+            <TableHead>Statut</TableHead>
+            <TableHead>Rôle</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(3)].map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-5 w-[200px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[150px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-8 w-[120px] ml-auto" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
 
   return (
     <Table>
@@ -84,7 +113,7 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
                   variant="destructive" 
                   size="sm" 
                   onClick={() => handleCancelInvitation(user_item.id)}
-                  disabled={loading}
+                  disabled={actionLoading}
                 >
                   <UserX className="h-4 w-4 mr-1" />
                   Annuler l'invitation
@@ -94,7 +123,7 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
                   variant="destructive" 
                   size="sm" 
                   onClick={() => handleRemoveUserFromOrg(user_item.id)}
-                  disabled={loading || user_item.id === user?.id}
+                  disabled={actionLoading || user_item.id === user?.id}
                 >
                   <UserX className="h-4 w-4 mr-1" />
                   Retirer
@@ -103,7 +132,7 @@ export const OrganizationUsersList = ({ users, fetchUsers, organizationId }: Org
             </TableCell>
           </TableRow>
         ))}
-        {users.length === 0 && (
+        {users.length === 0 && !loading && (
           <TableRow>
             <TableCell colSpan={5} className="text-center py-8">
               Aucun utilisateur dans cette organisation

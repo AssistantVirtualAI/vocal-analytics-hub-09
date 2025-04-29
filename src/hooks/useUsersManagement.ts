@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
 import { 
@@ -12,18 +12,13 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   const [orgUsers, setOrgUsers] = useState<OrganizationUser[]>([]);
   const [allUsers, setAllUsers] = useState<OrganizationUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [orgUsersLoading, setOrgUsersLoading] = useState(false);
+  const [allUsersLoading, setAllUsersLoading] = useState(false);
 
-  useEffect(() => {
-    if (selectedOrg) {
-      fetchUsers();
-      fetchAllUsers();
-    }
-  }, [selectedOrg]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!selectedOrg) return;
     
-    setLoading(true);
+    setOrgUsersLoading(true);
     try {
       const users = await fetchOrganizationUsers(selectedOrg);
       setOrgUsers(users);
@@ -31,12 +26,12 @@ export const useUsersManagement = (selectedOrg: string | null) => {
       console.error('Error fetching organization users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
-      setLoading(false);
+      setOrgUsersLoading(false);
     }
-  };
+  }, [selectedOrg]);
 
-  const fetchAllUsers = async () => {
-    setLoading(true);
+  const fetchAllUsers = useCallback(async () => {
+    setAllUsersLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -71,9 +66,22 @@ export const useUsersManagement = (selectedOrg: string | null) => {
       console.error('Error fetching all users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
-      setLoading(false);
+      setAllUsersLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (selectedOrg) {
+      fetchUsers();
+    }
+  }, [selectedOrg, fetchUsers]);
+
+  // Only fetch all users when explicitly requested, not automatically on mount
+  const loadAllUsers = useCallback(() => {
+    if (allUsers.length === 0) {
+      fetchAllUsers();
+    }
+  }, [allUsers.length, fetchAllUsers]);
 
   const addUserToOrg = async (email: string) => {
     if (!selectedOrg || !email) return;
@@ -94,8 +102,11 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     orgUsers,
     allUsers,
     loading,
+    orgUsersLoading,
+    allUsersLoading,
     fetchUsers,
     fetchAllUsers,
+    loadAllUsers,
     addUserToOrg
   };
 };

@@ -22,6 +22,7 @@ export const InvitationActions = ({
   onCancelInvitation
 }: InvitationActionsProps) => {
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [resendAttempted, setResendAttempted] = useState(false);
   
   const handleResendInvitation = async () => {
     if (!email) {
@@ -30,11 +31,22 @@ export const InvitationActions = ({
     }
     
     console.log("Resending invitation for:", email);
+    setResendAttempted(true);
+    
     try {
       await onResendInvitation(email);
       console.log("Invitation resent successfully for:", email);
+      // The toast is handled by the service, but let's add a fallback
+      setTimeout(() => {
+        if (isResendingFor) {
+          toast.error("Délai d'envoi dépassé. Veuillez réessayer.");
+        }
+      }, 10000);
     } catch (error: any) {
       console.error("Error resending invitation:", error);
+      toast.error("Erreur lors du renvoi de l'invitation: " + (error?.message || "Veuillez réessayer"));
+    } finally {
+      // Don't reset resendAttempted here as we want to show the spinner until the parent resets isResendingFor
     }
   };
   
@@ -42,8 +54,10 @@ export const InvitationActions = ({
     setCancelLoading(true);
     try {
       await onCancelInvitation(invitationId);
+      toast.success("Invitation annulée avec succès");
     } catch (error: any) {
       console.error("Error canceling invitation:", error);
+      toast.error("Erreur lors de l'annulation: " + (error?.message || "Veuillez réessayer"));
     } finally {
       setCancelLoading(false);
     }
@@ -62,7 +76,7 @@ export const InvitationActions = ({
         ) : (
           <RefreshCw className="h-4 w-4 mr-1" />
         )}
-        Renvoyer
+        {isResendingFor ? "Envoi en cours..." : "Renvoyer"}
       </Button>
       <Button 
         variant="destructive" 

@@ -2,12 +2,17 @@
 import { Badge } from '@/components/ui/badge';
 import { OrganizationUser } from '@/types/organization';
 
+// Define both interfaces for clarity
 interface UserStatusProps {
   user: OrganizationUser;
 }
 
+interface SimpleUserStatusProps {
+  isPending: boolean;
+}
+
 // Simple version that only takes isPending prop
-export const UserStatus = ({ isPending }: { isPending: boolean }) => {
+export const UserStatus = ({ isPending }: SimpleUserStatusProps) => {
   if (isPending) {
     return (
       <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">

@@ -33,7 +33,7 @@ export function generateInvitationEmailTemplate(organizationName: string, invita
     <h2>Vous avez été invité !</h2>
 
     <p class="intro">
-      Vous avez été invité à créer un compte utilisateur sur <strong>${organizationName}</strong>.  
+      Vous avez été invité à créer un compte utilisateur sur <strong>${organizationName}</strong>.<br>
       Cliquez sur le bouton ci-dessous pour accepter l'invitation et configurer votre profil.
     </p>
 
@@ -55,7 +55,7 @@ export function generateInvitationEmailTemplate(organizationName: string, invita
 
     <div class="footer">
       <p>&copy; 2025 AVA AI. Tous droits réservés.</p>
-      <p>Cet e-mail est généré par AVA Groupe 2025.  
+      <p>Cet e-mail est généré par AVA Groupe 2025.<br>
       Tous droits réservés à Assistant Virtual AI Automation INC.</p>
       <p>Contactez-nous : <a href="mailto:aiagent@assistantvirtualai.com">aiagent@assistantvirtualai.com</a></p>
     </div>

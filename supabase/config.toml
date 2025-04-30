@@ -13,6 +13,9 @@ verify_jwt = false
 [functions.send-invitation-email]
 verify_jwt = false
 
+[functions.send-supabase-invitation]
+verify_jwt = false
+
 [auth]
 # Set OTP expiry to 30 minutes (1800 seconds)
 otp_exp = 1800

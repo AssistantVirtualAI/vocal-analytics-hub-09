@@ -1,8 +1,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, UserX } from 'lucide-react';
-import { toast } from 'sonner';
+import { Mail, Loader2, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface InvitationActionsProps {
   email: string;
@@ -21,69 +21,66 @@ export const InvitationActions = ({
   onResendInvitation,
   onCancelInvitation
 }: InvitationActionsProps) => {
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [localResending, setLocalResending] = useState(false);
+  const { toast } = useToast();
+  const [localLoading, setLocalLoading] = useState(false);
   
   const handleResendInvitation = async () => {
-    if (!email) {
-      toast.error("Adresse email non disponible");
-      return;
-    }
+    if (actionLoading || localLoading) return;
     
-    console.log("Resending invitation for:", email);
-    setLocalResending(true);
+    setLocalLoading(true);
+    console.log(`Resending invitation to ${email}`);
     
     try {
       await onResendInvitation(email);
-      console.log("Invitation resend initiated for:", email);
-    } catch (error: any) {
-      console.error("Error resending invitation:", error);
-      toast.error("Erreur lors du renvoi de l'invitation: " + (error?.message || "Veuillez réessayer"));
-      setLocalResending(false);
+      console.log('Invitation resent successfully');
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      // Note: Error toasts are handled by the service
+    } finally {
+      setLocalLoading(false);
     }
-    
-    // We'll rely on the parent component to reset the resending state when completed
   };
-  
+
   const handleCancelInvitation = async () => {
-    setCancelLoading(true);
+    if (actionLoading || localLoading) return;
+    
+    setLocalLoading(true);
     try {
       await onCancelInvitation(invitationId);
-      toast.success("Invitation annulée avec succès");
-    } catch (error: any) {
-      console.error("Error canceling invitation:", error);
-      toast.error("Erreur lors de l'annulation: " + (error?.message || "Veuillez réessayer"));
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
     } finally {
-      setCancelLoading(false);
+      setLocalLoading(false);
     }
   };
-  
+
+  const isLoading = actionLoading || localLoading || isResendingFor;
+
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex items-center space-x-2">
       <Button 
         variant="outline" 
-        size="sm" 
+        size="sm"
         onClick={handleResendInvitation}
-        disabled={actionLoading || isResendingFor || cancelLoading || localResending}
+        disabled={isLoading}
+        className="flex items-center"
       >
-        {(isResendingFor || localResending) ? (
-          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
-          <RefreshCw className="h-4 w-4 mr-1" />
+          <Mail className="h-4 w-4 mr-1" />
         )}
-        {(isResendingFor || localResending) ? "Envoi en cours..." : "Renvoyer"}
+        Renvoyer
       </Button>
+      
       <Button 
-        variant="destructive" 
+        variant="ghost" 
         size="sm" 
         onClick={handleCancelInvitation}
-        disabled={actionLoading || isResendingFor || cancelLoading || localResending}
+        disabled={isLoading}
+        className="flex items-center text-red-500 hover:text-red-600 hover:bg-red-50"
       >
-        {cancelLoading ? (
-          <span className="h-4 w-4 mr-1 inline-block border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-        ) : (
-          <UserX className="h-4 w-4 mr-1" />
-        )}
+        <X className="h-4 w-4 mr-1" />
         Annuler
       </Button>
     </div>

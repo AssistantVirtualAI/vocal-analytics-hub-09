@@ -54,27 +54,41 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
       }
     }
 
-    // Send invitation email using Supabase's native invitation system
-    // This uses the auth.admin endpoints which are only available in edge functions
-    const { data: functionResult, error: functionError } = await supabase
-      .functions.invoke('send-supabase-invitation', {
-        body: { 
-          email,
-          organizationId
-        }
-      });
+    // Show toast while sending invitation
+    const toastId = toast.loading("Envoi de l'invitation en cours...");
 
-    if (functionError) {
-      console.error('Error sending invitation via edge function:', functionError);
-      throw functionError;
+    try {
+      // Send invitation email using edge function
+      const { data: functionResult, error: functionError } = await supabase
+        .functions.invoke('send-supabase-invitation', {
+          body: { 
+            email,
+            organizationId
+          }
+        });
+
+      if (functionError) {
+        console.error('Error sending invitation via edge function:', functionError);
+        toast.dismiss(toastId);
+        toast.error("Erreur lors de l'envoi: " + functionError.message);
+        throw functionError;
+      }
+
+      if (functionResult && functionResult.error) {
+        console.error('Error in supabase invitation:', functionResult.error);
+        toast.dismiss(toastId);
+        toast.error("Erreur: " + (typeof functionResult.error === 'string' ? functionResult.error : JSON.stringify(functionResult.error)));
+        throw new Error(functionResult.error);
+      }
+      
+      // Success! Update the toast
+      toast.dismiss(toastId);
+      toast.success("Invitation envoyée avec succès");
+    } catch (error) {
+      // Make sure we dismiss the loading toast if there's an error
+      toast.dismiss(toastId);
+      throw error;
     }
-
-    if (functionResult && functionResult.error) {
-      console.error('Error in supabase invitation:', functionResult.error);
-      throw new Error(functionResult.error);
-    }
-
-    toast.success("Invitation envoyée avec succès");
   } catch (error: any) {
     handleInvitationError(error, "de l'envoi de l'invitation");
     throw error;

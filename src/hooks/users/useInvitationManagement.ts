@@ -1,111 +1,59 @@
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { cancelInvitation, resendInvitation } from '@/services/organization/users/invitations';
+import { supabase } from '@/integrations/supabase/client';
+import { cancelInvitation as cancelInvitationService } from '@/services/organization/users/invitations/cancelInvitation';
+import { resendInvitation as resendInvitationService } from '@/services/organization/users/invitations/resendInvitation';
 
 export const useInvitationManagement = (
-  selectedOrg: string | null,
+  organizationId: string | null, 
   refreshUsers?: () => Promise<void>
 ) => {
   const [loading, setLoading] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Clear any pending timeouts when unmounting
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  const cancelUserInvitation = useCallback(async (invitationId: string) => {
-    setCancelLoading(true);
+  const [resendingFor, setResendingFor] = useState<string | null>(null);
+  
+  const cancelInvitation = async (invitationId: string) => {
+    if (!organizationId || loading) return;
+    
+    setLoading(true);
     try {
-      await cancelInvitation(invitationId);
-      toast.success("Invitation annulée avec succès");
+      await cancelInvitationService(invitationId);
       if (refreshUsers) {
         await refreshUsers();
       }
-    } catch (error) {
-      console.error("Error cancelling invitation:", error);
-      // Toast is handled in the service
-    } finally {
-      setCancelLoading(false);
-    }
-  }, [refreshUsers]);
-
-  const resendUserInvitation = useCallback(async (email: string) => {
-    if (!selectedOrg) {
-      toast.error("Aucune organisation sélectionnée");
-      return;
-    }
-    
-    console.log(`useInvitationManagement: Resending invitation to ${email} for org ${selectedOrg}`);
-    
-    // If already resending for this email, prevent duplicate requests
-    if (resendLoading === email) {
-      console.log("Already resending for this email, ignoring duplicate request");
-      return;
-    }
-    
-    setResendLoading(email);
-    
-    // Clear any previous timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    // Set a new timeout to handle potential Edge function timeouts
-    timeoutRef.current = setTimeout(() => {
-      if (resendLoading === email) {
-        setResendLoading(null);
-        toast.error("L'opération a pris trop de temps. Veuillez réessayer.");
-      }
-    }, 15000); // 15 seconds timeout
-    
-    try {
-      await resendInvitation(email, selectedOrg);
-      console.log("Invitation resent successfully, refreshing users...");
-      
-      // Clear timeout since operation completed successfully
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      if (refreshUsers) {
-        await refreshUsers();
-      }
-      
-      toast.success("Invitation renvoyée avec succès");
-      setResendLoading(null);
     } catch (error: any) {
-      console.error("Error resending invitation:", error);
-      
-      // Clear timeout since operation completed with error
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      // Don't show duplicate toasts if error handler already showed one
-      if (!error?.handledByErrorHandler) {
-        toast.error(`Erreur: ${error?.message || "Échec de l'envoi d'invitation"}`);
-      }
-      
-      setResendLoading(null);
+      console.error('Error canceling invitation:', error);
+      toast.error("Erreur lors de l'annulation de l'invitation: " + error.message);
+    } finally {
+      setLoading(false);
     }
-  }, [selectedOrg, refreshUsers, resendLoading]);
+  };
+  
+  const resendInvitation = async (email: string) => {
+    if (!organizationId || loading || resendingFor) return;
+    
+    setResendingFor(email);
+    try {
+      console.log(`Resending invitation to ${email} for org ${organizationId}`);
+      await resendInvitationService(email, organizationId);
+      
+      // No need to refresh users after resending an invitation
+      console.log('Invitation resent successfully');
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+      // Note: Toast notifications are handled by the service
+    } finally {
+      // Set a small timeout to avoid UI flashing
+      setTimeout(() => {
+        setResendingFor(null);
+      }, 500);
+    }
+  };
 
   return {
-    loading: loading || cancelLoading || !!resendLoading,
-    cancelLoading,
-    resendLoading,
-    isResendingFor: resendLoading,
-    cancelInvitation: cancelUserInvitation,
-    resendInvitation: resendUserInvitation
+    loading,
+    resendingFor,
+    cancelInvitation,
+    resendInvitation
   };
 };

@@ -36,6 +36,8 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Processing invitation for email: ${email} and org: ${organizationId}`);
+
     // Get the organization name if not provided
     let orgName = organizationName;
     if (!orgName) {
@@ -85,6 +87,9 @@ serve(async (req) => {
     const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'http://localhost:5173';
     const invitationUrl = `${baseUrl}/auth?invitation_token=${token}&email=${encodeURIComponent(email)}`;
 
+    console.log(`Generated invitation URL with token: ${token.substring(0, 8)}...`);
+    console.log(`Using base URL: ${baseUrl}`);
+
     // Send email using Supabase's auth.admin.inviteUserByEmail
     // This will use Supabase's email templates configured in the dashboard
     const { error: mailError } = await supabase.auth.admin.inviteUserByEmail(email, {
@@ -105,6 +110,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log(`Successfully sent invitation email to ${email}`);
 
     // Return success response
     return new Response(

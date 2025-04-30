@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sendInvitation } from './invitations/sendInvitation';
 
 // Add a user to an organization
 export const addUserToOrganization = async (email: string, organizationId: string): Promise<void> => {
@@ -51,9 +52,12 @@ export const addUserToOrganization = async (email: string, organizationId: strin
         throw addError;
       }
 
-      toast("Utilisateur ajouté à l'organisation avec succès.");
+      toast.success("Utilisateur ajouté à l'organisation avec succès.");
     } else {
       // User doesn't exist, create invitation
+      console.log(`User ${email} doesn't exist, creating invitation...`);
+      
+      // First create the invitation record
       const { error: inviteError } = await supabase
         .from('organization_invitations')
         .insert({
@@ -63,15 +67,19 @@ export const addUserToOrganization = async (email: string, organizationId: strin
         });
 
       if (inviteError) {
-        console.error('Error creating invitation:', inviteError);
+        console.error('Error creating invitation record:', inviteError);
         throw inviteError;
       }
 
-      toast("Invitation envoyée à l'utilisateur.");
+      // Now send the invitation email
+      console.log(`Invitation record created, sending invitation email to ${email}...`);
+      await sendInvitation(email, organizationId);
+      
+      toast.success("Invitation envoyée à l'utilisateur.");
     }
   } catch (error: any) {
     console.error('Error in addUserToOrganization:', error);
-    toast("Erreur lors de l'ajout de l'utilisateur: " + error.message);
+    toast.error("Erreur lors de l'ajout de l'utilisateur: " + error.message);
     throw error;
   }
 };

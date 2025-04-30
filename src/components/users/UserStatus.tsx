@@ -6,8 +6,9 @@ interface UserStatusProps {
   user: OrganizationUser;
 }
 
-export const UserStatus = ({ user }: UserStatusProps) => {
-  if (user.isPending) {
+// Simple version that only takes isPending prop
+export const UserStatus = ({ isPending }: { isPending: boolean }) => {
+  if (isPending) {
     return (
       <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
         Invitation en attente
@@ -20,6 +21,11 @@ export const UserStatus = ({ user }: UserStatusProps) => {
       Actif
     </Badge>
   );
+};
+
+// Original version that takes full user object
+export const UserStatusWithUser = ({ user }: UserStatusProps) => {
+  return <UserStatus isPending={user.isPending} />;
 };
 
 export const UserRole = ({ user }: UserStatusProps) => {

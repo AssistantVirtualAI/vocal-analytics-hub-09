@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { OrganizationUser } from '@/types/organization';
+
+import { useState } from 'react';
+import { Table } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
+import { 
+  setOrganizationAdminStatus, 
+  setSuperAdminStatus 
+} from '@/services/organization/users/adminRoles';
+import { toast } from 'sonner';
+import { UserTableHeader } from './UserTableHeader';
+import { UsersListHeader } from './UsersListHeader';
+import { UsersTableContent } from './UsersTableContent';
+import { OrganizationUser } from '@/types/organization';
 import { 
   removeUserFromOrganization, 
   cancelInvitation, 
   resendInvitation, 
   resetUserPassword 
 } from '@/services/organization/userManagement';
-import { toast } from 'sonner';
-import { UserTableHeader } from './UserTableHeader';
-import { UserTableSkeleton } from './UserTableSkeleton';
-import { UserTableRow } from './UserTableRow';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
-import { setOrganizationAdminStatus, setSuperAdminStatus } from '@/services/organization/users/adminRoles';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -35,22 +37,10 @@ export const OrganizationUsersList = ({
 }: OrganizationUsersListProps) => {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
-  const [userCount, setUserCount] = useState(0);
   const [resendingFor, setResendingFor] = useState<string | null>(null);
   
-  useEffect(() => {
-    // Track changes to user count for debugging
-    if (users.length !== userCount) {
-      console.log(`OrganizationUsersList - User count changed from ${userCount} to ${users.length}`);
-      console.log("Current users:", users);
-      setUserCount(users.length);
-    }
-  }, [users, userCount]);
-
-  // Log when loading changes
-  useEffect(() => {
-    console.log(`OrganizationUsersList - Loading state: ${loading}`);
-  }, [loading]);
+  // Debug log when users change
+  console.log("OrganizationUsersList - Current users:", users);
 
   const handleRefresh = async () => {
     try {
@@ -73,7 +63,6 @@ export const OrganizationUsersList = ({
       await removeUserFromOrganization(userId, organizationId);
       await fetchUsers();
     } catch (error) {
-      // Error is already handled in the service function
       console.error("Error removing user from org:", error);
     } finally {
       setActionLoading(false);
@@ -87,7 +76,6 @@ export const OrganizationUsersList = ({
       await cancelInvitation(invitationId);
       await fetchUsers();
     } catch (error) {
-      // Error is already handled in the service function
       console.error("Error cancelling invitation:", error);
     } finally {
       setActionLoading(false);
@@ -107,7 +95,6 @@ export const OrganizationUsersList = ({
       await resendInvitation(email, organizationId);
       await fetchUsers();
     } catch (error) {
-      // Error is already handled in the service function
       console.error("Error resending invitation:", error);
     } finally {
       setResendingFor(null);
@@ -121,7 +108,6 @@ export const OrganizationUsersList = ({
       console.log(`Attempting to reset password for ${email}`);
       await resetUserPassword(email);
     } catch (error) {
-      // Error is already handled in the service function
       console.error("Error resetting password:", error);
     } finally {
       setActionLoading(false);
@@ -159,56 +145,25 @@ export const OrganizationUsersList = ({
 
   return (
     <div>
-      <div className="mb-4 flex justify-between items-center">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh}
-          disabled={loading}
-          className="ml-auto"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
-      </div>
+      <UsersListHeader onRefresh={handleRefresh} loading={loading} />
       
       <Table>
         <UserTableHeader showAdminColumns={currentUserIsOrgAdmin || currentUserIsSuperAdmin} />
-        {loading ? (
-          <UserTableSkeleton />
-        ) : (
-          <TableBody>
-            {users.length > 0 ? (
-              users.map((userItem) => (
-                <UserTableRow
-                  key={userItem.id}
-                  user={userItem}
-                  currentUserId={user?.id}
-                  actionLoading={actionLoading}
-                  isResendingFor={resendingFor}
-                  onRemoveUser={handleRemoveUserFromOrg}
-                  onCancelInvitation={handleCancelInvitation}
-                  onResendInvitation={handleResendInvitation}
-                  onResetPassword={handleResetPassword}
-                  onToggleOrgAdmin={currentUserIsOrgAdmin || currentUserIsSuperAdmin ? handleToggleOrgAdmin : undefined}
-                  onToggleSuperAdmin={currentUserIsSuperAdmin ? handleToggleSuperAdmin : undefined}
-                  currentUserIsOrgAdmin={currentUserIsOrgAdmin}
-                  currentUserIsSuperAdmin={currentUserIsSuperAdmin}
-                />
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={currentUserIsOrgAdmin || currentUserIsSuperAdmin ? 6 : 5} className="text-center py-8">
-                  {loading ? (
-                    "Chargement des utilisateurs..."
-                  ) : (
-                    "Aucun utilisateur dans cette organisation"
-                  )}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        )}
+        <UsersTableContent
+          users={users}
+          loading={loading}
+          actionLoading={actionLoading}
+          resendingFor={resendingFor}
+          currentUserId={user?.id}
+          currentUserIsOrgAdmin={currentUserIsOrgAdmin}
+          currentUserIsSuperAdmin={currentUserIsSuperAdmin}
+          onRemoveUser={handleRemoveUserFromOrg}
+          onCancelInvitation={handleCancelInvitation}
+          onResendInvitation={handleResendInvitation}
+          onResetPassword={handleResetPassword}
+          onToggleOrgAdmin={handleToggleOrgAdmin}
+          onToggleSuperAdmin={handleToggleSuperAdmin}
+        />
       </Table>
     </div>
   );

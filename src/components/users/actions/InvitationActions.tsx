@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 interface InvitationActionsProps {
   email: string;
   invitationId: string;
-  isResendingFor: boolean;
+  isResendingFor: boolean;  // Changed to boolean to match how it's used
   actionLoading: boolean;
   onResendInvitation: (email: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;

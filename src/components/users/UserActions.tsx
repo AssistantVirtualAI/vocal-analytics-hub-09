@@ -15,7 +15,7 @@ interface UserActionsProps {
   user: OrganizationUser;
   currentUserId: string | undefined;
   actionLoading: boolean;
-  isResendingFor?: string | null;
+  isResendingFor?: boolean;  // Changed to boolean to match how it's used
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
@@ -47,7 +47,6 @@ export const UserActions = ({
     console.log("UserActions - Rendering for user:", user.email, "isPending:", user.isPending);
   }, [user]);
 
-  const isResendingForThisUser = isResendingFor === user.email;
   const isCurrentUser = user.id === currentUserId;
   
   if (user.isPending) {
@@ -55,7 +54,7 @@ export const UserActions = ({
       <InvitationActions
         email={user.email}
         invitationId={user.id}
-        isResendingFor={isResendingForThisUser}
+        isResendingFor={!!isResendingFor}  // Convert to boolean if undefined
         actionLoading={actionLoading || localLoading}
         onResendInvitation={onResendInvitation}
         onCancelInvitation={onCancelInvitation}

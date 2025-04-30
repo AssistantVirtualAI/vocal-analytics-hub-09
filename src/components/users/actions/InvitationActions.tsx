@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mail, Loader2, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface InvitationActionsProps {
   email: string;
@@ -21,27 +20,26 @@ export const InvitationActions = ({
   onResendInvitation,
   onCancelInvitation
 }: InvitationActionsProps) => {
-  const { toast } = useToast();
   const [localLoading, setLocalLoading] = useState(false);
   
   const handleResendInvitation = async () => {
-    if (actionLoading || localLoading) return;
+    if (actionLoading || localLoading || isResendingFor) return;
     
+    console.log(`InvitationActions - Trying to resend invitation to ${email}`);
     setLocalLoading(true);
-    console.log(`Resending invitation to ${email}`);
     
     try {
       await onResendInvitation(email);
-      console.log('Invitation resent successfully');
+      console.log('InvitationActions - Resend invitation completed');
     } catch (error) {
-      console.error('Error resending invitation:', error);
+      console.error('InvitationActions - Error resending invitation:', error);
     } finally {
       setLocalLoading(false);
     }
   };
 
   const handleCancelInvitation = async () => {
-    if (actionLoading || localLoading) return;
+    if (actionLoading || localLoading || isResendingFor) return;
     
     setLocalLoading(true);
     try {

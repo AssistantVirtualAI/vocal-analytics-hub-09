@@ -31,7 +31,10 @@ export const useInvitationManagement = (
   };
   
   const resendInvitation = async (email: string) => {
-    if (!organizationId || loading) return;
+    if (!organizationId || loading) {
+      console.log(`Cannot resend invitation: organizationId=${organizationId}, loading=${loading}`);
+      return;
+    }
     
     console.log(`Starting resend invitation process for ${email} in org ${organizationId}`);
     setResendingFor(email);
@@ -39,16 +42,17 @@ export const useInvitationManagement = (
     
     try {
       console.log(`Calling resendInvitationService for ${email} in org ${organizationId}`);
-      await resendInvitationService(email, organizationId);
+      const result = await resendInvitationService(email, organizationId);
       
       toast.dismiss(toastId);
       toast.success("Invitation envoyée avec succès");
-      console.log('Invitation resent successfully');
+      console.log('Invitation resent successfully:', result);
     } catch (error: any) {
       console.error('Error resending invitation:', error);
       toast.dismiss(toastId);
       toast.error("Erreur lors de l'envoi: " + error.message);
     } finally {
+      console.log(`Finished resend invitation process for ${email}`);
       // Set a small timeout to avoid UI flashing
       setTimeout(() => {
         setResendingFor(null);

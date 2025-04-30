@@ -9,7 +9,7 @@ interface UserTableRowProps {
   user: OrganizationUser;
   currentUserId?: string;
   actionLoading: boolean;
-  isResendingFor?: string | null;
+  isResendingFor: string | null;
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
@@ -37,7 +37,8 @@ export const UserTableRow = ({
   // Add logging for debugging
   useEffect(() => {
     console.log("UserTableRow - Rendering user:", user);
-  }, [user]);
+    console.log("UserTableRow - isResendingFor:", isResendingFor, "user email:", user.email);
+  }, [user, isResendingFor]);
 
   return (
     <TableRow>

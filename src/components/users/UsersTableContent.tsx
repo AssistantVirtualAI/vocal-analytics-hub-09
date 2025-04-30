@@ -41,6 +41,9 @@ export const UsersTableContent = ({
     return <UserTableSkeleton />;
   }
 
+  // Log the resendingFor state to identify potential issues
+  console.log("UsersTableContent - resendingFor:", resendingFor);
+
   return (
     <TableBody>
       {users.length > 0 ? (

@@ -15,7 +15,7 @@ interface UserActionsProps {
   user: OrganizationUser;
   currentUserId: string | undefined;
   actionLoading: boolean;
-  isResendingFor?: boolean;  // Changed to boolean to match how it's used
+  isResendingFor: boolean;  // Boolean flag for this specific user
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
@@ -44,8 +44,8 @@ export const UserActions = ({
   
   // Log for debugging whenever the component renders
   useEffect(() => {
-    console.log("UserActions - Rendering for user:", user.email, "isPending:", user.isPending);
-  }, [user]);
+    console.log("UserActions - Rendering for user:", user.email, "isPending:", user.isPending, "isResendingFor:", isResendingFor);
+  }, [user, isResendingFor]);
 
   const isCurrentUser = user.id === currentUserId;
   
@@ -54,7 +54,7 @@ export const UserActions = ({
       <InvitationActions
         email={user.email}
         invitationId={user.id}
-        isResendingFor={!!isResendingFor}  // Convert to boolean if undefined
+        isResendingFor={isResendingFor}
         actionLoading={actionLoading || localLoading}
         onResendInvitation={onResendInvitation}
         onCancelInvitation={onCancelInvitation}

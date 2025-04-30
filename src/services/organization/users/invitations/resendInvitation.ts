@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 /**
  * Resends an invitation email for a pending invitation using Supabase's native invitation system
  */
-export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
+export const resendInvitation = async (email: string, organizationId: string): Promise<any> => {
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
@@ -64,6 +64,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
     }
 
     console.log('Invitation resend successful:', functionResult);
+    return functionResult;
   } catch (error: any) {
     console.error('Complete error object:', error);
     

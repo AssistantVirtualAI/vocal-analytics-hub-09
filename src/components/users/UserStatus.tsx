@@ -2,16 +2,12 @@
 import { Badge } from '@/components/ui/badge';
 import { OrganizationUser } from '@/types/organization';
 
-// Define both interfaces for clarity
-interface UserStatusProps {
-  user: OrganizationUser;
-}
-
-interface SimpleUserStatusProps {
+// Simple version that only takes isPending prop
+export interface SimpleUserStatusProps {
   isPending: boolean;
 }
 
-// Simple version that only takes isPending prop
+// Main component now uses the interface
 export const UserStatus = ({ isPending }: SimpleUserStatusProps) => {
   if (isPending) {
     return (
@@ -29,6 +25,10 @@ export const UserStatus = ({ isPending }: SimpleUserStatusProps) => {
 };
 
 // Original version that takes full user object
+interface UserStatusProps {
+  user: OrganizationUser;
+}
+
 export const UserStatusWithUser = ({ user }: UserStatusProps) => {
   return <UserStatus isPending={user.isPending} />;
 };

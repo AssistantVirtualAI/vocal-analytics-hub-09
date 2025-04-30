@@ -22,7 +22,7 @@ export const InvitationActions = ({
   onCancelInvitation
 }: InvitationActionsProps) => {
   const [cancelLoading, setCancelLoading] = useState(false);
-  const [resendAttempted, setResendAttempted] = useState(false);
+  const [localResending, setLocalResending] = useState(false);
   
   const handleResendInvitation = async () => {
     if (!email) {
@@ -31,23 +31,18 @@ export const InvitationActions = ({
     }
     
     console.log("Resending invitation for:", email);
-    setResendAttempted(true);
+    setLocalResending(true);
     
     try {
       await onResendInvitation(email);
-      console.log("Invitation resent successfully for:", email);
-      // The toast is handled by the service, but let's add a fallback
-      setTimeout(() => {
-        if (isResendingFor) {
-          toast.error("Délai d'envoi dépassé. Veuillez réessayer.");
-        }
-      }, 10000);
+      console.log("Invitation resend initiated for:", email);
     } catch (error: any) {
       console.error("Error resending invitation:", error);
       toast.error("Erreur lors du renvoi de l'invitation: " + (error?.message || "Veuillez réessayer"));
-    } finally {
-      // Don't reset resendAttempted here as we want to show the spinner until the parent resets isResendingFor
+      setLocalResending(false);
     }
+    
+    // We'll rely on the parent component to reset the resending state when completed
   };
   
   const handleCancelInvitation = async () => {
@@ -69,20 +64,20 @@ export const InvitationActions = ({
         variant="outline" 
         size="sm" 
         onClick={handleResendInvitation}
-        disabled={actionLoading || isResendingFor || cancelLoading}
+        disabled={actionLoading || isResendingFor || cancelLoading || localResending}
       >
-        {isResendingFor ? (
+        {(isResendingFor || localResending) ? (
           <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
         ) : (
           <RefreshCw className="h-4 w-4 mr-1" />
         )}
-        {isResendingFor ? "Envoi en cours..." : "Renvoyer"}
+        {(isResendingFor || localResending) ? "Envoi en cours..." : "Renvoyer"}
       </Button>
       <Button 
         variant="destructive" 
         size="sm" 
         onClick={handleCancelInvitation}
-        disabled={actionLoading || isResendingFor || cancelLoading}
+        disabled={actionLoading || isResendingFor || cancelLoading || localResending}
       >
         {cancelLoading ? (
           <span className="h-4 w-4 mr-1 inline-block border-2 border-white border-t-transparent rounded-full animate-spin"></span>

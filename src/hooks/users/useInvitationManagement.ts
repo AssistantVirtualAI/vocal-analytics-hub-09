@@ -44,34 +44,58 @@ export const useInvitationManagement = (
     }
     
     console.log(`useInvitationManagement: Resending invitation to ${email} for org ${selectedOrg}`);
+    
+    // If already resending for this email, prevent duplicate requests
+    if (resendLoading === email) {
+      console.log("Already resending for this email, ignoring duplicate request");
+      return;
+    }
+    
     setResendLoading(email);
     
-    // Set a timeout to handle potential Edge function timeouts
+    // Clear any previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
+    // Set a new timeout to handle potential Edge function timeouts
     timeoutRef.current = setTimeout(() => {
       if (resendLoading === email) {
         setResendLoading(null);
         toast.error("L'opération a pris trop de temps. Veuillez réessayer.");
       }
-    }, 20000); // 20 seconds timeout
+    }, 15000); // 15 seconds timeout
     
     try {
       await resendInvitation(email, selectedOrg);
       console.log("Invitation resent successfully, refreshing users...");
+      
+      // Clear timeout since operation completed successfully
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
       if (refreshUsers) {
         await refreshUsers();
       }
+      
       toast.success("Invitation renvoyée avec succès");
+      setResendLoading(null);
     } catch (error: any) {
       console.error("Error resending invitation:", error);
-      toast.error(`Erreur: ${error?.message || "Échec de l'envoi d'invitation"}`);
-    } finally {
+      
+      // Clear timeout since operation completed with error
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
+      
+      // Don't show duplicate toasts if error handler already showed one
+      if (!error?.handledByErrorHandler) {
+        toast.error(`Erreur: ${error?.message || "Échec de l'envoi d'invitation"}`);
+      }
+      
       setResendLoading(null);
     }
   }, [selectedOrg, refreshUsers, resendLoading]);

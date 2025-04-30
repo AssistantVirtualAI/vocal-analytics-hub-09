@@ -44,7 +44,6 @@ export const UserTableRow = ({
       <TableCell>{user.email}</TableCell>
       <TableCell>{user.displayName || (user.email?.split('@')[0]) || '-'}</TableCell>
       <TableCell>
-        {/* Pass the isPending prop directly to UserStatus */}
         <UserStatus isPending={user.isPending} />
       </TableCell>
       
@@ -60,7 +59,7 @@ export const UserTableRow = ({
           user={user}
           currentUserId={currentUserId}
           actionLoading={actionLoading}
-          isResendingFor={isResendingFor}
+          isResendingFor={isResendingFor === user.email}
           onRemoveUser={onRemoveUser}
           onCancelInvitation={onCancelInvitation}
           onResendInvitation={onResendInvitation}

@@ -13,6 +13,12 @@ export const resendInvitation = async (email: string, organizationId: string): P
     
     // Find the pending invitation
     const invitation = await findPendingInvitation(email, organizationId);
+    
+    if (!invitation) {
+      console.error("No pending invitation found for this email");
+      throw new Error("Aucune invitation en attente trouvée pour cette adresse email");
+    }
+    
     const invitationId = invitation.id;
     console.log(`Found invitation ${invitationId}, updating...`);
 
@@ -61,6 +67,10 @@ export const resendInvitation = async (email: string, organizationId: string): P
   } catch (error: any) {
     console.error('Complete error object:', error);
     handleInvitationError(error, "du renvoi de l'invitation");
+    
+    // Mark the error as handled by the error handler to prevent duplicate toasts
+    error.handledByErrorHandler = true;
+    
     throw error;
   }
 };

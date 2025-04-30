@@ -2,7 +2,6 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
-import { generateInvitationEmailTemplate } from './emailTemplate.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -86,25 +85,20 @@ serve(async (req) => {
     const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'http://localhost:5173';
     const invitationUrl = `${baseUrl}/auth?invitation_token=${token}&email=${encodeURIComponent(email)}`;
 
-    // Generate email content
-    const emailHtml = generateInvitationEmailTemplate(orgName, invitationUrl);
-    const emailSubject = `Invitation à rejoindre ${orgName}`;
-
-    // Send email using Supabase's email service
-    const { error: mailError } = await supabase.auth.admin.sendEmail(
-      email,
-      {
-        type: 'invite',
-        subject: emailSubject,
-        template_data: { url: invitationUrl, site_name: orgName },
-        email_html: emailHtml,
+    // Send email using Supabase's auth.admin.inviteUserByEmail
+    // This will use Supabase's email templates configured in the dashboard
+    const { error: mailError } = await supabase.auth.admin.inviteUserByEmail(email, {
+      redirectTo: invitationUrl,
+      data: {
+        organization_id: organizationId,
+        organization_name: orgName,
       }
-    );
+    });
 
     if (mailError) {
       console.error('Error sending email:', mailError);
       return new Response(
-        JSON.stringify({ error: 'Failed to send invitation email' }),
+        JSON.stringify({ error: 'Failed to send invitation email', details: mailError }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -124,7 +118,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing invitation:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

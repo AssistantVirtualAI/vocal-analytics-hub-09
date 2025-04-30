@@ -17,7 +17,6 @@ export const useInvitationManagement = (
       await cancelInvitation(invitationId);
       if (refreshUsers) {
         await refreshUsers();
-        toast.success("Invitation annulée avec succès");
       }
     } catch (error) {
       console.error("Error cancelling invitation:", error);
@@ -41,10 +40,10 @@ export const useInvitationManagement = (
       if (refreshUsers) {
         await refreshUsers();
       }
-      toast.success("Invitation renvoyée avec succès");
+      // The success toast is handled in the service
     } catch (error: any) {
       console.error("Error resending invitation:", error);
-      toast.error(`Erreur: ${error.message || "Impossible de renvoyer l'invitation"}`);
+      // The error toast is handled in the service
     } finally {
       setResendLoading(false);
     }

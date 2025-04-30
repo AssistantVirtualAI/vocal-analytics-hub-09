@@ -1,12 +1,11 @@
 
 import { toast } from 'sonner';
-import { findPendingInvitation, refreshInvitationToken } from './utils/invitationToken';
-import { getOrganizationName } from './utils/organization';
-import { sendInvitationEmail } from './utils/emailSender';
+import { findPendingInvitation } from './utils/invitationToken';
 import { handleInvitationError } from './utils/errorHandler';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Resends an invitation email for a pending invitation
+ * Resends an invitation email for a pending invitation using Supabase's native invitation system
  */
 export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
   try {
@@ -17,25 +16,39 @@ export const resendInvitation = async (email: string, organizationId: string): P
     const invitationId = invitation.id;
     console.log(`Found invitation ${invitationId}, updating...`);
 
-    // Refresh the invitation token
-    const invitationToken = await refreshInvitationToken(invitationId);
-    
-    // Get organization name
-    const organizationName = await getOrganizationName(organizationId);
-    
-    // Generate invitation URL
-    const invitationUrl = `${window.location.origin}/auth?invitation=${invitationToken}`;
+    // Update invitation status to refresh token
+    const { error: updateError } = await supabase
+      .from('organization_invitations')
+      .update({
+        status: 'pending' // This will trigger the database function to update token and expiration
+      })
+      .eq('id', invitationId);
 
-    // Send the email
-    try {
-      await sendInvitationEmail({ email, organizationName, invitationUrl });
-      toast.success("Email d'invitation envoyé avec succès.");
-    } catch (emailError: any) {
-      handleInvitationError(emailError, "de l'envoi de l'email d'invitation");
-      throw emailError;
+    if (updateError) {
+      console.error('Error updating invitation:', updateError);
+      throw updateError;
+    }
+
+    // Send invitation email using Supabase's native invitation system
+    const { data: functionResult, error: functionError } = await supabase
+      .functions.invoke('send-supabase-invitation', {
+        body: { 
+          email,
+          organizationId 
+        }
+      });
+
+    if (functionError) {
+      console.error('Error resending invitation via edge function:', functionError);
+      throw functionError;
+    }
+
+    if (functionResult && functionResult.error) {
+      console.error('Error in supabase invitation:', functionResult.error);
+      throw new Error(functionResult.error);
     }
     
-    toast.success("Invitation renvoyée avec succès.");
+    toast.success("Invitation renvoyée avec succès");
   } catch (error: any) {
     handleInvitationError(error, "du renvoi de l'invitation");
     throw error;

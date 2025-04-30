@@ -1,16 +1,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { getOrganizationName } from './utils/organization';
-import { sendInvitationEmail } from './utils/emailSender';
 import { handleInvitationError } from './utils/errorHandler';
 
-// Send an invitation to join an organization
+// Send an invitation to join an organization using Supabase's native invitation system
 export const sendInvitation = async (email: string, organizationId: string): Promise<void> => {
   try {
     console.log(`Sending invitation to ${email} for organization ${organizationId}`);
 
-    // Check if invitation already exists
+    // Check if the invitation already exists
     const { data: existingInvitation, error: checkError } = await supabase
       .from('organization_invitations')
       .select('*')
@@ -24,64 +22,59 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
       throw checkError;
     }
 
-    let invitationToken;
-    
+    // If invitation exists, update it. Otherwise, create a new one
     if (existingInvitation) {
       console.log('Invitation already exists, refreshing it');
       
       // Refresh existing invitation
-      const { data: updatedInvitation, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('organization_invitations')
         .update({
           status: 'pending'  // This will trigger the database function to update token and expiration
         })
-        .eq('id', existingInvitation.id)
-        .select('token')
-        .single();
+        .eq('id', existingInvitation.id);
 
       if (updateError) {
         console.error('Error refreshing invitation:', updateError);
         throw updateError;
       }
-      
-      invitationToken = updatedInvitation.token;
     } else {
-      // Create new invitation
-      const { data: newInvitation, error: insertError } = await supabase
+      // Create new invitation entry in our custom table
+      const { error: insertError } = await supabase
         .from('organization_invitations')
         .insert({
           email,
           organization_id: organizationId,
           status: 'pending'
-        })
-        .select('token')
-        .single();
+        });
 
       if (insertError) {
-        console.error('Error creating invitation:', insertError);
+        console.error('Error creating invitation record:', insertError);
         throw insertError;
       }
-      
-      invitationToken = newInvitation.token;
     }
 
-    // Get organization name
-    const organizationName = await getOrganizationName(organizationId);
-    
-    // Generate invitation URL
-    const invitationUrl = `${window.location.origin}/auth?invitation=${invitationToken}`;
+    // Send invitation email using Supabase's native invitation system
+    // This uses the auth.admin endpoints which are only available in edge functions
+    const { data: functionResult, error: functionError } = await supabase
+      .functions.invoke('send-supabase-invitation', {
+        body: { 
+          email,
+          organizationId
+        }
+      });
 
-    // Send invitation email
-    try {
-      await sendInvitationEmail({ email, organizationName, invitationUrl });
-      toast.success("Email d'invitation envoyé avec succès.");
-    } catch (emailError: any) {
-      handleInvitationError(emailError, "de l'envoi de l'email d'invitation");
-      // We don't throw here because we still want to acknowledge that the invitation was created
-      // even if the email failed to send
+    if (functionError) {
+      console.error('Error sending invitation via edge function:', functionError);
+      throw functionError;
     }
 
-    toast.success("Invitation créée avec succès.");
+    if (functionResult && functionResult.error) {
+      console.error('Error in supabase invitation:', functionResult.error);
+      throw new Error(functionResult.error);
+    }
+
+    toast.success("Invitation envoyée avec succès");
   } catch (error: any) {
     handleInvitationError(error, "de l'envoi de l'invitation");
     throw error;

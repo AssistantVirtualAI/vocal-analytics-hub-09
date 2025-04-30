@@ -21,3 +21,4 @@ verify_jwt = false
 otp_exp = 1800
 # Enable leaked password protection
 enable_hibp = true
+

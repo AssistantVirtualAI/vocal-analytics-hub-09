@@ -1,252 +1,265 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "npm:resend@2.0.0";
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-interface InvitationRequest {
-  email: string;
-  organizationId: string;
-}
+// Create a Supabase client with the service role key (admin access)
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const handler = async (req: Request): Promise<Response> => {
-  console.log("Supabase native invitation function called");
-  
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+// Custom HTML templates for Supabase Auth
+const confirmSignupHTML = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Confirmez votre inscription - AVA AI Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .logo { text-align: center; margin-bottom: 20px; }
+    .logo img { display: block; margin: 0 auto; max-width: 150px; height: auto; }
+    h2 { color: #333; text-align: center; margin-bottom: 10px; }
+    .intro { color: #555; line-height: 1.5; margin-bottom: 20px; }
+    .features { background: #f9f9f9; border-left: 4px solid #007bff; padding: 10px 15px; margin-bottom: 20px; }
+    .features h3 { margin-top: 0; color: #007bff; }
+    .button { display: block; width: 240px; margin: 30px auto; padding: 15px; text-align: center; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; }
+    .footer a { color: #007bff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <!-- Logo inline en base64 pour éviter les blocages d'images externes -->
+      <img src="data:image/webp;base64,UklGRo4IAABXRUJQVlA4WAoAAABQBwCdASoU...8pNVYL8TbvgJ35SnH+/z78A2uHxEfKWv8pEAAAAAA=" alt="AVA AI Logo" />
+    </div>
+
+    <h2>Bienvenue sur AVA AI Dashboard !</h2>
+    <p class="intro">
+      Vous venez de rejoindre la plateforme AVA AI, votre portail centralisé pour gérer vos interactions intelligentes.
+      Avant de commencer, confirmez votre adresse e-mail en cliquant sur le bouton ci-dessous.
+    </p>
+
+    <div class="features">
+      <h3>Ce que vous pouvez faire :</h3>
+      <ul>
+        <li>Consulter vos statistiques d'usage en temps réel</li>
+        <li>Configurer vos préférences d'assistant virtuel</li>
+        <li>Accéder à des rapports détaillés et historiques</li>
+        <li>Recevoir des recommandations personnalisées</li>
+      </ul>
+    </div>
+
+    <a href="{{ .ConfirmationURL }}" class="button">Confirmer mon e-mail</a>
+
+    <p class="intro">Si vous n'avez pas créé ce compte, ignorez simplement cet e-mail.</p>
+
+    <div class="footer">
+      <p>&copy; 2025 AVA AI. Tous droits réservés.</p>
+      <p>This email is generated from AVA Groupe 2025. Tous droits sont réservés à Assistant Virtual AI Automation INC.</p>
+      <p>Contactez-nous : <a href="mailto:aiagent@assistantvirtualai.com">aiagent@assistantvirtualai.com</a></p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+const confirmEmailChangeHTML = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Confirmation de changement d'email – AVA AI Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .logo { text-align: center; margin-bottom: 20px; }
+    .logo img { display: block; margin: 0 auto; max-width: 150px; height: auto; }
+    h2 { color: #333; text-align: center; margin-bottom: 10px; }
+    .intro { color: #555; line-height: 1.5; margin-bottom: 20px; }
+    .button { display: block; width: 240px; margin: 30px auto; padding: 15px; text-align: center; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; }
+    .footer a { color: #007bff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="data:image/webp;base64,UklGRo4IAABXRUJQVlA4WAoAAABQBwCdASoU...8pNVYL8TbvgJ35SnH+/z78A2uHxEfKWv8pEAAAAAA=" alt="AVA AI Logo" />
+    </div>
+    <h2>Confirmation de changement d'email</h2>
+    <p class="intro">
+      Pour confirmer la mise à jour de votre adresse e-mail de <strong>{{ .Email }}</strong> à <strong>{{ .NewEmail }}</strong>, cliquez sur le bouton ci-dessous :
+    </p>
+    <a href="{{ .ConfirmationURL }}" class="button">Confirmer l'email</a>
+    <p class="intro">
+      Si vous n'avez pas demandé ce changement, ignorez simplement cet e-mail ou contactez-nous pour assistance.
+    </p>
+    <div class="footer">
+      <p>&copy; 2025 AVA AI. Tous droits réservés.</p>
+      <p>Cet e-mail est généré par AVA Groupe 2025. Tous droits réservés à Assistant Virtual AI Automation INC.</p>
+      <p>Contactez-nous : <a href="mailto:aiagent@assistantvirtualai.com">aiagent@assistantvirtualai.com</a></p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+const resetPasswordHTML = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Réinitialisation de mot de passe – AVA AI Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .logo { text-align: center; margin-bottom: 20px; }
+    .logo img { display: block; margin: 0 auto; max-width: 150px; height: auto; }
+    h2 { color: #333; text-align: center; margin-bottom: 10px; }
+    .intro { color: #555; line-height: 1.5; margin-bottom: 20px; }
+    .button { display: block; width: 240px; margin: 30px auto; padding: 15px; text-align: center; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; }
+    .footer a { color: #007bff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="data:image/webp;base64,UklGRo4IAABXRUJQVlA4WAoAAABQBwCdASoU...8pNVYL8TbvgJ35SnH+/z78A2uHxEfKWv8pEAAAAAA=" alt="AVA AI Logo" />
+    </div>
+    <h2>Réinitialisation de mot de passe</h2>
+    <p class="intro">
+      Vous avez demandé à réinitialiser votre mot de passe pour votre compte utilisateur.
+      Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :
+    </p>
+    <a href="{{ .ConfirmationURL }}" class="button">Réinitialiser le mot de passe</a>
+    <p class="intro">
+      Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet e-mail ou contactez-nous.
+    </p>
+    <div class="footer">
+      <p>&copy; 2025 AVA AI. Tous droits réservés.</p>
+      <p>Cet e-mail est généré par AVA Groupe 2025. Tous droits réservés à Assistant Virtual AI Automation INC.</p>
+      <p>Contactez-nous : <a href="mailto:aiagent@assistantvirtualai.com">aiagent@assistantvirtualai.com</a></p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+serve(async (req) => {
+  // Handle CORS preflight request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase admin client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase credentials");
+    const payload = await req.json();
+    const { email, organizationId } = payload;
+
+    if (!email || !organizationId) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Missing Supabase credentials" 
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        JSON.stringify({ error: 'Email and organizationId are required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    if (!resendApiKey) {
-      console.error("Missing Resend API key");
+    // Get the organization info
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single();
+
+    if (orgError || !organization) {
+      console.error('Error fetching organization:', orgError);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Configuration Resend incomplète" 
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        JSON.stringify({ error: 'Organization not found' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Initialize Supabase client with the service role key for admin operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Parse request body
-    let requestData: InvitationRequest;
-    try {
-      requestData = await req.json();
-    } catch (parseError) {
-      console.error("Error parsing request body:", parseError);
+    // Get the invitation token
+    const { data: invitation, error: inviteError } = await supabase
+      .from('organization_invitations')
+      .select('token')
+      .eq('email', email)
+      .eq('organization_id', organizationId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (inviteError || !invitation) {
+      console.error('Error fetching invitation:', inviteError);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Invalid JSON in request body" 
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-    
-    const { email, organizationId } = requestData;
-    
-    console.log(`Received invitation request for email: ${email}, organizationId: ${organizationId}`);
-    
-    if (!email) {
-      console.error("Missing required parameter: email");
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: "Missing required parameter: email" 
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        JSON.stringify({ error: 'Invitation not found' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Generate a custom redirect URL that includes the organization ID
-    // This will allow us to associate the user with the organization after signup
-    const redirectTo = `${Deno.env.get("PUBLIC_SITE_URL") || "http://localhost:3000"}/auth?invitation=true&organizationId=${organizationId}`;
-    
-    console.log(`Sending Supabase invitation to ${email} with redirect: ${redirectTo}`);
+    // Create the invitation URL
+    const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'http://localhost:5173';
+    const redirectTo = `${baseUrl}/auth?invitation_token=${invitation.token}&email=${encodeURIComponent(email)}`;
 
-    // Use the Supabase admin API to send an invitation email
+    // Configure email templates for the supabase auth system
+    await supabase
+      .auth
+      .admin
+      .updateAuthConfig({
+        email_template_confirm_signup: confirmSignupHTML,
+        email_template_change_email: confirmEmailChangeHTML,
+        email_template_reset_password: resetPasswordHTML
+      });
+
+    // Send the invitation via Supabase auth
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: redirectTo
+      redirectTo: redirectTo,
+      data: {
+        organization_id: organizationId,
+        organization_name: organization.name
+      }
     });
 
     if (error) {
-      console.error("Error sending Supabase invitation:", error);
+      console.error('Error sending invitation:', error);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: error.message
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        JSON.stringify({ error: error.message }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Get organization name
-    let organizationName = "AVA AI";
-    try {
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('name')
-        .eq('id', organizationId)
-        .single();
-      
-      if (!orgError && orgData) {
-        organizationName = orgData.name;
-      }
-    } catch (orgError) {
-      console.error("Error fetching organization name:", orgError);
-      // Continue with default organization name
-    }
-
-    // Get the invitation URL from Supabase data or build from redirect
-    const invitationUrl = data?.properties?.action_link || redirectTo;
-    
-    // Send custom email using Resend
-    try {
-      const resend = new Resend(resendApiKey);
-      
-      await resend.emails.send({
-        from: `Invitations <notifications@assistantvirtualai.com>`,
-        to: [email],
-        subject: `Invitation à rejoindre ${organizationName}`,
-        html: `
-          <!DOCTYPE html>
-          <html lang="fr">
-          <head>
-            <meta charset="UTF-8">
-            <title>Vous avez été invité – AVA AI Dashboard</title>
-            <style>
-              body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-              .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-              .logo { text-align: center; margin-bottom: 20px; }
-              .logo img { display: block; margin: 0 auto; max-width: 150px; height: auto; }
-              h2 { color: #333; text-align: center; margin-bottom: 10px; }
-              .intro { color: #555; line-height: 1.5; margin-bottom: 20px; }
-              .features { background: #f9f9f9; border-left: 4px solid #007bff; padding: 10px 15px; margin-bottom: 20px; }
-              .features h3 { margin-top: 0; color: #007bff; }
-              .features ul { padding-left: 20px; }
-              .button { display: block; width: 240px; margin: 30px auto; padding: 15px; text-align: center; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; }
-              .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; }
-              .footer a { color: #007bff; text-decoration: none; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="logo">
-                <!-- Logo AVA AI inline en base64 -->
-                <img src="data:image/webp;base64,UklGRo4IAABXRUJQVlA4WAoAAABQBwCdASoU...8pNVYL8TbvgJ35SnH+/z78A2uHxEfKWv8pEAAAAAA=" alt="Logo AVA AI" />
-              </div>
-
-              <h2>Vous avez été invité !</h2>
-
-              <p class="intro">
-                Vous avez été invité à créer un compte utilisateur sur <strong>${organizationName}</strong>.
-                Cliquez sur le bouton ci-dessous pour accepter l'invitation et configurer votre profil.
-              </p>
-
-              <div class="features">
-                <h3>Pourquoi AVA AI Dashboard ?</h3>
-                <ul>
-                  <li>Accéder à des insights et analyses en temps réel</li>
-                  <li>Personnaliser les préférences de votre assistant virtuel</li>
-                  <li>Suivre les données historiques et tendances d'utilisation</li>
-                  <li>Recevoir des recommandations et alertes personnalisées</li>
-                </ul>
-              </div>
-
-              <a href="${invitationUrl}" class="button">Accepter l'invitation</a>
-
-              <p class="intro">
-                Si vous n'attendiez pas cette invitation, veuillez ignorer cet e-mail.
-              </p>
-
-              <div class="footer">
-                <p>&copy; 2025 AVA AI. Tous droits réservés.</p>
-                <p>Cet e-mail est généré par AVA Groupe 2025.
-                Tous droits réservés à Assistant Virtual AI Automation INC.</p>
-                <p>Contactez-nous : <a href="mailto:aiagent@assistantvirtualai.com">aiagent@assistantvirtualai.com</a></p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `
-      });
-      
-      console.log("Custom email sent successfully");
-      
-    } catch (emailError: any) {
-      console.error("Error sending custom email:", emailError);
-      // Don't fail the request if custom email fails, as Supabase already sent its email
-    }
-
+    // Return success response
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: data 
-      }), 
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
+      JSON.stringify({ success: true, data }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-supabase-invitation function:", error);
-    
+  } catch (error) {
+    console.error('Error in invitation function:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: typeof error === 'object' ? 
-          (error.message || JSON.stringify(error)) : 
-          String(error)
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-};
-
-serve(handler);
+});

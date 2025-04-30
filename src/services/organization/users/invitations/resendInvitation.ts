@@ -42,8 +42,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
           headers: {
             "Content-Type": "application/json"
           },
-          // Use a controller for timeout
-          signal: AbortSignal.timeout(15000) // 15 second timeout
+          // Use a controller for timeout - corrected property name
+          abortSignal: AbortSignal.timeout(15000) // 15 second timeout
         });
 
       if (functionError) {

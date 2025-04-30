@@ -1,5 +1,6 @@
 
 import { OrganizationUser } from '@/types/organization';
+import { useEffect } from 'react';
 
 interface UsersListActionsProps {
   users: OrganizationUser[];
@@ -21,6 +22,11 @@ export const useUsersListActions = ({
   handleToggleOrgAdmin,
   handleToggleSuperAdmin
 }: UsersListActionsProps) => {
+  // Debug logging when users change
+  useEffect(() => {
+    console.log("useUsersListActions - Users updated:", users.length);
+  }, [users]);
+  
   // All the handlers are passed through, ready to be used by the parent component
   return {
     handleRemoveUserFromOrg,

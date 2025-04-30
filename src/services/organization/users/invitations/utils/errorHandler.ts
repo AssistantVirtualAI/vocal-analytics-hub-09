@@ -24,6 +24,16 @@ export const handleInvitationError = (error: any, operation: string = "opératio
     return;
   }
 
+  if (error?.message?.includes("Function returned a 4")) {
+    toast.error("La fonction d'invitation a rencontré une erreur. Vérifiez les informations fournies.");
+    return;
+  }
+
+  if (error?.message?.includes("Function returned a 5")) {
+    toast.error("Le service d'invitation rencontre un problème. Veuillez réessayer plus tard.");
+    return;
+  }
+
   if (error?.message?.includes("Token d'invitation") || 
       error?.message?.includes("invitation en attente") ||
       error?.message?.includes("email d'invitation") ||

@@ -29,12 +29,12 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw updateError;
     }
 
-    console.log("Calling send-supabase-invitation edge function");
+    console.log("Calling send-invitation-email edge function");
     
     // Send invitation email using Supabase's edge function with timeout handling
     try {
       const { data: functionResult, error: functionError } = await supabase
-        .functions.invoke('send-supabase-invitation', {
+        .functions.invoke('send-invitation-email', {
           body: { 
             email,
             organizationId 
@@ -42,8 +42,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
           headers: {
             "Content-Type": "application/json"
           },
-          // Abortable fetch - can be useful but not required
-          // signal: AbortSignal.timeout(10000) // 10 second timeout
+          // Set a timeout for the request to avoid hanging indefinitely
+          abortSignal: AbortSignal.timeout(15000) // 15 second timeout
         });
 
       if (functionError) {
@@ -53,15 +53,20 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
       // Handle error responses from the function
       if (functionResult && functionResult.error) {
-        console.error('Error in supabase invitation:', functionResult.error);
+        console.error('Error in invitation function:', functionResult.error);
         throw new Error(
           typeof functionResult.error === 'string' 
             ? functionResult.error 
             : JSON.stringify(functionResult.error)
         );
       }
+
+      console.log('Invitation resend successful:', functionResult);
     } catch (fetchError: any) {
       console.error('Error invoking edge function:', fetchError);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('La requête a expiré. Vérifiez que les fonctions Edge sont déployées et accessibles.');
+      }
       if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
         throw new Error('Impossible de contacter le service d\'invitations. Vérifiez que les fonctions Edge sont actives et accessibles.');
       }

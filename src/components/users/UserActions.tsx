@@ -40,6 +40,8 @@ export const UserActions = ({
   currentUserIsSuperAdmin = false
 }: UserActionsProps) => {
   const [localLoading, setLocalLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   
   // Log for debugging whenever the component renders
   useEffect(() => {
@@ -52,7 +54,7 @@ export const UserActions = ({
       return;
     }
     
-    setLocalLoading(true);
+    setResendLoading(true);
     console.log("Resending invitation for:", user.email);
     try {
       await onResendInvitation(user.email);
@@ -60,7 +62,18 @@ export const UserActions = ({
     } catch (error: any) {
       console.error("Error resending invitation:", error);
     } finally {
-      setLocalLoading(false);
+      setResendLoading(false);
+    }
+  };
+  
+  const handleCancelInvitation = async () => {
+    setCancelLoading(true);
+    try {
+      await onCancelInvitation(user.id);
+    } catch (error: any) {
+      console.error("Error canceling invitation:", error);
+    } finally {
+      setCancelLoading(false);
     }
   };
   
@@ -71,9 +84,9 @@ export const UserActions = ({
           variant="outline" 
           size="sm" 
           onClick={handleResendInvitation}
-          disabled={actionLoading || localLoading}
+          disabled={actionLoading || localLoading || resendLoading || cancelLoading}
         >
-          {(actionLoading || localLoading) ? (
+          {resendLoading ? (
             <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
           ) : (
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -83,10 +96,14 @@ export const UserActions = ({
         <Button 
           variant="destructive" 
           size="sm" 
-          onClick={() => onCancelInvitation(user.id)}
-          disabled={actionLoading || localLoading}
+          onClick={handleCancelInvitation}
+          disabled={actionLoading || localLoading || resendLoading || cancelLoading}
         >
-          <UserX className="h-4 w-4 mr-1" />
+          {cancelLoading ? (
+            <span className="h-4 w-4 mr-1 inline-block border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          ) : (
+            <UserX className="h-4 w-4 mr-1" />
+          )}
           Annuler
         </Button>
       </div>

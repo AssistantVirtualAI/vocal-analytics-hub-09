@@ -8,19 +8,22 @@ export const useInvitationManagement = (
   refreshUsers?: () => Promise<void>
 ) => {
   const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const cancelUserInvitation = useCallback(async (invitationId: string) => {
-    setLoading(true);
+    setCancelLoading(true);
     try {
       await cancelInvitation(invitationId);
       if (refreshUsers) {
         await refreshUsers();
+        toast.success("Invitation annulée avec succès");
       }
     } catch (error) {
       console.error("Error cancelling invitation:", error);
       // Toast is handled in the service
     } finally {
-      setLoading(false);
+      setCancelLoading(false);
     }
   }, [refreshUsers]);
 
@@ -31,23 +34,26 @@ export const useInvitationManagement = (
     }
     
     console.log(`useInvitationManagement: Resending invitation to ${email} for org ${selectedOrg}`);
-    setLoading(true);
+    setResendLoading(true);
     try {
       await resendInvitation(email, selectedOrg);
       console.log("Invitation resent successfully, refreshing users...");
       if (refreshUsers) {
         await refreshUsers();
       }
-    } catch (error) {
+      toast.success("Invitation renvoyée avec succès");
+    } catch (error: any) {
       console.error("Error resending invitation:", error);
-      // Toast is handled in the service
+      toast.error(`Erreur: ${error.message || "Impossible de renvoyer l'invitation"}`);
     } finally {
-      setLoading(false);
+      setResendLoading(false);
     }
   }, [selectedOrg, refreshUsers]);
 
   return {
-    loading,
+    loading: loading || cancelLoading || resendLoading,
+    cancelLoading,
+    resendLoading,
     cancelInvitation: cancelUserInvitation,
     resendInvitation: resendUserInvitation
   };

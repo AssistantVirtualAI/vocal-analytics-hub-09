@@ -31,7 +31,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
     console.log("Calling send-invitation-email edge function");
     
-    // Send invitation email using Supabase's edge function with timeout handling
+    // Send invitation email using Supabase's edge function
     try {
       const { data: functionResult, error: functionError } = await supabase
         .functions.invoke('send-invitation-email', {
@@ -41,9 +41,7 @@ export const resendInvitation = async (email: string, organizationId: string): P
           },
           headers: {
             "Content-Type": "application/json"
-          },
-          // Use a controller for timeout - corrected property name
-          abortSignal: AbortSignal.timeout(15000) // 15 second timeout
+          }
         });
 
       if (functionError) {
@@ -64,9 +62,6 @@ export const resendInvitation = async (email: string, organizationId: string): P
       console.log('Invitation resend successful:', functionResult);
     } catch (fetchError: any) {
       console.error('Error invoking edge function:', fetchError);
-      if (fetchError.name === 'AbortError') {
-        throw new Error('La requête a expiré. Vérifiez que les fonctions Edge sont déployées et accessibles.');
-      }
       if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
         throw new Error('Impossible de contacter le service d\'invitations. Vérifiez que les fonctions Edge sont actives et accessibles.');
       }

@@ -22,12 +22,24 @@ export const resendInvitation = async (email: string, organizationId: string): P
     const invitationId = invitation.id;
     console.log(`Found invitation ${invitationId}, updating...`);
 
-    // Update invitation status to refresh token
+    // First step: Change status to something else temporarily
+    const { error: tempUpdateError } = await supabase
+      .from('organization_invitations')
+      .update({
+        status: 'refreshing' // Temporary status to trigger a change
+      })
+      .eq('id', invitationId);
+
+    if (tempUpdateError) {
+      console.error('Error in temporary status update:', tempUpdateError);
+      throw tempUpdateError;
+    }
+
+    // Second step: Change status back to pending to trigger the DB function
     const { error: updateError } = await supabase
       .from('organization_invitations')
       .update({
-        status: 'pending', // This will trigger the database function to update token and expiration
-        updated_at: new Date().toISOString() // Force update to trigger database functions
+        status: 'pending' // This will trigger the database function to update token and expiration
       })
       .eq('id', invitationId);
 

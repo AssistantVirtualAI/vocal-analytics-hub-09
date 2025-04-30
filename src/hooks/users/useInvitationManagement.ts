@@ -31,6 +31,7 @@ export const useInvitationManagement = (
   };
   
   const resendInvitation = async (email: string) => {
+    // Don't proceed if already sending an invitation or if this email is already being processed
     if (!organizationId || loading || resendingFor === email) {
       console.log(`Cannot resend invitation: organizationId=${organizationId}, loading=${loading}, already resending for ${resendingFor}`);
       return;
@@ -48,7 +49,7 @@ export const useInvitationManagement = (
       toast.success("Invitation envoyée avec succès");
       console.log('Invitation resent successfully:', result);
       
-      // If refreshUsers is provided, call it to update the UI
+      // Always refresh the user list after successful operation
       if (refreshUsers) {
         await refreshUsers();
       }

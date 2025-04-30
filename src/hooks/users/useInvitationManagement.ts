@@ -31,8 +31,8 @@ export const useInvitationManagement = (
   };
   
   const resendInvitation = async (email: string) => {
-    if (!organizationId || loading) {
-      console.log(`Cannot resend invitation: organizationId=${organizationId}, loading=${loading}`);
+    if (!organizationId || loading || resendingFor === email) {
+      console.log(`Cannot resend invitation: organizationId=${organizationId}, loading=${loading}, already resending for ${resendingFor}`);
       return;
     }
     
@@ -47,16 +47,18 @@ export const useInvitationManagement = (
       toast.dismiss(toastId);
       toast.success("Invitation envoyée avec succès");
       console.log('Invitation resent successfully:', result);
+      
+      // If refreshUsers is provided, call it to update the UI
+      if (refreshUsers) {
+        await refreshUsers();
+      }
     } catch (error: any) {
       console.error('Error resending invitation:', error);
       toast.dismiss(toastId);
-      toast.error("Erreur lors de l'envoi: " + error.message);
+      toast.error("Erreur lors de l'envoi: " + (error.message || "Une erreur est survenue"));
     } finally {
       console.log(`Finished resend invitation process for ${email}`);
-      // Set a small timeout to avoid UI flashing
-      setTimeout(() => {
-        setResendingFor(null);
-      }, 500);
+      setResendingFor(null);
     }
   };
 

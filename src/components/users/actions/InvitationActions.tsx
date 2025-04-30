@@ -23,7 +23,10 @@ export const InvitationActions = ({
   const [localLoading, setLocalLoading] = useState(false);
   
   const handleResendInvitation = async () => {
-    if (actionLoading || localLoading || isResendingFor) return;
+    if (actionLoading || localLoading || isResendingFor) {
+      console.log(`InvitationActions - Already loading for ${email}, skipping`);
+      return;
+    }
     
     console.log(`InvitationActions - Trying to resend invitation to ${email}`);
     setLocalLoading(true);
@@ -53,6 +56,8 @@ export const InvitationActions = ({
 
   // Combined loading state
   const isLoading = actionLoading || localLoading || isResendingFor;
+
+  console.log(`InvitationActions for ${email} - isResendingFor: ${isResendingFor}, localLoading: ${localLoading}, actionLoading: ${actionLoading}`);
 
   return (
     <div className="flex items-center space-x-2">

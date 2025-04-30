@@ -26,7 +26,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
     const { error: updateError } = await supabase
       .from('organization_invitations')
       .update({
-        status: 'pending' // This will trigger the database function to update token and expiration
+        status: 'pending', // This will trigger the database function to update token and expiration
+        updated_at: new Date().toISOString() // Force update to trigger database functions
       })
       .eq('id', invitationId);
 

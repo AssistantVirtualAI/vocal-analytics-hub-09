@@ -40,6 +40,9 @@ export const UserTableRow = ({
     console.log("UserTableRow - isResendingFor:", isResendingFor, "user email:", user.email);
   }, [user, isResendingFor]);
 
+  // Calculate if this specific row is in resending state
+  const isResendingThisRow = isResendingFor === user.email;
+
   return (
     <TableRow>
       <TableCell>{user.email}</TableCell>
@@ -60,7 +63,7 @@ export const UserTableRow = ({
           user={user}
           currentUserId={currentUserId}
           actionLoading={actionLoading}
-          isResendingFor={isResendingFor === user.email}
+          isResendingFor={isResendingThisRow}
           onRemoveUser={onRemoveUser}
           onCancelInvitation={onCancelInvitation}
           onResendInvitation={onResendInvitation}

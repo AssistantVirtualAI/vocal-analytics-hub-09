@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserX, RefreshCw, KeyRound, ShieldCheck, Shield } from 'lucide-react';
@@ -16,6 +15,7 @@ interface UserActionsProps {
   user: OrganizationUser;
   currentUserId: string | undefined;
   actionLoading: boolean;
+  isResendingFor?: string | null;
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
@@ -30,6 +30,7 @@ export const UserActions = ({
   user,
   currentUserId,
   actionLoading,
+  isResendingFor,
   onRemoveUser,
   onCancelInvitation,
   onResendInvitation,
@@ -40,7 +41,6 @@ export const UserActions = ({
   currentUserIsSuperAdmin = false
 }: UserActionsProps) => {
   const [localLoading, setLocalLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   
   // Log for debugging whenever the component renders
@@ -54,15 +54,12 @@ export const UserActions = ({
       return;
     }
     
-    setResendLoading(true);
     console.log("Resending invitation for:", user.email);
     try {
       await onResendInvitation(user.email);
       console.log("Invitation resent successfully for:", user.email);
     } catch (error: any) {
       console.error("Error resending invitation:", error);
-    } finally {
-      setResendLoading(false);
     }
   };
   
@@ -76,6 +73,8 @@ export const UserActions = ({
       setCancelLoading(false);
     }
   };
+
+  const isResendingForThisUser = isResendingFor === user.email;
   
   if (user.isPending) {
     return (
@@ -84,9 +83,9 @@ export const UserActions = ({
           variant="outline" 
           size="sm" 
           onClick={handleResendInvitation}
-          disabled={actionLoading || localLoading || resendLoading || cancelLoading}
+          disabled={actionLoading || localLoading || isResendingForThisUser || cancelLoading}
         >
-          {resendLoading ? (
+          {isResendingForThisUser ? (
             <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
           ) : (
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -97,7 +96,7 @@ export const UserActions = ({
           variant="destructive" 
           size="sm" 
           onClick={handleCancelInvitation}
-          disabled={actionLoading || localLoading || resendLoading || cancelLoading}
+          disabled={actionLoading || localLoading || isResendingForThisUser || cancelLoading}
         >
           {cancelLoading ? (
             <span className="h-4 w-4 mr-1 inline-block border-2 border-white border-t-transparent rounded-full animate-spin"></span>

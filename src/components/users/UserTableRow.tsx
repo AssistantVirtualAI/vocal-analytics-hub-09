@@ -1,15 +1,15 @@
 
+import React, { useEffect } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
-import { UserStatus, UserRole } from './UserStatus';
+import { UserStatus } from './UserStatus';
 import { UserActions } from './UserActions';
-import { useEffect } from 'react';
-import { Badge } from '@/components/ui/badge';
 
 interface UserTableRowProps {
   user: OrganizationUser;
-  currentUserId: string | undefined;
+  currentUserId?: string;
   actionLoading: boolean;
+  isResendingFor?: string | null;
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
   onResendInvitation: (email: string) => Promise<void>;
@@ -24,51 +24,42 @@ export const UserTableRow = ({
   user,
   currentUserId,
   actionLoading,
+  isResendingFor,
   onRemoveUser,
   onCancelInvitation,
   onResendInvitation,
   onResetPassword,
   onToggleOrgAdmin,
   onToggleSuperAdmin,
-  currentUserIsOrgAdmin = false,
-  currentUserIsSuperAdmin = false
+  currentUserIsOrgAdmin,
+  currentUserIsSuperAdmin
 }: UserTableRowProps) => {
-  // Log for debugging
+  // Add logging for debugging
   useEffect(() => {
     console.log("UserTableRow - Rendering user:", user);
   }, [user]);
-  
+
   return (
-    <TableRow key={user.id}>
+    <TableRow>
       <TableCell>{user.email}</TableCell>
-      <TableCell>{user.displayName || user.email?.split('@')[0] || ''}</TableCell>
+      <TableCell>{user.displayName || (user.email?.split('@')[0]) || '-'}</TableCell>
       <TableCell>
-        <UserStatus user={user} />
+        <UserStatus isPending={user.isPending} />
       </TableCell>
-      <TableCell>
-        <UserRole user={user} />
-      </TableCell>
+      
       {(currentUserIsOrgAdmin || currentUserIsSuperAdmin) && (
-        <TableCell>
-          <div className="flex flex-wrap gap-1">
-            {user.isOrgAdmin && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-                Admin Org
-              </Badge>
-            )}
-            {user.isSuperAdmin && (
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
-                Super Admin
-              </Badge>
-            )}
-          </div>
-        </TableCell>
+        <>
+          <TableCell>{user.isOrgAdmin ? "Admin" : "Utilisateur"}</TableCell>
+          {currentUserIsSuperAdmin && <TableCell>{user.isSuperAdmin ? "Oui" : "Non"}</TableCell>}
+        </>
       )}
+      
       <TableCell className="text-right">
         <UserActions 
-          user={user} 
+          user={user}
           currentUserId={currentUserId}
           actionLoading={actionLoading}
+          isResendingFor={isResendingFor}
           onRemoveUser={onRemoveUser}
           onCancelInvitation={onCancelInvitation}
           onResendInvitation={onResendInvitation}
@@ -81,4 +72,4 @@ export const UserTableRow = ({
       </TableCell>
     </TableRow>
   );
-};
+}

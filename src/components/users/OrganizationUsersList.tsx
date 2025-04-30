@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
@@ -37,6 +36,7 @@ export const OrganizationUsersList = ({
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
   const [userCount, setUserCount] = useState(0);
+  const [resendingFor, setResendingFor] = useState<string | null>(null);
   
   useEffect(() => {
     // Track changes to user count for debugging
@@ -100,6 +100,7 @@ export const OrganizationUsersList = ({
       return;
     }
     
+    setResendingFor(email);
     setActionLoading(true);
     try {
       console.log(`Attempting to resend invitation to ${email} for org ${organizationId}`);
@@ -109,6 +110,7 @@ export const OrganizationUsersList = ({
       // Error is already handled in the service function
       console.error("Error resending invitation:", error);
     } finally {
+      setResendingFor(null);
       setActionLoading(false);
     }
   };
@@ -183,6 +185,7 @@ export const OrganizationUsersList = ({
                   user={userItem}
                   currentUserId={user?.id}
                   actionLoading={actionLoading}
+                  isResendingFor={resendingFor}
                   onRemoveUser={handleRemoveUserFromOrg}
                   onCancelInvitation={handleCancelInvitation}
                   onResendInvitation={handleResendInvitation}

@@ -9,7 +9,7 @@ export const useInvitationManagement = (
 ) => {
   const [loading, setLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
 
   const cancelUserInvitation = useCallback(async (invitationId: string) => {
     setCancelLoading(true);
@@ -33,7 +33,7 @@ export const useInvitationManagement = (
     }
     
     console.log(`useInvitationManagement: Resending invitation to ${email} for org ${selectedOrg}`);
-    setResendLoading(true);
+    setResendLoading(email);
     try {
       await resendInvitation(email, selectedOrg);
       console.log("Invitation resent successfully, refreshing users...");
@@ -45,14 +45,15 @@ export const useInvitationManagement = (
       console.error("Error resending invitation:", error);
       // The error toast is handled in the service
     } finally {
-      setResendLoading(false);
+      setResendLoading(null);
     }
   }, [selectedOrg, refreshUsers]);
 
   return {
-    loading: loading || cancelLoading || resendLoading,
+    loading: loading || cancelLoading || !!resendLoading,
     cancelLoading,
     resendLoading,
+    isResendingFor: resendLoading,
     cancelInvitation: cancelUserInvitation,
     resendInvitation: resendUserInvitation
   };

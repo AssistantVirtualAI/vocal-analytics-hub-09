@@ -5,6 +5,8 @@ import { sendInvitation } from './invitations/sendInvitation';
 
 // Add a user to an organization
 export const addUserToOrganization = async (email: string, organizationId: string): Promise<void> => {
+  const toastId = toast.loading("Ajout de l'utilisateur en cours...");
+  
   try {
     console.log(`Adding user ${email} to organization ${organizationId}`);
     
@@ -35,6 +37,7 @@ export const addUserToOrganization = async (email: string, organizationId: strin
       }
 
       if (existingUser) {
+        toast.dismiss(toastId);
         toast("L'utilisateur est déjà membre de cette organisation.");
         return;
       }
@@ -52,6 +55,7 @@ export const addUserToOrganization = async (email: string, organizationId: strin
         throw addError;
       }
 
+      toast.dismiss(toastId);
       toast.success("Utilisateur ajouté à l'organisation avec succès.");
     } else {
       // User doesn't exist, create invitation
@@ -75,10 +79,12 @@ export const addUserToOrganization = async (email: string, organizationId: strin
       console.log(`Invitation record created, sending invitation email to ${email}...`);
       await sendInvitation(email, organizationId);
       
+      toast.dismiss(toastId);
       toast.success("Invitation envoyée à l'utilisateur.");
     }
   } catch (error: any) {
     console.error('Error in addUserToOrganization:', error);
+    toast.dismiss(toastId);
     toast.error("Erreur lors de l'ajout de l'utilisateur: " + error.message);
     throw error;
   }

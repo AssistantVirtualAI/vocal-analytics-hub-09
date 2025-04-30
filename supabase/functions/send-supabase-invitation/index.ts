@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
@@ -160,6 +159,8 @@ serve(async (req) => {
     const payload = await req.json();
     const { email, organizationId } = payload;
 
+    console.log(`Processing invitation request for email: ${email} and org: ${organizationId}`);
+
     if (!email || !organizationId) {
       return new Response(
         JSON.stringify({ error: 'Email and organizationId are required' }),
@@ -214,22 +215,35 @@ serve(async (req) => {
     const baseUrl = Deno.env.get('PUBLIC_SITE_URL') || 'http://localhost:5173';
     const redirectTo = `${baseUrl}/auth?invitation_token=${invitation.token}&email=${encodeURIComponent(email)}`;
 
-    // Configure email templates for the supabase auth system
-    await supabase
-      .auth
-      .admin
-      .updateAuthConfig({
-        email_template_confirm_signup: confirmSignupHTML,
-        email_template_change_email: confirmEmailChangeHTML,
-        email_template_reset_password: resetPasswordHTML
-      });
+    console.log(`Generated redirection URL: ${redirectTo}`);
+    
+    // Explicitly log the email service attempt
+    console.log(`Attempting to send invitation email to ${email}`);
+
+    // Configure email templates for the supabase auth system to make sure they are set
+    try {
+      await supabase
+        .auth
+        .admin
+        .updateAuthConfig({
+          email_template_confirm_signup: confirmSignupHTML,
+          email_template_change_email: confirmEmailChangeHTML,
+          email_template_reset_password: resetPasswordHTML
+        });
+        
+      console.log("Successfully updated email templates");
+    } catch (templateError) {
+      console.error("Error updating email templates:", templateError);
+      // Continue even if this fails, as the default templates might work
+    }
 
     // Send the invitation via Supabase auth
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
       redirectTo: redirectTo,
       data: {
         organization_id: organizationId,
-        organization_name: organization.name
+        organization_name: organization.name,
+        invitation_token: invitation.token // Include token in the email data
       }
     });
 
@@ -244,6 +258,8 @@ serve(async (req) => {
       );
     }
 
+    console.log("Email invitation successfully sent via Supabase auth system");
+
     // Return success response
     return new Response(
       JSON.stringify({ success: true, data }),
@@ -255,7 +271,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in invitation function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error: ' + (error.message || String(error)) }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

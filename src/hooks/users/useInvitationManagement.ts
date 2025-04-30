@@ -33,15 +33,19 @@ export const useInvitationManagement = (
     if (!organizationId || loading || resendingFor) return;
     
     setResendingFor(email);
+    const toastId = toast.loading("Envoi de l'invitation en cours...");
+    
     try {
       console.log(`Resending invitation to ${email} for org ${organizationId}`);
       await resendInvitationService(email, organizationId);
       
-      // No need to refresh users after resending an invitation
+      toast.dismiss(toastId);
+      toast.success("Invitation envoyée avec succès");
       console.log('Invitation resent successfully');
     } catch (error: any) {
       console.error('Error resending invitation:', error);
-      // Note: Toast notifications are handled by the service
+      toast.dismiss(toastId);
+      toast.error("Erreur lors de l'envoi: " + error.message);
     } finally {
       // Set a small timeout to avoid UI flashing
       setTimeout(() => {

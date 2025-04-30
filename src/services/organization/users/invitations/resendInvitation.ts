@@ -8,9 +8,6 @@ import { supabase } from '@/integrations/supabase/client';
  * Resends an invitation email for a pending invitation using Supabase's native invitation system
  */
 export const resendInvitation = async (email: string, organizationId: string): Promise<void> => {
-  // Create a unique toast ID for this operation
-  const toastId = toast.loading("Renvoi de l'invitation en cours...");
-
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
@@ -19,8 +16,6 @@ export const resendInvitation = async (email: string, organizationId: string): P
     
     if (!invitation) {
       console.error("No pending invitation found for this email");
-      toast.dismiss(toastId);
-      toast.error("Aucune invitation en attente trouvée pour cette adresse email");
       throw new Error("Aucune invitation en attente trouvée pour cette adresse email");
     }
     
@@ -37,8 +32,6 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
     if (updateError) {
       console.error('Error updating invitation:', updateError);
-      toast.dismiss(toastId);
-      toast.error("Erreur lors de la mise à jour de l'invitation");
       throw updateError;
     }
 
@@ -55,16 +48,12 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
     if (functionError) {
       console.error('Error resending invitation via edge function:', functionError);
-      toast.dismiss(toastId);
-      toast.error("Erreur lors du renvoi de l'invitation: " + functionError.message);
       throw functionError;
     }
 
     // Handle error responses from the function
     if (functionResult && functionResult.error) {
       console.error('Error in invitation function:', functionResult.error);
-      toast.dismiss(toastId);
-      toast.error("Erreur: " + (typeof functionResult.error === 'string' ? functionResult.error : JSON.stringify(functionResult.error)));
       throw new Error(
         typeof functionResult.error === 'string' 
           ? functionResult.error 
@@ -73,12 +62,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
     }
 
     console.log('Invitation resend successful:', functionResult);
-    
-    toast.dismiss(toastId);
-    toast.success("Invitation renvoyée avec succès");
   } catch (error: any) {
     console.error('Complete error object:', error);
-    toast.dismiss(toastId);
     
     if (!error.handledByErrorHandler) {
       handleInvitationError(error, "du renvoi de l'invitation");

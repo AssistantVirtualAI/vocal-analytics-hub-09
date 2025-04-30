@@ -54,8 +54,7 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
       }
     }
 
-    // Show toast while sending invitation
-    const toastId = toast.loading("Envoi de l'invitation en cours...");
+    console.log('About to send invitation email using edge function');
 
     try {
       // Send invitation email using edge function
@@ -69,24 +68,19 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
 
       if (functionError) {
         console.error('Error sending invitation via edge function:', functionError);
-        toast.dismiss(toastId);
-        toast.error("Erreur lors de l'envoi: " + functionError.message);
         throw functionError;
       }
 
       if (functionResult && functionResult.error) {
         console.error('Error in supabase invitation:', functionResult.error);
-        toast.dismiss(toastId);
-        toast.error("Erreur: " + (typeof functionResult.error === 'string' ? functionResult.error : JSON.stringify(functionResult.error)));
-        throw new Error(functionResult.error);
+        throw new Error(typeof functionResult.error === 'string' ? functionResult.error : JSON.stringify(functionResult.error));
       }
       
-      // Success! Update the toast
-      toast.dismiss(toastId);
-      toast.success("Invitation envoyée avec succès");
+      // Success!
+      console.log('Invitation sent successfully:', functionResult);
     } catch (error) {
-      // Make sure we dismiss the loading toast if there's an error
-      toast.dismiss(toastId);
+      // Make sure we capture the error
+      console.error('Error in send-supabase-invitation call:', error);
       throw error;
     }
   } catch (error: any) {

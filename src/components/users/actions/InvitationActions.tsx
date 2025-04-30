@@ -35,7 +35,6 @@ export const InvitationActions = ({
       console.log('Invitation resent successfully');
     } catch (error) {
       console.error('Error resending invitation:', error);
-      // Note: Error toasts are handled by the service
     } finally {
       setLocalLoading(false);
     }

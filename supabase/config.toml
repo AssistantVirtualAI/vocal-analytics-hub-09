@@ -22,3 +22,6 @@ otp_exp = 1800
 # Enable leaked password protection
 enable_hibp = true
 
+# Email templates configuration
+site_url = "https://example.com"
+additional_redirect_urls = ["https://example.com/auth"]

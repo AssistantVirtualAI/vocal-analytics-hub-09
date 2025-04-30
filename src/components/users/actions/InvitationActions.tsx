@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 interface InvitationActionsProps {
   email: string;
   invitationId: string;
-  isResendingFor: boolean;  // Changed to boolean to match how it's used
+  isResendingFor: boolean;
   actionLoading: boolean;
   onResendInvitation: (email: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
@@ -53,6 +53,7 @@ export const InvitationActions = ({
     }
   };
 
+  // Combined loading state
   const isLoading = actionLoading || localLoading || isResendingFor;
 
   return (

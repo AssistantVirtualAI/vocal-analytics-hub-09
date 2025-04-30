@@ -46,6 +46,8 @@ export const resendInvitation = async (email: string, organizationId: string): P
         }
       });
 
+    console.log("Edge function response:", functionResult, functionError);
+
     if (functionError) {
       console.error('Error resending invitation via edge function:', functionError);
       throw functionError;

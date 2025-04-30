@@ -21,6 +21,7 @@ export const useInvitationManagement = (
       if (refreshUsers) {
         await refreshUsers();
       }
+      toast.success("Invitation annulée avec succès");
     } catch (error: any) {
       console.error('Error canceling invitation:', error);
       toast.error("Erreur lors de l'annulation de l'invitation: " + error.message);
@@ -30,13 +31,14 @@ export const useInvitationManagement = (
   };
   
   const resendInvitation = async (email: string) => {
-    if (!organizationId || loading || resendingFor) return;
+    if (!organizationId || loading) return;
     
+    console.log(`Starting resend invitation process for ${email} in org ${organizationId}`);
     setResendingFor(email);
     const toastId = toast.loading("Envoi de l'invitation en cours...");
     
     try {
-      console.log(`Resending invitation to ${email} for org ${organizationId}`);
+      console.log(`Calling resendInvitationService for ${email} in org ${organizationId}`);
       await resendInvitationService(email, organizationId);
       
       toast.dismiss(toastId);

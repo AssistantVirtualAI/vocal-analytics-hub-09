@@ -31,42 +31,31 @@ export const resendInvitation = async (email: string, organizationId: string): P
 
     console.log("Calling send-invitation-email edge function");
     
-    // Send invitation email using Supabase's edge function
-    try {
-      const { data: functionResult, error: functionError } = await supabase
-        .functions.invoke('send-invitation-email', {
-          body: { 
-            email,
-            organizationId 
-          },
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
+    // Send invitation email using Supabase's edge function that leverages auth.admin.inviteUserByEmail
+    const { data: functionResult, error: functionError } = await supabase
+      .functions.invoke('send-invitation-email', {
+        body: { 
+          email,
+          organizationId 
+        }
+      });
 
-      if (functionError) {
-        console.error('Error resending invitation via edge function:', functionError);
-        throw functionError;
-      }
-
-      // Handle error responses from the function
-      if (functionResult && functionResult.error) {
-        console.error('Error in invitation function:', functionResult.error);
-        throw new Error(
-          typeof functionResult.error === 'string' 
-            ? functionResult.error 
-            : JSON.stringify(functionResult.error)
-        );
-      }
-
-      console.log('Invitation resend successful:', functionResult);
-    } catch (fetchError: any) {
-      console.error('Error invoking edge function:', fetchError);
-      if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
-        throw new Error('Impossible de contacter le service d\'invitations. Vérifiez que les fonctions Edge sont actives et accessibles.');
-      }
-      throw fetchError;
+    if (functionError) {
+      console.error('Error resending invitation via edge function:', functionError);
+      throw functionError;
     }
+
+    // Handle error responses from the function
+    if (functionResult && functionResult.error) {
+      console.error('Error in invitation function:', functionResult.error);
+      throw new Error(
+        typeof functionResult.error === 'string' 
+          ? functionResult.error 
+          : JSON.stringify(functionResult.error)
+      );
+    }
+
+    console.log('Invitation resend successful:', functionResult);
     
     toast.success("Invitation renvoyée avec succès");
   } catch (error: any) {

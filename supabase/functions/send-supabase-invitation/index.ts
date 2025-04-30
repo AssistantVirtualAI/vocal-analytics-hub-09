@@ -43,7 +43,24 @@ const handler = async (req: Request): Promise<Response> => {
     // Initialize Supabase client with the service role key for admin operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    const requestData: InvitationRequest = await req.json();
+    // Parse request body
+    let requestData: InvitationRequest;
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error("Error parsing request body:", parseError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Invalid JSON in request body" 
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
     const { email, organizationId } = requestData;
     
     console.log(`Received invitation request for email: ${email}, organizationId: ${organizationId}`);

@@ -29,7 +29,9 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw updateError;
     }
 
-    // Send invitation email using Supabase's native invitation system
+    console.log("Calling send-supabase-invitation edge function");
+    
+    // Send invitation email using Supabase's edge function
     const { data: functionResult, error: functionError } = await supabase
       .functions.invoke('send-supabase-invitation', {
         body: { 
@@ -43,13 +45,19 @@ export const resendInvitation = async (email: string, organizationId: string): P
       throw functionError;
     }
 
+    // Handle error responses from the function
     if (functionResult && functionResult.error) {
       console.error('Error in supabase invitation:', functionResult.error);
-      throw new Error(functionResult.error);
+      throw new Error(
+        typeof functionResult.error === 'string' 
+          ? functionResult.error 
+          : JSON.stringify(functionResult.error)
+      );
     }
     
     toast.success("Invitation renvoyée avec succès");
   } catch (error: any) {
+    console.error('Complete error object:', error);
     handleInvitationError(error, "du renvoi de l'invitation");
     throw error;
   }

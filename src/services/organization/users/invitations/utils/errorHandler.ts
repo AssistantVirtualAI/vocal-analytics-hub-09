@@ -18,6 +18,12 @@ export const handleInvitationError = (error: any, operation: string = "opératio
     return;
   }
 
+  // Handle specific edge function errors
+  if (error?.message?.includes("Failed to send a request to the Edge Function")) {
+    toast.error("Erreur de connexion à la fonction d'invitation. Vérifiez que la fonction est déployée et accessible.");
+    return;
+  }
+
   if (error?.message?.includes("Token d'invitation") || 
       error?.message?.includes("invitation en attente") ||
       error?.message?.includes("email d'invitation") ||

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { 
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -12,13 +13,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AddUserDialogProps {
   onAddUser: (email: string) => Promise<void>;
-  loading: boolean;
+  loading?: boolean;
 }
 
-export const AddUserDialog = ({ onAddUser, loading }: AddUserDialogProps) => {
+export const AddUserDialog = ({ onAddUser, loading = false }: AddUserDialogProps) => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(false);
 
   const handleAddUser = async () => {
     if (!newUserEmail || !newUserEmail.includes('@')) {
@@ -27,6 +29,7 @@ export const AddUserDialog = ({ onAddUser, loading }: AddUserDialogProps) => {
     }
 
     setError(null);
+    setLocalLoading(true);
     
     try {
       await onAddUser(newUserEmail);
@@ -35,8 +38,12 @@ export const AddUserDialog = ({ onAddUser, loading }: AddUserDialogProps) => {
     } catch (err: any) {
       // Error is handled by the service via toast, we just keep the dialog open
       console.error("Error in AddUserDialog:", err);
+    } finally {
+      setLocalLoading(false);
     }
   };
+
+  const isLoading = loading || localLoading;
 
   return (
     <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
@@ -81,8 +88,8 @@ export const AddUserDialog = ({ onAddUser, loading }: AddUserDialogProps) => {
           <DialogClose asChild>
             <Button variant="outline">Annuler</Button>
           </DialogClose>
-          <Button onClick={handleAddUser} disabled={loading}>
-            {loading ? 'Ajout en cours...' : 'Ajouter'}
+          <Button onClick={handleAddUser} disabled={isLoading}>
+            {isLoading ? 'Ajout en cours...' : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>

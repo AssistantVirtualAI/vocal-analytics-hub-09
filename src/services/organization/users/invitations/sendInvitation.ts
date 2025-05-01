@@ -26,7 +26,20 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
     if (existingInvitation) {
       console.log('Invitation already exists, refreshing it');
       
-      // Refresh existing invitation
+      // First step: Change status to something else temporarily
+      const { error: tempUpdateError } = await supabase
+        .from('organization_invitations')
+        .update({
+          status: 'refreshing' // Temporary status to trigger a change
+        })
+        .eq('id', existingInvitation.id);
+
+      if (tempUpdateError) {
+        console.error('Error in temporary status update:', tempUpdateError);
+        throw tempUpdateError;
+      }
+
+      // Second step: Change status back to pending to trigger the DB function
       const { error: updateError } = await supabase
         .from('organization_invitations')
         .update({
@@ -76,7 +89,7 @@ export const sendInvitation = async (email: string, organizationId: string): Pro
         throw new Error(typeof functionResult.error === 'string' ? functionResult.error : JSON.stringify(functionResult.error));
       }
       
-      // Success!
+      toast.success('Invitation envoyée avec succès');
       console.log('Invitation sent successfully:', functionResult);
     } catch (error) {
       // Make sure we capture the error

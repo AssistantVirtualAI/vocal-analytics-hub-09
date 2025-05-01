@@ -76,7 +76,6 @@ export const resendInvitation = async (email: string, organizationId: string): P
       );
     }
 
-    console.log('Invitation resend successful:', functionResult);
     return functionResult;
   } catch (error: any) {
     console.error('Complete error object:', error);

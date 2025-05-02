@@ -15,6 +15,7 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
   const fetchUsers = useCallback(async () => {
     if (!organizationId) {
       console.log('No organization ID provided, skipping user fetch');
+      setUsers([]);
       return;
     }
     
@@ -24,16 +25,32 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
       const fetchedUsers = await fetchOrganizationUsers(organizationId);
       console.log(`Fetched ${fetchedUsers.length} users:`, fetchedUsers);
       
+      if (fetchedUsers.length === 0) {
+        console.log('No users found for organization');
+        setUsers([]);
+        setLoading(false);
+        return;
+      }
+      
       // Enhance users with admin status
       const enhancedUsers = await Promise.all(
         fetchedUsers.map(async (user) => {
-          const isOrgAdmin = await checkOrganizationAdminStatus(user.id, organizationId);
-          const isSuperAdmin = await checkSuperAdminStatus(user.id);
-          return {
-            ...user,
-            isOrgAdmin,
-            isSuperAdmin
-          };
+          try {
+            const isOrgAdmin = await checkOrganizationAdminStatus(user.id, organizationId);
+            const isSuperAdmin = await checkSuperAdminStatus(user.id);
+            return {
+              ...user,
+              isOrgAdmin,
+              isSuperAdmin
+            };
+          } catch (error) {
+            console.error(`Error checking admin status for user ${user.id}:`, error);
+            return {
+              ...user,
+              isOrgAdmin: false,
+              isSuperAdmin: false
+            };
+          }
         })
       );
       
@@ -41,7 +58,7 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
       toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
-      // Even on error, make sure to clear loading state
+      setUsers([]);
     } finally {
       setLoading(false);
     }

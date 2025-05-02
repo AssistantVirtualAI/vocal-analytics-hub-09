@@ -12,6 +12,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
     if (userError) {
       console.error('[fetchOrganizationUsers] Error getting current user:', userError);
+      throw userError;
     } else {
       console.log('[fetchOrganizationUsers] Current user:', currentUser?.id);
     }
@@ -49,7 +50,17 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       throw profilesError;
     }
 
-    console.log(`[fetchOrganizationUsers] Fetched ${profilesData?.length || 0} user profiles:`, profilesData);
+    if (!profilesData || profilesData.length === 0) {
+      console.log('[fetchOrganizationUsers] No profile data found for user IDs');
+      // Check if the current user's profile exists even if it's not included in the organization
+      if (currentUser && userIds.includes(currentUser.id)) {
+        console.log('[fetchOrganizationUsers] Current user is in organization but profile data is missing');
+      }
+      // Return pending invitations since no active users were found
+      return await fetchPendingInvitations(organizationId);
+    }
+
+    console.log(`[fetchOrganizationUsers] Fetched ${profilesData.length} user profiles`);
 
     // Get the user roles to determine admin status
     const { data: rolesData, error: rolesError } = await supabase
@@ -87,22 +98,13 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     // Get pending invitations
     const pendingUsers = await fetchPendingInvitations(organizationId);
     
-    // Make sure we add the current user to the list if they aren't already included
-    if (currentUser) {
-      const currentUserInList = activeUsers.some(user => user.id === currentUser.id);
-      if (!currentUserInList) {
-        console.log('[fetchOrganizationUsers] Current user not in organization, adding them to the fetch result');
-        // You could either append the current user here or handle this case differently
-      }
-    }
-    
     console.log(`[fetchOrganizationUsers] Result: ${activeUsers.length} active users and ${pendingUsers.length} pending invitations`);
     
     // Combine active users and pending invitations
     return [...activeUsers, ...pendingUsers];
   } catch (error: any) {
     console.error('[fetchOrganizationUsers] Error in fetchOrganizationUsers:', error);
-    toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+    toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
     // Return empty array instead of throwing to avoid breaking the UI
     return [];
   }
@@ -125,7 +127,7 @@ export const fetchPendingInvitations = async (organizationId: string): Promise<O
       throw invitationsError;
     }
 
-    console.log(`[fetchPendingInvitations] Found ${invitationsData?.length || 0} pending invitations:`, invitationsData);
+    console.log(`[fetchPendingInvitations] Found ${invitationsData?.length || 0} pending invitations`);
 
     // Format pending invitations
     return (invitationsData || []).map(invitation => ({

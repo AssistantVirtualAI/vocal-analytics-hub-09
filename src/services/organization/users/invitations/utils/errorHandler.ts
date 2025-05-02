@@ -30,6 +30,12 @@ export const handleInvitationError = (error: any, operation: string = "opératio
     return;
   }
 
+  // Handle Edge Function errors
+  if (error?.message?.includes("Edge Function returned a non-2xx")) {
+    toast.error("La fonction d'invitation a rencontré une erreur. Vérifiez les informations fournies et réessayez.");
+    return;
+  }
+
   if (error?.message?.includes("Function returned a 4")) {
     toast.error("La fonction d'invitation a rencontré une erreur. Vérifiez les informations fournies.");
     return;

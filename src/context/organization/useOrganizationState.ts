@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Organization } from '@/types/organization';
@@ -31,37 +30,60 @@ export const useOrganizationState = () => {
   const loadOrganizations = async () => {
     setIsLoading(true);
     try {
+      console.log("[useOrganizationState] Loading organizations for user:", user?.id, "isAdmin:", isAdmin);
       const orgs = await fetchOrganizations(isAdmin, user?.id);
-      console.log('Fetched organizations:', orgs);
-      setOrganizations(orgs);
+      console.log('[useOrganizationState] Fetched organizations:', orgs);
       
-      if (orgs.length > 0 && !orgs.some(org => org.id === currentOrganizationId)) {
-        changeOrganization(orgs[0].id);
+      if (orgs.length > 0) {
+        setOrganizations(orgs);
+        
+        // Check if current org exists in the fetched orgs
+        const currentOrgExists = orgs.some(org => org.id === currentOrganizationId);
+        if (!currentOrgExists) {
+          console.log(`[useOrganizationState] Current organization ${currentOrganizationId} not found in fetched orgs. Selecting first org.`);
+          changeOrganization(orgs[0].id);
+        } else {
+          console.log(`[useOrganizationState] Current organization ${currentOrganizationId} exists in fetched orgs.`);
+          // Refresh the current organization to ensure it's up-to-date
+          const org = orgs.find(o => o.id === currentOrganizationId);
+          setCurrentOrganization(org || null);
+          if (org) {
+            fetchOrganizationUsers(org.id);
+          }
+        }
+      } else {
+        console.log("[useOrganizationState] No organizations found for user");
+        setOrganizations([]);
+        setCurrentOrganization(null);
+        setUsers([]);
       }
     } catch (error: any) {
-      console.error('Error fetching organizations:', error);
-      toast("Erreur lors de la récupération des organisations: " + error.message);
+      console.error('[useOrganizationState] Error fetching organizations:', error);
+      toast.error("Erreur lors de la récupération des organisations: " + error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const fetchOrganizationUsers = async (organizationId: string) => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      console.log("[useOrganizationState] No organization ID provided, skipping user fetch");
+      return;
+    }
     
     try {
-      console.log('Fetching users for organization:', organizationId);
+      console.log('[useOrganizationState] Fetching users for organization:', organizationId);
       const orgUsers = await fetchOrgUsers(organizationId);
-      console.log('Fetched organization users:', orgUsers);
+      console.log('[useOrganizationState] Fetched organization users:', orgUsers);
       setUsers(orgUsers);
     } catch (error: any) {
-      console.error('Error fetching organization users:', error);
-      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+      console.error('[useOrganizationState] Error fetching organization users:', error);
+      toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
     }
   };
 
   const changeOrganization = (organizationId: string) => {
-    console.log('Changing organization to:', organizationId);
+    console.log('[useOrganizationState] Changing organization to:', organizationId);
     localStorage.setItem('currentOrganizationId', organizationId);
     setCurrentOrganizationId(organizationId);
   };
@@ -154,23 +176,39 @@ export const useOrganizationState = () => {
   };
 
   useEffect(() => {
+    console.log("[useOrganizationState] Auth state changed, user:", user?.id);
     if (user) {
       loadOrganizations();
     } else {
       setIsLoading(false);
       setOrganizations([]);
+      setCurrentOrganization(null);
+      setUsers([]);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (organizations.length > 0) {
+    if (organizations.length > 0 && currentOrganizationId) {
+      console.log(`[useOrganizationState] Finding current org (${currentOrganizationId}) in ${organizations.length} organizations`);
       const org = organizations.find(org => org.id === currentOrganizationId);
-      setCurrentOrganization(org || organizations[0]);
       
       if (org) {
+        console.log(`[useOrganizationState] Found current organization: ${org.name}`);
+        setCurrentOrganization(org);
         fetchOrganizationUsers(org.id);
+      } else {
+        console.log(`[useOrganizationState] Current organization not found, selecting first available org`);
+        setCurrentOrganization(organizations[0]);
+        changeOrganization(organizations[0].id);
+        fetchOrganizationUsers(organizations[0].id);
       }
+    } else if (organizations.length > 0) {
+      console.log(`[useOrganizationState] No current org ID but organizations exist, selecting first one`);
+      setCurrentOrganization(organizations[0]);
+      changeOrganization(organizations[0].id);
+      fetchOrganizationUsers(organizations[0].id);
     } else {
+      console.log(`[useOrganizationState] No organizations available, setting current org to null`);
       setCurrentOrganization(null);
     }
   }, [organizations, currentOrganizationId]);
@@ -180,12 +218,12 @@ export const useOrganizationState = () => {
     organizations,
     users,
     changeOrganization,
-    createOrganization,
-    updateOrganization,
-    deleteOrganization,
-    addUserToOrganization,
-    removeUserFromOrganization,
-    setUserRole,
+    createOrganization: createNewOrg,
+    updateOrganization: updateOrg,
+    deleteOrganization: deleteOrg,
+    addUserToOrganization: addUser,
+    removeUserFromOrganization: removeUser,
+    setUserRole: setRole,
     fetchOrganizationUsers,
     isLoading,
   };

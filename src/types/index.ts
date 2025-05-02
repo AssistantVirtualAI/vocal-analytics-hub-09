@@ -1,4 +1,3 @@
-
 // Types for our application
 export type Call = {
   id: string;
@@ -30,12 +29,13 @@ export type Agent = {
   avatar: string;
 };
 
-export type CallStats = {
+export interface CallStats {
   totalCalls: number;
-  avgDuration: number; // in seconds
-  avgSatisfaction: number; // 1-5
-  callsPerDay: { [key: string]: number };
-};
+  avgDuration: number;
+  avgSatisfaction: number;
+  callsPerDay: Record<string, number>;
+  lastUpdated: string; // Date ISO string de la dernière mise à jour
+}
 
 export type CustomerStats = {
   customerId: string;

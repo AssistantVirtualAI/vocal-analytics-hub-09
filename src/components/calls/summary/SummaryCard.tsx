@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useGenerateSummary } from '@/hooks/useGenerateSummary';
-import { useGenerateSummaryFallback } from '@/hooks/useGenerateSummaryFallback';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
 
@@ -18,6 +17,8 @@ interface SummaryCardProps {
   callId?: string;
   isLoading?: boolean;
   transcript?: string;
+  onGenerateFallbackSummary?: () => void;
+  isFallbackGenerating?: boolean;
 }
 
 export const SummaryCard = ({ 
@@ -25,16 +26,17 @@ export const SummaryCard = ({
   hasTranscript, 
   callId, 
   isLoading = false,
-  transcript
+  transcript,
+  onGenerateFallbackSummary,
+  isFallbackGenerating = false
 }: SummaryCardProps) => {
   const { mutate: generateSummary, isPending } = useGenerateSummary();
-  const { mutate: generateFallbackSummary, isPending: isFallbackPending } = useGenerateSummaryFallback();
   const { toast } = useToast();
 
   // Only show the generate button if we have a transcript but no summary and we're not loading
   const showGenerateButton = !summary && hasTranscript && !!callId && !isLoading;
   // Show fallback button if we have a transcript but failed to get a summary from ElevenLabs
-  const showFallbackButton = !summary && hasTranscript && !!callId && !!transcript && !isLoading;
+  const showFallbackButton = !summary && hasTranscript && !!callId && !!transcript && !isLoading && !!onGenerateFallbackSummary;
 
   const handleGenerateSummary = () => {
     if (!callId) return;
@@ -54,12 +56,6 @@ export const SummaryCard = ({
         });
       },
     });
-  };
-
-  const handleGenerateFallbackSummary = () => {
-    if (!callId || !transcript) return;
-    
-    generateFallbackSummary({ callId, transcript });
   };
 
   return (
@@ -83,11 +79,11 @@ export const SummaryCard = ({
                 <Button 
                   variant="outline" 
                   size="sm"
-                  disabled={isFallbackPending}
-                  onClick={handleGenerateFallbackSummary}
+                  disabled={isFallbackGenerating}
+                  onClick={onGenerateFallbackSummary}
                   title="Utiliser l'IA pour générer un résumé alternatif"
                 >
-                  {isFallbackPending ? (
+                  {isFallbackGenerating ? (
                     <RefreshCcw className="h-4 w-4 mr-1 animate-spin" />
                   ) : (
                     <AlertCircle className="h-4 w-4 mr-1" />

@@ -4,7 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 /**
- * Error codes for the summary generation function.
+ * Error codes for the summary generation function using Anthropic's Claude AI.
  */
 enum ErrorCode {
   BAD_REQUEST = "BAD_REQUEST",

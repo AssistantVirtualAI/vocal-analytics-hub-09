@@ -1,9 +1,10 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 /**
- * Error codes for the summary fallback function.
+ * Error codes for the summary generation function.
  */
 enum ErrorCode {
   BAD_REQUEST = "BAD_REQUEST",

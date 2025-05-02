@@ -14,6 +14,8 @@ export const RetryButton = ({ onRetry, isRetrying }: RetryButtonProps) => {
       size="sm" 
       onClick={onRetry}
       disabled={isRetrying}
+      aria-label="Réessayer le chargement de l'audio"
+      title="Réessayer le chargement de l'audio"
     >
       <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
       Réessayer

@@ -11,6 +11,7 @@ import {
 import { AudioPlayerControls } from './audio/AudioPlayerControls';
 import { RetryButton } from './audio/RetryButton';
 import { TranscriptPreview } from './audio/TranscriptPreview';
+import { DownloadButton } from './audio/DownloadButton';
 
 interface ElevenLabsAudioPlayerProps {
   callId: string | undefined;
@@ -73,10 +74,16 @@ export const ElevenLabsAudioPlayer = ({
           <AudioPlayerControls 
             audioUrl={audioUrl} 
             isDisabled={isLoading}
+            ariaLabel="Contrôles de lecture audio ElevenLabs"
           />
-          {error && onRetry && (
-            <RetryButton onRetry={handleRetry} isRetrying={retrying} />
-          )}
+          <div className="flex gap-2">
+            {error && onRetry && (
+              <RetryButton onRetry={handleRetry} isRetrying={retrying} />
+            )}
+            {audioUrl && !isLoading && (
+              <DownloadButton audioUrl={audioUrl} callId={callId} />
+            )}
+          </div>
         </div>
         
         {transcript && <TranscriptPreview transcript={transcript} />}

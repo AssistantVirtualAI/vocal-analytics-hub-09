@@ -8,12 +8,14 @@ interface AudioPlayerControlsProps {
   audioUrl?: string;
   isDisabled?: boolean;
   onPlayStateChange?: (isPlaying: boolean) => void;
+  ariaLabel?: string;
 }
 
 export const AudioPlayerControls = ({ 
   audioUrl, 
   isDisabled = false,
-  onPlayStateChange 
+  onPlayStateChange,
+  ariaLabel = "Contrôles audio"
 }: AudioPlayerControlsProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -92,8 +94,10 @@ export const AudioPlayerControls = ({
     setCurrentTime(newTime);
   };
 
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
-    <div className="bg-secondary rounded-md p-4">
+    <div className="bg-secondary rounded-md p-4" role="region" aria-label={ariaLabel}>
       <div className="flex items-center space-x-4">
         <Button 
           variant="ghost" 
@@ -101,6 +105,8 @@ export const AudioPlayerControls = ({
           className="h-10 w-10 rounded-full bg-primary text-primary-foreground"
           onClick={togglePlayback}
           disabled={isDisabled || !audioUrl}
+          aria-label={isPlaying ? "Mettre en pause" : "Lire l'audio"}
+          title={isPlaying ? "Mettre en pause" : "Lire l'audio"}
         >
           {isPlaying ? <Pause /> : <Play />}
         </Button>
@@ -113,14 +119,22 @@ export const AudioPlayerControls = ({
             onChange={handleSeek}
             className="w-full accent-primary cursor-pointer"
             disabled={isDisabled || !audioUrl}
+            aria-label="Position de lecture audio"
+            aria-valuemin={0}
+            aria-valuemax={duration || 100}
+            aria-valuenow={currentTime}
+            aria-valuetext={`${formatDuration(currentTime)} sur ${formatDuration(duration)}`}
+            style={{
+              background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${progressPercentage}%, var(--secondary-foreground) ${progressPercentage}%, var(--secondary-foreground) 100%)`
+            }}
           />
           <div className="flex justify-between mt-1 text-xs">
-            <span>{formatDuration(currentTime)}</span>
-            <span>{formatDuration(duration)}</span>
+            <span aria-hidden="true">{formatDuration(currentTime)}</span>
+            <span aria-hidden="true">{formatDuration(duration)}</span>
           </div>
         </div>
       </div>
-      {audioUrl && <audio ref={audioRef} src={audioUrl} />}
+      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
     </div>
   );
 };

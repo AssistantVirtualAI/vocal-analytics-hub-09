@@ -14,14 +14,15 @@ interface SummaryCardProps {
   summary?: string;
   hasTranscript: boolean;
   callId?: string;
+  isLoading?: boolean;
 }
 
-export const SummaryCard = ({ summary, hasTranscript, callId }: SummaryCardProps) => {
+export const SummaryCard = ({ summary, hasTranscript, callId, isLoading = false }: SummaryCardProps) => {
   const { mutate: generateSummary, isPending } = useGenerateSummary();
   const { toast } = useToast();
 
-  // Only show the generate button if we have a transcript but no summary
-  const showGenerateButton = !summary && hasTranscript && !!callId;
+  // Only show the generate button if we have a transcript but no summary and we're not loading
+  const showGenerateButton = !summary && hasTranscript && !!callId && !isLoading;
 
   const handleGenerateSummary = () => {
     if (!callId) return;
@@ -62,7 +63,13 @@ export const SummaryCard = ({ summary, hasTranscript, callId }: SummaryCardProps
         )}
       </CardHeader>
       <CardContent>
-        {summary ? (
+        {isLoading ? (
+          <div className="animate-pulse space-y-2">
+            <div className="h-4 bg-muted rounded w-full"></div>
+            <div className="h-4 bg-muted rounded w-5/6"></div>
+            <div className="h-4 bg-muted rounded w-4/5"></div>
+          </div>
+        ) : summary ? (
           <p className="whitespace-pre-line">{summary}</p>
         ) : (
           <p className="text-muted-foreground italic">

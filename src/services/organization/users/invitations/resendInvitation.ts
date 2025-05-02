@@ -11,7 +11,60 @@ export const resendInvitation = async (email: string, organizationId: string): P
   try {
     console.log(`Resending invitation to ${email} for organization ${organizationId}`);
     
-    // Find the pending invitation
+    // First, check if the user already exists
+    const { data: existingUser, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
+      
+    if (existingUser) {
+      console.log(`User ${email} already exists, handling as existing user`);
+      
+      // Check if user is already part of the organization
+      const { data: existingOrgUser, error: orgUserError } = await supabase
+        .from('user_organizations')
+        .select('id')
+        .eq('user_id', existingUser.id)
+        .eq('organization_id', organizationId)
+        .single();
+        
+      if (!orgUserError && existingOrgUser) {
+        toast.info("L'utilisateur est déjà membre de cette organisation.");
+        return { status: "already_member" };
+      }
+      
+      // Add user to organization directly
+      const { error: addError } = await supabase
+        .from('user_organizations')
+        .insert({
+          user_id: existingUser.id,
+          organization_id: organizationId
+        });
+
+      if (addError) {
+        console.error('Error adding existing user to organization:', addError);
+        throw addError;
+      }
+      
+      // Remove pending invitation if it exists
+      const invitation = await findPendingInvitation(email, organizationId);
+      if (invitation) {
+        const { error: deleteError } = await supabase
+          .from('organization_invitations')
+          .delete()
+          .eq('id', invitation.id);
+          
+        if (deleteError) {
+          console.error('Error deleting invitation:', deleteError);
+        }
+      }
+      
+      toast.success("L'utilisateur a été ajouté à l'organisation.");
+      return { status: "user_added" };
+    }
+    
+    // Continue with finding and updating the pending invitation for non-existing users
     const invitation = await findPendingInvitation(email, organizationId);
     
     if (!invitation) {
@@ -62,12 +115,25 @@ export const resendInvitation = async (email: string, organizationId: string): P
     console.log("Edge function response:", functionResult, functionError);
 
     if (functionError) {
+      // Check if the error is because the user already exists
+      if (functionError.message && functionError.message.includes('already been registered')) {
+        console.log("User already exists, handling as existing user");
+        return resendInvitation(email, organizationId); // Retry with the user exists path
+      }
+      
       console.error('Error resending invitation via edge function:', functionError);
       throw functionError;
     }
 
     // Handle error responses from the function
     if (functionResult && functionResult.error) {
+      // Check if the error is because the user already exists
+      if (typeof functionResult.error === 'string' && 
+          functionResult.error.includes('already been registered')) {
+        console.log("User already exists, handling as existing user");
+        return resendInvitation(email, organizationId); // Retry with the user exists path
+      }
+      
       console.error('Error in invitation function:', functionResult.error);
       throw new Error(
         typeof functionResult.error === 'string' 
@@ -79,6 +145,17 @@ export const resendInvitation = async (email: string, organizationId: string): P
     return functionResult;
   } catch (error: any) {
     console.error('Complete error object:', error);
+    
+    // Checking if the error is due to the user already existing
+    if (error.message && typeof error.message === 'string') {
+      if (error.message.includes('already been registered') || 
+          error.message.includes('email_exists')) {
+        console.log("User already exists error detected");
+        // This should be handled above, but just in case
+        toast.info("L'utilisateur existe déjà. Essayez de l'ajouter directement.");
+        return { status: "user_exists" };
+      }
+    }
     
     if (!error.handledByErrorHandler) {
       handleInvitationError(error, "du renvoi de l'invitation");

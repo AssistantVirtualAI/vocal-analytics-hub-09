@@ -24,6 +24,12 @@ export const handleInvitationError = (error: any, operation: string = "opératio
     return;
   }
 
+  // Handle already registered user case
+  if (error?.message?.includes("already been registered") || error?.message?.includes("email_exists")) {
+    toast.info("L'utilisateur est déjà inscrit. Ajout direct à l'organisation en cours...");
+    return;
+  }
+
   if (error?.message?.includes("Function returned a 4")) {
     toast.error("La fonction d'invitation a rencontré une erreur. Vérifiez les informations fournies.");
     return;

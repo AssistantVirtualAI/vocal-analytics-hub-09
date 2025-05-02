@@ -38,7 +38,7 @@ export const useCallStats = () => {
           avgDuration: data.avgDuration || 0,
           avgSatisfaction: data.avgSatisfaction || 0,
           callsPerDay: data.callsPerDay || {},
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(), // Add the missing lastUpdated field
         };
 
         return statsData;

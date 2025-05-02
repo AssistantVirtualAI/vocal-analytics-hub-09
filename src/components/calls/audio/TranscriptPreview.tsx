@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { TranscriptDialog } from './TranscriptDialog';
+import { TranscriptText } from './TranscriptText';
 
 interface TranscriptPreviewProps {
   transcript: string;
@@ -14,11 +15,10 @@ export const TranscriptPreview = ({ transcript }: TranscriptPreviewProps) => {
         <TranscriptDialog transcript={transcript} />
       </div>
       <div 
-        className="text-sm bg-muted p-3 rounded-md max-h-40 overflow-y-auto"
+        className="bg-muted p-3 rounded-md"
         aria-labelledby="transcript-heading"
-        tabIndex={0}
       >
-        {transcript}
+        <TranscriptText transcript={transcript} />
       </div>
     </div>
   );

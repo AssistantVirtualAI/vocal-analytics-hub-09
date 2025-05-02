@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { TranscriptText } from './TranscriptText';
 
 interface TranscriptDialogProps {
   transcript: string;
@@ -35,12 +36,14 @@ export const TranscriptDialog = ({ transcript }: TranscriptDialogProps) => {
           </DialogDescription>
         </DialogHeader>
         <div 
-          className="max-h-[60vh] overflow-y-auto mt-4 focus:outline-none focus:ring-2 focus:ring-primary" 
-          tabIndex={0}
+          className="mt-4 focus:outline-none focus:ring-2 focus:ring-primary" 
           role="document"
           aria-label="Transcription complète de l'appel"
         >
-          <p className="whitespace-pre-wrap">{transcript}</p>
+          <TranscriptText 
+            transcript={transcript}
+            maxHeight="max-h-[60vh]"
+          />
         </div>
       </DialogContent>
     </Dialog>

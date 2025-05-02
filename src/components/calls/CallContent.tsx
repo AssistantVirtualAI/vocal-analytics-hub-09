@@ -17,6 +17,7 @@ export const CallContent = ({ summary, transcript, callId, isLoading = false }: 
         hasTranscript={!!transcript} 
         callId={callId} 
         isLoading={isLoading}
+        transcript={transcript}
       />
       <TranscriptCard 
         transcript={transcript} 

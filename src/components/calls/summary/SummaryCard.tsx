@@ -8,21 +8,33 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useGenerateSummary } from '@/hooks/useGenerateSummary';
+import { useGenerateSummaryFallback } from '@/hooks/useGenerateSummaryFallback';
 import { useToast } from '@/hooks/use-toast';
+import { AlertCircle, RefreshCcw } from 'lucide-react';
 
 interface SummaryCardProps {
   summary?: string;
   hasTranscript: boolean;
   callId?: string;
   isLoading?: boolean;
+  transcript?: string;
 }
 
-export const SummaryCard = ({ summary, hasTranscript, callId, isLoading = false }: SummaryCardProps) => {
+export const SummaryCard = ({ 
+  summary, 
+  hasTranscript, 
+  callId, 
+  isLoading = false,
+  transcript
+}: SummaryCardProps) => {
   const { mutate: generateSummary, isPending } = useGenerateSummary();
+  const { mutate: generateFallbackSummary, isPending: isFallbackPending } = useGenerateSummaryFallback();
   const { toast } = useToast();
 
   // Only show the generate button if we have a transcript but no summary and we're not loading
   const showGenerateButton = !summary && hasTranscript && !!callId && !isLoading;
+  // Show fallback button if we have a transcript but failed to get a summary from ElevenLabs
+  const showFallbackButton = !summary && hasTranscript && !!callId && !!transcript && !isLoading;
 
   const handleGenerateSummary = () => {
     if (!callId) return;
@@ -44,6 +56,12 @@ export const SummaryCard = ({ summary, hasTranscript, callId, isLoading = false 
     });
   };
 
+  const handleGenerateFallbackSummary = () => {
+    if (!callId || !transcript) return;
+    
+    generateFallbackSummary({ callId, transcript });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -51,14 +69,33 @@ export const SummaryCard = ({ summary, hasTranscript, callId, isLoading = false 
         {showGenerateButton && (
           <div className="flex justify-between items-center">
             <CardDescription>Aucun résumé disponible</CardDescription>
-            <Button 
-              variant="outline" 
-              size="sm"
-              disabled={isPending}
-              onClick={handleGenerateSummary}
-            >
-              {isPending ? "Génération..." : "Générer un résumé"}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={isPending}
+                onClick={handleGenerateSummary}
+              >
+                {isPending ? "Génération..." : "Générer un résumé"}
+              </Button>
+              
+              {showFallbackButton && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={isFallbackPending}
+                  onClick={handleGenerateFallbackSummary}
+                  title="Utiliser l'IA pour générer un résumé alternatif"
+                >
+                  {isFallbackPending ? (
+                    <RefreshCcw className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                  )}
+                  Résumé alternatif
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardHeader>

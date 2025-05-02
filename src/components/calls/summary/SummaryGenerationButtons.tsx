@@ -1,19 +1,23 @@
 
 import { Button } from '@/components/ui/button';
-import { AlertCircle, RefreshCcw } from 'lucide-react';
+import { AlertCircle, RefreshCcw, Sparkles } from 'lucide-react';
 
 interface SummaryGenerationButtonsProps {
   onGenerate: () => void;
   isPending: boolean;
   onGenerateFallback?: () => void;
   isFallbackGenerating?: boolean;
+  onGenerateAnthropic?: () => void;
+  isAnthropicGenerating?: boolean;
 }
 
 export const SummaryGenerationButtons = ({
   onGenerate,
   isPending,
   onGenerateFallback,
-  isFallbackGenerating = false
+  isFallbackGenerating = false,
+  onGenerateAnthropic,
+  isAnthropicGenerating = false
 }: SummaryGenerationButtonsProps) => {
   return (
     <div className="flex gap-2">
@@ -39,7 +43,24 @@ export const SummaryGenerationButtons = ({
           ) : (
             <AlertCircle className="h-4 w-4 mr-1" />
           )}
-          Résumé alternatif
+          GPT Alternatif
+        </Button>
+      )}
+      
+      {onGenerateAnthropic && (
+        <Button 
+          variant="outline" 
+          size="sm"
+          disabled={isAnthropicGenerating}
+          onClick={onGenerateAnthropic}
+          title="Utiliser Claude AI pour générer un résumé"
+        >
+          {isAnthropicGenerating ? (
+            <RefreshCcw className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 mr-1" />
+          )}
+          Claude AI
         </Button>
       )}
     </div>

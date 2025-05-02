@@ -20,6 +20,8 @@ interface SummaryCardProps {
   transcript?: string;
   onGenerateFallbackSummary?: () => void;
   isFallbackGenerating?: boolean;
+  onGenerateAnthropicSummary?: () => void;
+  isAnthropicGenerating?: boolean;
 }
 
 export const SummaryCard = ({ 
@@ -29,15 +31,19 @@ export const SummaryCard = ({
   isLoading = false,
   transcript,
   onGenerateFallbackSummary,
-  isFallbackGenerating = false
+  isFallbackGenerating = false,
+  onGenerateAnthropicSummary,
+  isAnthropicGenerating = false
 }: SummaryCardProps) => {
   const { mutate: generateSummary, isPending } = useGenerateSummary();
   const { toast } = useToast();
 
   // Only show the generate button if we have a transcript but no summary and we're not loading
   const showGenerateButton = !summary && hasTranscript && !!callId && !isLoading;
-  // Show fallback button if we have a transcript but failed to get a summary from ElevenLabs
+  // Show fallback buttons if we have a transcript but failed to get a summary from ElevenLabs
   const showFallbackButton = !summary && hasTranscript && !!callId && !!transcript && !isLoading && !!onGenerateFallbackSummary;
+  // Show Anthropic button if we have a transcript but failed to get a summary from ElevenLabs
+  const showAnthropicButton = !summary && hasTranscript && !!callId && !!transcript && !isLoading && !!onGenerateAnthropicSummary;
 
   const handleGenerateSummary = () => {
     if (!callId) return;
@@ -71,6 +77,8 @@ export const SummaryCard = ({
               isPending={isPending}
               onGenerateFallback={showFallbackButton ? onGenerateFallbackSummary : undefined}
               isFallbackGenerating={isFallbackGenerating}
+              onGenerateAnthropic={showAnthropicButton ? onGenerateAnthropicSummary : undefined}
+              isAnthropicGenerating={isAnthropicGenerating}
             />
           </div>
         )}

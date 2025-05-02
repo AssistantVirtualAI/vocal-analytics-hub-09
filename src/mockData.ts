@@ -98,6 +98,7 @@ export const mockCallStats: CallStats = {
     acc[date] = (acc[date] || 0) + 1;
     return acc;
   }, {} as Record<string, number>),
+  lastUpdated: new Date().toISOString(), // Added the missing property
 };
 
 // Calculate Customer Stats

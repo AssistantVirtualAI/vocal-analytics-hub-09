@@ -1,5 +1,5 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ElevenLabsStatistics {
@@ -24,52 +24,58 @@ interface ElevenLabsStatistics {
   [key: string]: any;
 }
 
+interface FunctionError {
+  code: string;
+  message: string;
+}
+
 interface CallAudioResponse {
   audioUrl: string;
   transcript: string;
   summary: string;
   statistics?: ElevenLabsStatistics;
-}
-
-interface ErrorResponse {
-  code: string;
-  message: string;
+  error?: FunctionError;
 }
 
 export const useCallAudio = (callId: string | undefined) => {
-  return useQuery<CallAudioResponse>({
+  const queryClient = useQueryClient();
+
+  const queryResult = useQuery<CallAudioResponse, Error>({
     queryKey: ["callAudio", callId],
     queryFn: async () => {
       if (!callId) throw new Error("Call ID is required");
 
-      const { data, error } = await supabase.functions.invoke<CallAudioResponse | { error: ErrorResponse }>("elevenlabs-call-audio", {
+      console.log(`Invoking Supabase function 'elevenlabs-call-audio' for call ID: ${callId}`);
+      const { data, error } = await supabase.functions.invoke<CallAudioResponse>("elevenlabs-call-audio", {
         body: { callId },
       });
 
+      // Handle Supabase function invocation errors (network, permissions etc.)
       if (error) {
-        console.error("Supabase function error:", error);
-        throw new Error(`Supabase error: ${error.message}`);
+        console.error("Supabase function invocation error:", error);
+        throw new Error(`Failed to invoke Supabase function: ${error.message}`); 
       }
 
+      // Handle errors returned *within* the function's response payload
+      if (data?.error) {
+        console.error("Error returned from Supabase function:", data.error);
+        const functionError = new Error(data.error.message || "An error occurred in the backend function.") as any;
+        functionError.code = data.error.code; // Attach the code for frontend handling
+        throw functionError;
+      }
+      
+      // Handle cases where data is unexpectedly null/undefined without an error
       if (!data) {
-        throw new Error("No data returned from ElevenLabs function");
+        console.error("No data returned from Supabase function, but no error reported.");
+        throw new Error("Received unexpected empty response from the backend.");
       }
 
-      // Check if the response contains an error object
-      if ('error' in data) {
-        const errorData = data.error;
-        console.error(`ElevenLabs API error [${errorData.code}]:`, errorData.message);
-        throw new Error(errorData.message || "Unknown error from ElevenLabs API");
-      }
-
-      // Cast to ensure TypeScript recognizes this as CallAudioResponse
-      const response = data as CallAudioResponse;
-
+      console.log(`Successfully received data from 'elevenlabs-call-audio' for call ID: ${callId}`);
       return {
-        audioUrl: response.audioUrl,
-        transcript: response.transcript,
-        summary: response.summary,
-        statistics: response.statistics
+        audioUrl: data.audioUrl,
+        transcript: data.transcript,
+        summary: data.summary,
+        statistics: data.statistics
       };
     },
     enabled: !!callId,
@@ -85,4 +91,6 @@ export const useCallAudio = (callId: string | undefined) => {
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
+  return queryResult;
 };

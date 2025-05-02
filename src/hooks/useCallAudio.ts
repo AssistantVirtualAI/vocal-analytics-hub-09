@@ -31,34 +31,58 @@ interface CallAudioResponse {
   statistics?: ElevenLabsStatistics;
 }
 
+interface ErrorResponse {
+  code: string;
+  message: string;
+}
+
 export const useCallAudio = (callId: string | undefined) => {
   return useQuery<CallAudioResponse>({
     queryKey: ["callAudio", callId],
     queryFn: async () => {
       if (!callId) throw new Error("Call ID is required");
 
-      const { data, error } = await supabase.functions.invoke<CallAudioResponse>("elevenlabs-call-audio", {
+      const { data, error } = await supabase.functions.invoke<CallAudioResponse | { error: ErrorResponse }>("elevenlabs-call-audio", {
         body: { callId },
       });
 
       if (error) {
-        console.error("ElevenLabs API error:", error);
-        throw error;
+        console.error("Supabase function error:", error);
+        throw new Error(`Supabase error: ${error.message}`);
       }
 
       if (!data) {
-        throw new Error("No data returned from ElevenLabs");
+        throw new Error("No data returned from ElevenLabs function");
       }
 
+      // Check if the response contains an error object
+      if ('error' in data) {
+        const errorData = data.error;
+        console.error(`ElevenLabs API error [${errorData.code}]:`, errorData.message);
+        throw new Error(errorData.message || "Unknown error from ElevenLabs API");
+      }
+
+      // Cast to ensure TypeScript recognizes this as CallAudioResponse
+      const response = data as CallAudioResponse;
+
       return {
-        audioUrl: data.audioUrl,
-        transcript: data.transcript,
-        summary: data.summary,
-        statistics: data.statistics
+        audioUrl: response.audioUrl,
+        transcript: response.transcript,
+        summary: response.summary,
+        statistics: response.statistics
       };
     },
     enabled: !!callId,
-    retry: 1,
+    retry: (failureCount, error) => {
+      // Don't retry on 4xx client errors, but retry on other errors
+      const message = error.message || "";
+      const is4xxError = message.includes("404") || 
+                         message.includes("NOT_FOUND") || 
+                         message.includes("BAD_REQUEST") ||
+                         message.includes("ELEVENLABS_AUTH_ERROR");
+      
+      return !is4xxError && failureCount < 2;
+    },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 };

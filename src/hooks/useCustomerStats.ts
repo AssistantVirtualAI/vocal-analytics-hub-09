@@ -3,11 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CustomerStats } from "@/types";
 import { AGENT_ID } from "@/config/agent";
+import { useAuth } from "@/context/AuthContext";
 
 export const useCustomerStats = () => {
+  const { user } = useAuth();
+  
   return useQuery({
     queryKey: ["customerStats", AGENT_ID],
     queryFn: async () => {
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+      
+      console.log(`Fetching customer stats for agent: ${AGENT_ID}`);
+      
       const { data: callsData, error } = await supabase
         .from("calls_view")
         .select(`
@@ -18,7 +27,10 @@ export const useCustomerStats = () => {
         `)
         .eq('agent_id', AGENT_ID);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching customer stats:", error);
+        throw error;
+      }
 
       if (!callsData || callsData.length === 0) return [];
       
@@ -51,5 +63,8 @@ export const useCustomerStats = () => {
         avgSatisfaction: stat.totalCalls > 0 ? stat.totalSatisfaction / stat.totalCalls : 0,
       })) as CustomerStats[];
     },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 2,
   });
 };

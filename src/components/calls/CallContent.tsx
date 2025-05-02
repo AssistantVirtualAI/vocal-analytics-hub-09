@@ -1,6 +1,7 @@
 
 import { SummaryCard } from './summary/SummaryCard';
 import { TranscriptCard } from './transcript/TranscriptCard';
+import { useGenerateSummaryFallback } from '@/hooks/useGenerateSummaryFallback';
 
 interface CallContentProps {
   summary?: string;
@@ -10,6 +11,14 @@ interface CallContentProps {
 }
 
 export const CallContent = ({ summary, transcript, callId, isLoading = false }: CallContentProps) => {
+  const { mutate: generateSummaryFallback, isPending } = useGenerateSummaryFallback();
+  
+  const handleGenerateSummaryFallback = () => {
+    if (callId && transcript) {
+      generateSummaryFallback({ callId, transcript });
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <SummaryCard 
@@ -18,6 +27,8 @@ export const CallContent = ({ summary, transcript, callId, isLoading = false }: 
         callId={callId} 
         isLoading={isLoading}
         transcript={transcript}
+        onGenerateFallbackSummary={handleGenerateSummaryFallback}
+        isFallbackGenerating={isPending}
       />
       <TranscriptCard 
         transcript={transcript} 

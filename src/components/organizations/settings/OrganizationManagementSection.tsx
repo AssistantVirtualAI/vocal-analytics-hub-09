@@ -38,23 +38,31 @@ export const OrganizationManagementSection = ({
     setOrgToEdit(null);
   };
 
+  console.log('[OrganizationManagementSection] Rendering with organizations:', organizations);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
         <h1 className="text-2xl sm:text-3xl font-bold">Gestion des organisations</h1>
         
         {isAdmin && (
-          <AddOrganizationDialog onAddOrganization={onAddOrganization} />
+          <AddOrganizationDialog onAddOrganization={onAddOrganization} data-testid="add-organization-button" />
         )}
       </div>
 
-      <OrganizationsList 
-        organizations={organizations}
-        currentOrganization={currentOrganization}
-        onEdit={handleEditOrganization}
-        onDelete={onDeleteOrganization}
-        onSelect={onSelectOrganization}
-      />
+      {organizations && organizations.length > 0 ? (
+        <OrganizationsList 
+          organizations={organizations}
+          currentOrganization={currentOrganization}
+          onEdit={handleEditOrganization}
+          onDelete={onDeleteOrganization}
+          onSelect={onSelectOrganization}
+        />
+      ) : (
+        <div className="py-8 text-center text-gray-500">
+          Aucune organisation disponible.
+        </div>
+      )}
 
       <EditOrganizationDialog
         isOpen={isEditDialogOpen}

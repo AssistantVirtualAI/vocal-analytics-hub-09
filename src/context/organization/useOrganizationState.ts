@@ -38,18 +38,11 @@ export const useOrganizationState = () => {
     setUserRole
   } = useOrganizationUserManagement(setUsers);
 
-  // Initial load of organizations when user authentication state changes
-  useEffect(() => {
-    console.log("[useOrganizationState] Auth state changed, user:", user?.id);
-    if (user) {
-      loadOrganizations();
-    } else {
-      setUsers([]);
-    }
-  }, [user?.id]);
-
   // Effect for updating current organization when organizations list changes
   useEffect(() => {
+    console.log(`[useOrganizationState] Organizations updated:`, organizations);
+    console.log(`[useOrganizationState] Current org ID:`, currentOrganizationId);
+    
     if (organizations.length > 0 && currentOrganizationId) {
       console.log(`[useOrganizationState] Finding current org (${currentOrganizationId}) in ${organizations.length} organizations`);
       const org = organizations.find(org => org.id === currentOrganizationId);

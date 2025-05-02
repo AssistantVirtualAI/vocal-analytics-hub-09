@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Organization } from '@/types/organization';
 import { fetchOrganizations } from '@/services/organization';
 import { toast } from 'sonner';
@@ -24,6 +24,16 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
       setIsLoading(false);
     }
   }, [isAdmin, userId]);
+
+  // Add an effect to load organizations when the component mounts
+  useEffect(() => {
+    if (userId) {
+      console.log("[useOrganizationLoading] Initial load triggered for user:", userId);
+      loadOrganizations();
+    } else {
+      console.log("[useOrganizationLoading] No user ID available, skipping initial load");
+    }
+  }, [userId, loadOrganizations]);
 
   return {
     organizations,

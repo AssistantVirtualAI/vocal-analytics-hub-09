@@ -43,7 +43,7 @@ export const useOrganizationOperations = (loadOrganizations: () => Promise<Organ
       await deleteOrg(organizationId);
       toast("Organisation supprimée avec succès.");
       await loadOrganizations();
-      return true;
+      // Return void instead of boolean to match the interface
     } catch (error: any) {
       console.error('Error deleting organization:', error);
       toast("Erreur lors de la suppression de l'organisation: " + error.message);

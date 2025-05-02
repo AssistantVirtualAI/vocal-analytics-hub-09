@@ -1,6 +1,6 @@
 
 // We're reexporting toast from sonner
-import { toast, useToast as useSonnerToast } from "sonner";
+import { toast } from "sonner";
 
 export interface ToastProps {
   title?: string;

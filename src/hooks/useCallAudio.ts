@@ -2,11 +2,33 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface ElevenLabsStatistics {
+  // Duration statistics
+  total_duration_seconds?: number;
+  agent_talk_duration_seconds?: number;
+  customer_talk_duration_seconds?: number;
+  silence_duration_seconds?: number;
+  
+  // Percentage statistics
+  agent_talk_percentage?: number;
+  customer_talk_percentage?: number;
+  silence_percentage?: number;
+  
+  // Sentiment analysis
+  sentiment?: {
+    label?: string;
+    score?: number;
+  };
+  
+  // Any additional properties
+  [key: string]: any;
+}
+
 interface CallAudioResponse {
   audioUrl: string;
   transcript: string;
   summary: string;
-  statistics?: any; // ElevenLabs statistics object
+  statistics?: ElevenLabsStatistics;
 }
 
 export const useCallAudio = (callId: string | undefined) => {

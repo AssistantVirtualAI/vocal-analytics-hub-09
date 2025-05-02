@@ -6,17 +6,22 @@ interface CallContentProps {
   summary?: string;
   transcript?: string;
   callId?: string;
+  isLoading?: boolean;
 }
 
-export const CallContent = ({ summary, transcript, callId }: CallContentProps) => {
+export const CallContent = ({ summary, transcript, callId, isLoading = false }: CallContentProps) => {
   return (
     <div className="space-y-6">
       <SummaryCard 
         summary={summary} 
         hasTranscript={!!transcript} 
         callId={callId} 
+        isLoading={isLoading}
       />
-      <TranscriptCard transcript={transcript} />
+      <TranscriptCard 
+        transcript={transcript} 
+        isLoading={isLoading}
+      />
     </div>
   );
 };

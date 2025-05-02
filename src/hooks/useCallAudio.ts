@@ -92,5 +92,13 @@ export const useCallAudio = (callId: string | undefined) => {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  return queryResult;
+  // Function to manually trigger a refetch
+  const refetchCallAudio = () => {
+    if (callId) {
+      console.log(`Manually refetching call audio for ID: ${callId}`);
+      return queryClient.invalidateQueries({ queryKey: ["callAudio", callId] });
+    }
+  };
+
+  return { ...queryResult, refetchCallAudio };
 };

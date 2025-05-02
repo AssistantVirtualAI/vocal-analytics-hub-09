@@ -8,7 +8,7 @@ const OrganizationContext = createContext<OrganizationContextType>({
   organizations: [],
   users: [],
   changeOrganization: () => {},
-  createOrganization: async () => {},
+  createOrganization: async () => '',
   updateOrganization: async () => {},
   deleteOrganization: async () => {},
   addUserToOrganization: async () => {},

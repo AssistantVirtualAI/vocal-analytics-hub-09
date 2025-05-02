@@ -6,7 +6,7 @@ export interface OrganizationContextType {
   organizations: Organization[];
   users: OrganizationUser[];
   changeOrganization: (organizationId: string) => void;
-  createOrganization: (organization: Omit<Organization, 'id' | 'createdAt'>) => Promise<void>;
+  createOrganization: (organization: Omit<Organization, 'id' | 'createdAt'>, isAdmin: boolean, userId?: string) => Promise<string>;
   updateOrganization: (organization: Organization) => Promise<void>;
   deleteOrganization: (organizationId: string) => Promise<void>;
   addUserToOrganization: (email: string, organizationId: string) => Promise<void>;

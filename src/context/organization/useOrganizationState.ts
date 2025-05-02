@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Organization } from '@/types/organization';
 import { DEFAULT_ORGANIZATION_ID } from '@/config/organizations';
 import { toast } from 'sonner';

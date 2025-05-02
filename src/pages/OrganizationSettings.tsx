@@ -12,7 +12,7 @@ import { OrganizationUsers } from '@/components/organizations/OrganizationUsers'
 export default function OrganizationSettings() {
   const { organizations, currentOrganization, changeOrganization, createOrganization, updateOrganization, 
     deleteOrganization, users, fetchOrganizationUsers, addUserToOrganization, removeUserFromOrganization } = useOrganization();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [orgToEdit, setOrgToEdit] = useState<Organization | null>(null);
@@ -29,7 +29,7 @@ export default function OrganizationSettings() {
   };
 
   const handleAddOrganization = async (newOrg: {name: string, agentId: string, description: string}) => {
-    await createOrganization(newOrg);
+    await createOrganization(newOrg, isAdmin, user?.id);
   };
 
   const handleDeleteOrganization = async (orgId: string) => {

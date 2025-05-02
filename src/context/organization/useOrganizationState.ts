@@ -24,7 +24,7 @@ export const useOrganizationState = () => {
   const { users, setUsers } = useOrganizationUsers();
   const [isLoading, setIsLoading] = useState(true);
   const { user, isAdmin } = useAuth();
-  const navigate = useNavigate();
+  // Removing useNavigate as it seems to be unused
 
   const loadOrganizations = async () => {
     setIsLoading(true);
@@ -87,11 +87,12 @@ export const useOrganizationState = () => {
     setCurrentOrganizationId(organizationId);
   };
 
-  const createOrganization = async (organization: Omit<Organization, 'id' | 'createdAt'>) => {
+  const createOrganization = async (organization: Omit<Organization, 'id' | 'createdAt'>, isAdmin: boolean, userId?: string) => {
     try {
-      await createNewOrg(organization, isAdmin, user?.id);
+      const newOrgId = await createNewOrg(organization, isAdmin, userId);
       toast("Organisation créée avec succès.");
       await loadOrganizations();
+      return newOrgId;
     } catch (error: any) {
       console.error('Error creating organization:', error);
       toast("Erreur lors de la création de l'organisation: " + error.message);
@@ -217,7 +218,7 @@ export const useOrganizationState = () => {
     organizations,
     users,
     changeOrganization,
-    createOrganization: createNewOrg,
+    createOrganization,
     updateOrganization: updateOrg,
     deleteOrganization: deleteOrg,
     addUserToOrganization: addUser,

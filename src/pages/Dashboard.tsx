@@ -3,19 +3,23 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
-import { Phone, Clock, Star } from "lucide-react";
+import { Phone, Clock, Star, AlertTriangle } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/Layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { useCallsStats } from "@/hooks/useCallsStats";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCallStats } from "@/hooks/useCallStats";
 import { useCallsList } from "@/hooks/useCallsList";
 import { CallsToolbar } from "@/components/calls/CallsToolbar";
 import { StatCard } from "@/components/stats/StatCard";
 import { DateRange } from "@/types/calendar";
-import type { Call } from "@/types";
 import { useCallsPerDay } from "@/hooks/useCallsPerDay";
 import { CallsLast30DaysChart } from "@/components/stats/CallsLast30DaysChart";
+import { useOrganization } from "@/context/OrganizationContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
+  const { currentOrganization } = useOrganization();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -26,15 +30,15 @@ export default function Dashboard() {
     endDate: "",
   });
 
-  const { data: statsData, isLoading: isStatsLoading } = useCallsStats();
-  const { data: calls30DaysData, isLoading: is30DaysLoading } = useCallsPerDay(30);
+  const { data: statsData, isLoading: isStatsLoading, error: statsError } = useCallStats();
+  const { data: calls30DaysData, isLoading: is30DaysLoading, error: chartError } = useCallsPerDay(30);
   
-  const { data: callsData, isLoading: isCallsLoading } = useCallsList({
+  const { data: callsData, isLoading: isCallsLoading, error: callsError } = useCallsList({
     limit: 10,
     page: currentPage,
     search: searchQuery,
     customerId: filters.customerId,
-    agentId: filters.agentId,
+    agentId: currentOrganization?.agentId || '',
     startDate: filters.startDate,
     endDate: filters.endDate,
   });
@@ -60,37 +64,72 @@ export default function Dashboard() {
     setCurrentPage(page);
   };
 
+  const renderError = (message: string) => (
+    <Alert variant="destructive" className="my-4">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription>
+        {message}
+        {!currentOrganization && (
+          <div className="mt-2">
+            <p>No organization selected. Please select an organization in settings.</p>
+            <Button variant="outline" className="mt-2" asChild>
+              <Link to="/organizations">Go to Organization Settings</Link>
+            </Button>
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
-        <h1 className="text-2xl sm:text-3xl font-bold">Tableau de bord d'analyse d'appels</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Tableau de bord d'analyse d'appels</h1>
+          {currentOrganization && (
+            <div className="text-sm text-muted-foreground">
+              Organisation: {currentOrganization.name}
+            </div>
+          )}
+        </div>
 
+        {!currentOrganization && renderError("No organization selected. Please select an organization in settings.")}
+        
         {/* Section Statistiques Clés */}
         <div className="grid gap-4 md:grid-cols-3">
           <StatCard
             title="Total des appels"
-            value={isStatsLoading ? "..." : statsData?.totalCalls || 0}
+            value={isStatsLoading ? <Skeleton className="h-8 w-16" /> : statsData?.totalCalls || 0}
             icon={Phone}
+            isLoading={isStatsLoading}
           />
           <StatCard
             title="Durée moyenne"
-            value={isStatsLoading ? "..." : formatDurationMinutes(statsData?.avgDuration || 0)}
+            value={isStatsLoading ? <Skeleton className="h-8 w-16" /> : formatDurationMinutes(statsData?.avgDuration || 0)}
             icon={Clock}
+            isLoading={isStatsLoading}
           />
           <StatCard
             title="Satisfaction moyenne"
-            value={isStatsLoading ? "..." : `${statsData?.avgSatisfaction.toFixed(1) || 0}/5`}
+            value={isStatsLoading ? <Skeleton className="h-8 w-16" /> : `${(statsData?.avgSatisfaction || 0).toFixed(1)}/5`}
             icon={Star}
+            isLoading={isStatsLoading}
           />
         </div>
 
+        {statsError && renderError("Failed to load statistics. " + (statsError as Error).message)}
+
         {/* Graphique d'appels sur 30 jours */}
         <div className="grid gap-4">
+          {chartError && renderError("Failed to load chart data. " + (chartError as Error).message)}
+          
           {is30DaysLoading ? (
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-center h-[300px]">
-                  Chargement des données du graphique...
+                  <div className="space-y-2 w-full">
+                    <Skeleton className="h-[300px] w-full" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -101,7 +140,12 @@ export default function Dashboard() {
 
         {/* Section Liste des Appels */}
         <Card>
-          <CardContent className="p-6">
+          <CardHeader>
+            <CardTitle>Derniers appels</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {callsError && renderError("Failed to load calls. " + (callsError as Error).message)}
+            
             {/* Filtres et barre de recherche */}
             <CallsToolbar
               searchQuery={searchQuery}
@@ -126,19 +170,24 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {isCallsLoading ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center">
-                        Chargement des données...
-                      </td>
-                    </tr>
-                  ) : callsData?.calls.length === 0 ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <tr key={`skeleton-${i}`}>
+                        <td className="py-3"><Skeleton className="h-5 w-24" /></td>
+                        <td className="py-3"><Skeleton className="h-5 w-32" /></td>
+                        <td className="py-3"><Skeleton className="h-5 w-20" /></td>
+                        <td className="py-3"><Skeleton className="h-5 w-16" /></td>
+                        <td className="py-3"><Skeleton className="h-5 w-24" /></td>
+                        <td className="py-3 text-right"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : !callsData || callsData.calls.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-6 text-center">
                         Aucun appel trouvé.
                       </td>
                     </tr>
                   ) : (
-                    callsData?.calls.map((call) => (
+                    callsData.calls.map((call) => (
                       <tr key={call.id} className="border-b hover:bg-muted/50">
                         <td className="py-3">
                           {format(new Date(call.date), "dd/MM/yyyy HH:mm", { locale: fr })}

@@ -13,6 +13,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log("Edge function get-calls called");
+
   try {
     // Parse request body
     const body = await req.json();
@@ -28,6 +30,21 @@ serve(async (req) => {
       endDate = ''
     } = body;
     
+    console.log(`Request parameters: limit=${limit}, offset=${offset}, sort=${sort}, agentId=${agentId}`);
+    
+    if (!agentId) {
+      console.warn("No agentId provided in request");
+      return new Response(JSON.stringify({ 
+        error: "Missing agentId parameter", 
+        message: "Agent ID is required",
+        calls: [],
+        count: 0 
+      }), {
+        status: 200, // Return empty result set instead of error
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -36,6 +53,7 @@ serve(async (req) => {
     let query = supabase
       .from("calls_view")
       .select("*", { count: 'exact' })
+      .eq('agent_id', agentId)
       .order(sort, { ascending: order === 'asc' });
     
     // Add search filter if provided
@@ -47,11 +65,6 @@ serve(async (req) => {
     // Add customer filter if provided
     if (customerId && customerId.trim() !== '') {
       query = query.eq('customer_id', customerId);
-    }
-
-    // Add agent filter if provided
-    if (agentId && agentId.trim() !== '') {
-      query = query.eq('agent_id', agentId);
     }
 
     // Add date range filters if provided
@@ -69,7 +82,12 @@ serve(async (req) => {
     // Execute query
     const { data: calls, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error("Database query error:", error);
+      throw error;
+    }
+
+    console.log(`Retrieved ${calls.length} calls for agent ${agentId}, total count: ${count}`);
 
     return new Response(JSON.stringify({ calls, count }), {
       status: 200,

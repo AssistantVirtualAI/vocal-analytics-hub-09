@@ -1,93 +1,60 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays } from "date-fns";
-
-interface CallPerDayItem {
-  date: string;
-  count: number;
-}
-
-interface GetCallsPerDayParams {
-  start_date: string;
-  days_count: number;
-}
-
-interface CallsChartData {
-  date: string;
-  appels: number;
-}
+import { useOrganization } from "@/context/OrganizationContext";
+import { useAuth } from "@/context/AuthContext";
 
 export const useCallsPerDay = (days = 14) => {
-  return useQuery<CallsChartData[]>({
-    queryKey: ["callsPerDay", days],
+  const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
+  const agentId = currentOrganization?.agentId;
+  
+  return useQuery({
+    queryKey: ["callsPerDay", days, agentId],
     queryFn: async () => {
-      // Calculate the date range
-      const today = new Date();
-      const startDate = subDays(today, days);
-      const formattedStartDate = format(startDate, "yyyy-MM-dd");
+      if (!user) {
+        throw new Error("Authentication required");
+      }
       
-      try {
-        // First attempt to use the RPC function if it exists
-        const { data: rpcData, error: rpcError } = await supabase.functions.invoke<CallPerDayItem[]>(
-          'get_calls_per_day',
-          {
-            body: {
-              start_date: formattedStartDate,
-              days_count: days
-            }
-          }
-        );
-        
-        if (!rpcError && rpcData) {
-          // Process RPC data
-          return rpcData.map(item => ({
-            date: format(new Date(item.date), 'dd/MM'),
-            appels: item.count
-          }));
-        }
-        
-        // Fallback if RPC fails: query the calls table directly
-        const { data, error } = await supabase
-          .from('calls')
-          .select('date')
-          .gte('date', formattedStartDate)
-          .order('date');
-        
-        if (error) {
-          console.error('Error fetching calls per day:', error);
-          throw error;
-        }
-        
-        // Process the data client-side
-        const dateCountMap: Record<string, number> = {};
-        
-        // Initialize all dates in the range with 0 count
-        for (let i = 0; i <= days; i++) {
-          const date = subDays(today, days - i);
-          const dateKey = format(date, 'yyyy-MM-dd');
-          dateCountMap[dateKey] = 0;
-        }
-        
-        // Count calls per day
-        if (data) {
-          data.forEach((call: any) => {
-            const callDate = format(new Date(call.date), 'yyyy-MM-dd');
-            if (dateCountMap[callDate] !== undefined) {
-              dateCountMap[callDate]++;
-            }
-          });
-        }
-        
-        // Convert to array format for chart
-        return Object.entries(dateCountMap).map(([dateKey, count]) => ({
-          date: format(new Date(dateKey), 'dd/MM'),
-          appels: count
-        }));
-      } catch (error) {
-        console.error('Error fetching calls per day:', error);
+      if (!agentId) {
+        console.warn("No agent ID available, cannot fetch calls per day");
+        throw new Error("Organization selection required");
+      }
+      
+      console.log(`Fetching calls per day for agent ${agentId} (last ${days} days)`);
+      
+      const { data, error } = await supabase.functions.invoke("get_calls_per_day", {
+        body: { days, agentId }
+      });
+
+      if (error) {
+        console.error("Error fetching calls per day:", error);
         throw error;
       }
-    }
+
+      console.log("Calls per day data received:", data);
+      
+      // Format the data for the chart
+      return Object.entries(data || {})
+        .map(([date, count]) => ({
+          date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+          appels: count as number,
+        }))
+        .sort((a, b) => {
+          // Sort by date (use the original date strings for proper sorting)
+          const dateA = new Date(Object.keys(data).find(key => 
+            new Date(key).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) === a.date
+          ) || "");
+          
+          const dateB = new Date(Object.keys(data).find(key => 
+            new Date(key).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) === b.date
+          ) || "");
+          
+          return dateA.getTime() - dateB.getTime();
+        });
+    },
+    enabled: !!user && !!agentId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
   });
 };

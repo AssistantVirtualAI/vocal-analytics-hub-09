@@ -16,26 +16,53 @@ serve(async (req) => {
   const startTime = performance.now();
   console.log("Edge function get-stats called");
 
+  // Parse request body to get agentId
+  let agentId = '';
+  try {
+    const body = await req.json();
+    agentId = body.agentId;
+    console.log(`Received agentId: ${agentId}`);
+    
+    if (!agentId) {
+      return new Response(JSON.stringify({ 
+        error: "Missing agentId parameter", 
+        message: "Agent ID is required" 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  } catch (error) {
+    console.error('Error parsing request body:', error);
+    return new Response(JSON.stringify({ 
+      error: "Invalid request body", 
+      message: "Failed to parse request" 
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log("Fetching calls data");
+    console.log(`Fetching calls data for agent: ${agentId}`);
 
     // Get call stats with optimized query
     const { data: calls, error: callsError } = await supabase
       .from("calls_view")
       .select("duration, satisfaction_score, date, customer_id, customer_name")
-      .order('date', { ascending: false })
-      .limit(100); // Limit results for performance
+      .eq('agent_id', agentId)
+      .order('date', { ascending: false });
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);
       throw callsError;
     }
 
-    console.log(`Retrieved ${calls.length} calls`);
+    console.log(`Retrieved ${calls.length} calls for agent ${agentId}`);
 
     // Calculate stats
     const totalCalls = calls.length;
@@ -91,7 +118,7 @@ serve(async (req) => {
     };
 
     const endTime = performance.now();
-    console.log(`Stats calculation completed in ${endTime - startTime}ms`);
+    console.log(`Stats calculation completed in ${endTime - startTime}ms for agent ${agentId}`);
 
     return new Response(JSON.stringify(stats), {
       status: 200,

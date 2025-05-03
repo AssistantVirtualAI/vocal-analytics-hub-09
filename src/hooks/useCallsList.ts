@@ -2,6 +2,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
+import { useOrganization } from "@/context/OrganizationContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface CallsListParams {
   limit?: number;
@@ -9,10 +11,9 @@ interface CallsListParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   search?: string;
-  customerId?: string;  // Add customer filter
-  agentId?: string;     // Add agent filter
-  startDate?: string;   // Add start date filter
-  endDate?: string;     // Add end date filter
+  customerId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const useCallsList = ({ 
@@ -22,16 +23,24 @@ export const useCallsList = ({
   sortOrder = 'desc',
   search = '',
   customerId = '',
-  agentId = '',
   startDate = '',
   endDate = ''
 }: CallsListParams = {}) => {
   // Calculate offset based on page number
   const offset = (page - 1) * limit;
+  const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
+  const agentId = currentOrganization?.agentId || '';
 
   return useQuery({
     queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search, customerId, agentId, startDate, endDate }],
     queryFn: async () => {
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
+      console.log(`Fetching calls with agentId: ${agentId}`);
+      
       const { data, error } = await supabase.functions.invoke("get-calls", {
         body: JSON.stringify({
           limit,
@@ -46,7 +55,12 @@ export const useCallsList = ({
         }),
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching calls:", error);
+        throw error;
+      }
+
+      console.log("Calls data received:", data);
 
       // Format the calls to match our Call type
       const formattedCalls: Call[] = data.calls.map((call: any) => ({
@@ -71,5 +85,7 @@ export const useCallsList = ({
         currentPage: page
       };
     },
+    enabled: !!user && !!agentId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };

@@ -2,7 +2,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { LoadingScreen } from '@/components/LoadingScreen';
+import { LoadingScreen } from '@/components/ui/skeleton';
 import { useOrg } from '@/context/OrgContext';
 
 // Renamed from AuthRouteGuard to RequireAuth for consistent naming in routes config

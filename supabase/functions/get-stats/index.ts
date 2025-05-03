@@ -1,175 +1,23 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleRequest } from "./handlers.ts";
+import { corsHeaders } from "./utils.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+// Main entry point for the edge function
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const startTime = performance.now();
-  console.log("Edge function get-stats called");
-
-  // Parse request body to get agentId
-  let agentId = '';
   try {
-    const body = await req.json();
-    agentId = body.agentId || '';
-    console.log(`Received agentId: ${agentId}`);
+    // Process the request through our handler
+    return await handleRequest(req);
   } catch (error) {
-    console.error('Error parsing request body:', error);
-    return new Response(JSON.stringify({ 
-      error: "Invalid request body", 
-      message: "Failed to parse request" 
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-  try {
-    console.log(`Fetching calls data from the database...`);
-
-    // Get real data from the database, specifically from the calls_view
-    const { data: calls, error: callsError } = await supabase
-      .from("calls_view")
-      .select("*");
-
-    if (callsError) {
-      console.error("Error fetching calls:", callsError);
-      throw callsError;
-    }
-
-    // If no data in the database, return that we have no data
-    if (!calls || calls.length === 0) {
-      console.log("No calls found in database");
-      return new Response(JSON.stringify({ 
-        totalCalls: 0,
-        avgDuration: 0,
-        avgSatisfaction: 0,
-        callsPerDay: {},
-        topCustomers: []
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Filter calls by agentId if provided
-    const filteredCalls = agentId ? calls.filter(call => call.agent_id === agentId) : calls;
-    console.log(`Retrieved ${calls.length} calls from database, filtered to ${filteredCalls.length} for agent ${agentId}`);
-
-    // If no calls after filtering, return no data
-    if (filteredCalls.length === 0) {
-      console.log("No calls found after filtering by agent");
-      return new Response(JSON.stringify({ 
-        totalCalls: 0,
-        avgDuration: 0,
-        avgSatisfaction: 0,
-        callsPerDay: {},
-        topCustomers: []
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Calculate stats from filtered calls
-    const totalCalls = filteredCalls.length;
-    const totalDuration = filteredCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
-    const avgDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
-    
-    const totalSatisfaction = filteredCalls.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
-    const avgSatisfaction = totalCalls > 0 ? totalSatisfaction / totalCalls : 0;
-    
-    // Group calls by date for the past 30 days
-    const today = new Date();
-    const callsPerDay = {};
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-
-    // Initialize all dates in the past 30 days with 0 calls
-    for (let d = new Date(thirtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      callsPerDay[dateStr] = 0;
-    }
-
-    // Count actual calls per day
-    filteredCalls.forEach(call => {
-      if (!call.date) return;
-      const date = new Date(call.date).toISOString().split('T')[0];
-      callsPerDay[date] = (callsPerDay[date] || 0) + 1;
-    });
-
-    // Get customer stats and top customers
-    const customerStatsMap = {};
-    filteredCalls.forEach(call => {
-      if (!call.customer_id) return;
-      
-      if (!customerStatsMap[call.customer_id]) {
-        customerStatsMap[call.customer_id] = {
-          customerId: call.customer_id,
-          customerName: call.customer_name || "Client inconnu",
-          totalCalls: 0,
-          totalDuration: 0,
-          totalSatisfaction: 0,
-          lastCallDate: null
-        };
-      }
-      
-      customerStatsMap[call.customer_id].totalCalls += 1;
-      customerStatsMap[call.customer_id].totalDuration += call.duration || 0;
-      customerStatsMap[call.customer_id].totalSatisfaction += call.satisfaction_score || 0;
-      
-      // Update last call date if this call is more recent
-      const callDate = new Date(call.date).getTime();
-      const lastCallDate = customerStatsMap[call.customer_id].lastCallDate ? 
-        new Date(customerStatsMap[call.customer_id].lastCallDate).getTime() : 0;
-      
-      if (!lastCallDate || callDate > lastCallDate) {
-        customerStatsMap[call.customer_id].lastCallDate = call.date;
-      }
-    });
-
-    const topCustomers = Object.values(customerStatsMap)
-      .map((stat: any) => ({
-        ...stat,
-        avgDuration: stat.totalCalls > 0 ? stat.totalDuration / stat.totalCalls : 0,
-        avgSatisfaction: stat.totalCalls > 0 ? stat.totalSatisfaction / stat.totalCalls : 0,
-      }))
-      .sort((a: any, b: any) => b.totalCalls - a.totalCalls)
-      .slice(0, 10); // Get top 10 customers
-
-    const stats = {
-      totalCalls,
-      avgDuration,
-      avgSatisfaction,
-      callsPerDay,
-      topCustomers
-    };
-
-    const endTime = performance.now();
-    console.log(`Stats calculation completed in ${endTime - startTime}ms for agent ${agentId}`);
-
-    return new Response(JSON.stringify(stats), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Error in get-stats function:', error);
+    console.error('Unhandled error in get-stats function:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      message: "Failed to retrieve statistics"
+      message: "An unexpected error occurred" 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

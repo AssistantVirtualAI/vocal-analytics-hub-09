@@ -55,7 +55,7 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         // Ensure the returned object matches our Organization type
         // Make sure we handle the case where slug might not exist in the database
-        const orgData: Organization = {
+        const orgData = {
           id: data.id,
           name: data.name,
           agentId: data.agent_id,
@@ -63,7 +63,8 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           createdAt: data.created_at,
           // Use the provided slug from the URL if the database doesn't have one
           slug: data.slug || orgSlug
-        };
+        } as Organization;
+        
         setCurrentOrg(orgData);
         console.log(`Found organization: ${data.name}`);
       }

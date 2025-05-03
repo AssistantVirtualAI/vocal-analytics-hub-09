@@ -5,6 +5,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useOrg } from '@/context/OrgContext';
 
+// Define simple interfaces for params to avoid complex type inference
+interface OrgParams {
+  orgSlug?: string;
+}
+
 // Renamed from AuthRouteGuard to RequireAuth for consistent naming in routes config
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
@@ -70,7 +75,7 @@ export const RequireAdmin = ({ children }: { children: ReactNode }) => {
 // Route guard for organization access
 export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
   // Use simple type annotation for useParams to avoid excessive type instantiation
-  const params = useParams<{ orgSlug?: string }>();
+  const { orgSlug } = useParams<OrgParams>();
   const navigate = useNavigate();
   const { currentOrg, loading } = useOrg();
   const { user, loading: userLoading } = useAuth();
@@ -81,17 +86,17 @@ export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    if (!loading && !currentOrg && params.orgSlug) {
+    if (!loading && !currentOrg && orgSlug) {
       console.log('Organization not found, redirecting to home');
       navigate('/');
     }
-  }, [loading, currentOrg, navigate, params.orgSlug, user, userLoading]);
+  }, [loading, currentOrg, navigate, orgSlug, user, userLoading]);
 
   if (loading || userLoading) {
     return <LoadingScreen />;
   }
 
-  if (!currentOrg && params.orgSlug) {
+  if (!currentOrg && orgSlug) {
     return null; // This will never render because of the redirect in useEffect
   }
 

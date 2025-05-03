@@ -22,10 +22,14 @@ const OrgContext = createContext<OrgContextType>({
 
 export const useOrg = () => useContext(OrgContext);
 
+// Define a simple interface for the params to avoid complex type inference
+interface OrgParams {
+  orgSlug?: string;
+}
+
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Use a simple string record type to avoid excessive type instantiation
-  const params = useParams();
-  const orgSlug = params.orgSlug;
+  // Use a simple typed approach to avoid excessive type instantiation
+  const { orgSlug } = useParams<OrgParams>();
   
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

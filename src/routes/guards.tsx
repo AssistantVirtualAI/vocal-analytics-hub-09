@@ -5,11 +5,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useOrg } from '@/context/OrgContext';
 
-// Define simple interfaces for params to avoid complex type inference
-interface OrgParams {
-  orgSlug?: string;
-}
-
 // Renamed from AuthRouteGuard to RequireAuth for consistent naming in routes config
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
@@ -74,8 +69,9 @@ export const RequireAdmin = ({ children }: { children: ReactNode }) => {
 
 // Route guard for organization access
 export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
-  // Use simple type annotation for useParams to avoid excessive type instantiation
-  const { orgSlug } = useParams<OrgParams>();
+  // Extract orgSlug directly without using a custom interface
+  const params = useParams();
+  const orgSlug = params.orgSlug;
   const navigate = useNavigate();
   const { currentOrg, loading } = useOrg();
   const { user, loading: userLoading } = useAuth();

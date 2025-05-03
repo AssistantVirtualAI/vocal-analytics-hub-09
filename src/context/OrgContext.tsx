@@ -23,7 +23,8 @@ const OrgContext = createContext<OrgContextType>({
 export const useOrg = () => useContext(OrgContext);
 
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const params = useParams();
+  // Use type assertion to avoid deep instantiation issues
+  const params = useParams<{ orgSlug?: string }>();
   const orgSlug = params.orgSlug;
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

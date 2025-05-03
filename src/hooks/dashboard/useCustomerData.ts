@@ -18,8 +18,8 @@ export function useCustomerData({ orgSlug, dateRange, enabled = true }: UseCusto
     isLoading, 
     error, 
     refetch 
-  } = useCustomerStats({ 
-    orgSlug, 
+  } = useCustomerStats({
+    orgSlug,
     startDate, 
     endDate, 
     enabled: !!orgSlug && enabled 

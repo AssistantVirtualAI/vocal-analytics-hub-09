@@ -22,8 +22,25 @@ export function useToastNotification() {
     });
   };
 
+  const showInvitationErrorToast = (error: any) => {
+    let message = "Erreur lors de l'envoi de l'invitation. Vérifiez les informations fournies.";
+    
+    if (error?.message) {
+      message = error.message;
+    } else if (typeof error === 'string') {
+      message = error;
+    }
+    
+    toast({
+      title: "Erreur d'invitation",
+      description: message,
+      variant: "destructive",
+    });
+  };
+
   return {
     showSuccessToast,
-    showErrorToast
+    showErrorToast,
+    showInvitationErrorToast
   };
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 /**
  * Hook to manage the last updated timestamp
  */
-export function useLastUpdated(isLoading: boolean, hasError: boolean, hasData: boolean) {
+export function useLastUpdated(isLoading: boolean, hasError: boolean | null | undefined, hasData: boolean) {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {

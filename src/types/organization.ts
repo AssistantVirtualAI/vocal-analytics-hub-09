@@ -1,5 +1,5 @@
 
-import { Agent } from './index';
+import type { Agent } from './index';
 
 export interface Organization {
   id: string;

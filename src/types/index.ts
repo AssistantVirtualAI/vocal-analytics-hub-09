@@ -10,6 +10,21 @@ export interface User {
   status?: 'active' | 'inactive' | 'pending';
 }
 
+export interface Agent {
+  id: string;
+  name: string;
+  role?: string;
+  avatar?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface Organization {
   id: string;
   name: string;

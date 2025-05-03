@@ -12,6 +12,7 @@ export const organizations: Organization[] = [
     agentId: 'QNdB45Jpgh06Hr67TzFO', // Using the current Agent ID
     description: 'Organisation créée automatiquement',
     createdAt: new Date().toISOString(),
+    slug: 'default' // Added the slug property
   }
 ];
 

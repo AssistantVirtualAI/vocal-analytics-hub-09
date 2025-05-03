@@ -30,7 +30,8 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user } = useAuth();
   const location = useLocation();
 
-  const fetchOrgBySlug = async () => {
+  // Fix for the excessive type instantiation error - explicitly type the parameter
+  const fetchOrgBySlug = async (): Promise<void> => {
     if (!orgSlug) {
       setCurrentOrg(null);
       setLoading(false);

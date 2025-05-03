@@ -38,6 +38,11 @@ export const EditOrganizationDialog = ({
 
   const handleUpdateOrganization = async () => {
     if (orgToEdit) {
+      // Regenerate slug if name changes
+      if (orgToEdit.name !== organization?.name) {
+        const newSlug = orgToEdit.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        orgToEdit.slug = newSlug;
+      }
       await onUpdate(orgToEdit);
       onClose();
     }
@@ -87,6 +92,17 @@ export const EditOrganizationDialog = ({
               className="col-span-3"
               value={orgToEdit.description || ''}
               onChange={(e) => setOrgToEdit({...orgToEdit, description: e.target.value})}
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="edit-slug" className="text-right">
+              Slug
+            </Label>
+            <Input
+              id="edit-slug"
+              className="col-span-3"
+              value={orgToEdit.slug}
+              onChange={(e) => setOrgToEdit({...orgToEdit, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')})}
             />
           </div>
         </div>

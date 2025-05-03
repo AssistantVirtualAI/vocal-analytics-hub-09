@@ -33,7 +33,9 @@ export default function OrganizationSettings() {
   
   const handleAddOrganization = async (newOrg: {name: string, agentId: string, description: string}) => {
     console.log('Adding new organization:', newOrg);
-    await createOrganization(newOrg, isAdmin, user?.id);
+    // Create a slug from the organization name (lowercase, replace spaces with hyphens)
+    const slug = newOrg.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    await createOrganization({...newOrg, slug}, isAdmin, user?.id);
   };
 
   return (

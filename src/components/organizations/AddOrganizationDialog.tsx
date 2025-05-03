@@ -20,6 +20,7 @@ interface NewOrgData {
   name: string;
   agentId: string;
   description: string;
+  slug?: string; // Optional since we'll generate it from the name
 }
 
 interface AddOrganizationDialogProps {

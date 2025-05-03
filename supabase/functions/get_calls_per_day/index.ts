@@ -42,11 +42,10 @@ serve(async (req) => {
 
     console.log(`Fetching calls from ${startDate.toISOString()} to ${endDate.toISOString()} for agent ${agentId}`);
 
-    // Query calls within date range
+    // Query calls within date range but without the agent_id filter
     const { data: calls, error } = await supabase
       .from("calls_view")
-      .select("date")
-      .eq('agent_id', agentId)
+      .select("date, agent_id")
       .gte("date", startDate.toISOString())
       .lte("date", endDate.toISOString())
       .order("date", { ascending: true });
@@ -56,7 +55,9 @@ serve(async (req) => {
       throw error;
     }
 
-    console.log(`Retrieved ${calls.length} calls`);
+    // Filter by agentId in memory
+    const filteredCalls = calls.filter(call => call.agent_id === agentId);
+    console.log(`Retrieved ${calls.length} calls, filtered to ${filteredCalls.length} for agent ${agentId}`);
 
     // Initialize callsPerDay with all dates in range (including zeros)
     const callsPerDay: Record<string, number> = {};
@@ -67,8 +68,8 @@ serve(async (req) => {
       callsPerDay[dateStr] = 0;
     }
 
-    // Count calls per day
-    calls.forEach((call) => {
+    // Count calls per day from filtered calls
+    filteredCalls.forEach((call) => {
       const dateStr = new Date(call.date).toISOString().split("T")[0];
       callsPerDay[dateStr] = (callsPerDay[dateStr] || 0) + 1;
     });

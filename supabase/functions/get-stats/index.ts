@@ -50,39 +50,40 @@ serve(async (req) => {
   try {
     console.log(`Fetching calls data for agent: ${agentId}`);
 
-    // Get call stats with optimized query
+    // Get call stats but remove the equality filter on agent_id which expects a UUID
+    // Instead, we'll filter in memory after fetching
     const { data: calls, error: callsError } = await supabase
       .from("calls_view")
-      .select("duration, satisfaction_score, date, customer_id, customer_name")
-      .eq('agent_id', agentId)
-      .order('date', { ascending: false });
+      .select("duration, satisfaction_score, date, customer_id, customer_name, agent_id");
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);
       throw callsError;
     }
 
-    console.log(`Retrieved ${calls.length} calls for agent ${agentId}`);
+    // Filter calls by agentId in memory
+    const filteredCalls = calls.filter(call => call.agent_id === agentId);
+    console.log(`Retrieved ${calls.length} calls, filtered to ${filteredCalls.length} for agent ${agentId}`);
 
-    // Calculate stats
-    const totalCalls = calls.length;
-    const totalDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
+    // Calculate stats from filtered calls
+    const totalCalls = filteredCalls.length;
+    const totalDuration = filteredCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
     const avgDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
     
-    const totalSatisfaction = calls.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
+    const totalSatisfaction = filteredCalls.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
     const avgSatisfaction = totalCalls > 0 ? totalSatisfaction / totalCalls : 0;
     
-    // Group calls by date (more efficient)
+    // Group calls by date
     const callsPerDay = {};
-    calls.forEach(call => {
+    filteredCalls.forEach(call => {
       if (!call.date) return;
       const date = new Date(call.date).toISOString().split('T')[0];
       callsPerDay[date] = (callsPerDay[date] || 0) + 1;
     });
 
-    // Get top customers (more efficient)
+    // Get top customers
     const customerStatsMap = {};
-    calls.forEach(call => {
+    filteredCalls.forEach(call => {
       if (!call.customer_id) return;
       
       if (!customerStatsMap[call.customer_id]) {

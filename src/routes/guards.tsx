@@ -1,106 +1,70 @@
-
-import React, { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useOrganization } from '@/context/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useNavigate, useParams } from 'react-router-dom';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { useOrg } from '@/context/OrgContext';
 
-interface AuthGuardProps {
-  children: JSX.Element;
-}
-
-export function RequireAuth({ children }: AuthGuardProps) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen">Chargement...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  return children;
-}
-
-export function RequireAdmin({ children }: AuthGuardProps) {
-  const { user, loading, isAdmin } = useAuth();
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen">Chargement...</div>;
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
-
-export function RequireOrgAccess({ children }: AuthGuardProps) {
-  const { user, loading } = useAuth();
-  const { orgSlug } = useParams<{ orgSlug: string }>();
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(true);
+export const AuthRouteGuard = ({ children }: { children: ReactNode }) => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    async function checkOrganizationAccess() {
-      if (!user || !orgSlug) {
-        setHasAccess(false);
-        setIsChecking(false);
-        return;
-      }
+    if (!isLoading && user) {
+      navigate('/');
+    }
+  }, [user, isLoading, navigate]);
 
-      try {
-        // Check if the user has access to this organization by slug
-        const { data, error } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('slug', orgSlug)
-          .single();
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
-        if (error || !data) {
-          console.error('Error checking organization access:', error);
-          setHasAccess(false);
-          setIsChecking(false);
-          return;
-        }
+  return <>{children}</>;
+};
 
-        // Check if the user is a member of this organization
-        const { data: memberData, error: memberError } = await supabase
-          .from('user_organizations')
-          .select('*')
-          .eq('organization_id', data.id)
-          .eq('user_id', user.id)
-          .single();
+export const PrivateRouteGuard = ({ children }: { children: ReactNode }) => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
-        setHasAccess(!!memberData && !memberError);
-      } catch (error) {
-        console.error('Error checking organization membership:', error);
-        setHasAccess(false);
-      } finally {
-        setIsChecking(false);
-      }
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return <>{children}</>;
+};
+
+// Fix the problematic part where the deep type instantiation occurs
+export const OrgRouteGuard = ({ children }: { children: ReactNode }) => {
+  // Use simple type annotation for useParams to avoid excessive type instantiation
+  const params = useParams<{ orgSlug?: string }>();
+  const navigate = useNavigate();
+  const { currentOrg, loading } = useOrg();
+  const { user, isLoading: userLoading } = useAuth();
+
+  useEffect(() => {
+    if (!userLoading && !user) {
+      navigate('/auth');
+      return;
     }
 
-    checkOrganizationAccess();
-  }, [user, orgSlug]);
+    if (!loading && !currentOrg && params.orgSlug) {
+      console.log('Organization not found, redirecting to home');
+      navigate('/');
+    }
+  }, [loading, currentOrg, navigate, params.orgSlug, user, userLoading]);
 
-  if (loading || isChecking) {
-    return <div className="flex items-center justify-center h-screen">Vérification de l'accès...</div>;
+  if (loading || userLoading) {
+    return <LoadingScreen />;
   }
 
-  if (!user) {
-    return <Navigate to={`/${orgSlug}/auth`} replace />;
+  if (!currentOrg && params.orgSlug) {
+    return null; // This will never render because of the redirect in useEffect
   }
 
-  if (!hasAccess) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
+  return <>{children}</>;
+};

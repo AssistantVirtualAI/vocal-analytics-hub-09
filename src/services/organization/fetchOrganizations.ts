@@ -58,7 +58,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
         createdAt: org.created_at,
         // Generate slug from name if not present in the database
         // We need to check if slug exists in the data and use it or generate a new one
-        slug: ('slug' in org && org.slug) 
+        slug: ('slug' in org && typeof org.slug === 'string') 
           ? org.slug 
           : org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
       };

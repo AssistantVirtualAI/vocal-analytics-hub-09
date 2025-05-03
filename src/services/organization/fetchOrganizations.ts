@@ -52,9 +52,10 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
       id: org.id,
       name: org.name,
       agentId: org.agent_id,
-      description: org.description,
+      description: org.description || undefined,
       createdAt: org.created_at,
-      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') // Generate slug from name if not present
+      // Generate slug from name if not present in the database
+      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     }));
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);

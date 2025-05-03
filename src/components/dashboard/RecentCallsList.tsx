@@ -6,14 +6,16 @@ import { fr } from "date-fns/locale";
 import { Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Call } from "@/types";
+import { EmptyDataState } from "@/components/stats/EmptyDataState";
 
 interface RecentCallsListProps {
   calls: Call[];
   isLoading: boolean;
   formatDuration: (seconds: number) => string;
+  onRefresh?: () => void;
 }
 
-export function RecentCallsList({ calls, isLoading, formatDuration }: RecentCallsListProps) {
+export function RecentCallsList({ calls, isLoading, formatDuration, onRefresh }: RecentCallsListProps) {
   return (
     <Card>
       <CardHeader>
@@ -35,15 +37,18 @@ export function RecentCallsList({ calls, isLoading, formatDuration }: RecentCall
             ))}
           </div>
         ) : calls.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            Aucun appel récent trouvé.
-          </div>
+          <EmptyDataState
+            title="Aucun appel récent"
+            description="Aucun appel récent n'a été trouvé dans le système."
+            onAction={onRefresh}
+            height="200px"
+          />
         ) : (
           <div className="space-y-4">
             {calls.map(call => (
               <div 
                 key={call.id} 
-                className="flex items-center justify-between p-4 border rounded-md hover:bg-accent cursor-pointer"
+                className="flex items-center justify-between p-4 border rounded-md hover:bg-accent cursor-pointer transition-colors duration-200"
               >
                 <div className="space-y-1">
                   <div className="font-medium">{call.customerName}</div>
@@ -61,7 +66,7 @@ export function RecentCallsList({ calls, isLoading, formatDuration }: RecentCall
                         <Star
                           key={i}
                           size={16}
-                          className={i < call.satisfactionScore ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
+                          className={i < (call.satisfactionScore || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
                         />
                       ))}
                   </div>

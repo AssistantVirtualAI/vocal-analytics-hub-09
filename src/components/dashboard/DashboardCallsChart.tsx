@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { EmptyDataState } from "@/components/stats/EmptyDataState";
 
 interface ChartData {
   date: string;
@@ -11,9 +12,10 @@ interface ChartData {
 interface DashboardCallsChartProps {
   data: ChartData[];
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
-export function DashboardCallsChart({ data, isLoading }: DashboardCallsChartProps) {
+export function DashboardCallsChart({ data, isLoading, onRefresh }: DashboardCallsChartProps) {
   return (
     <Card className="col-span-4">
       <CardHeader>
@@ -25,9 +27,12 @@ export function DashboardCallsChart({ data, isLoading }: DashboardCallsChartProp
             <Skeleton className="h-[250px] w-full" />
           </div>
         ) : data.length === 0 ? (
-          <div className="h-[200px] sm:h-[300px] flex items-center justify-center text-muted-foreground">
-            Aucune donnée d'appel disponible
-          </div>
+          <EmptyDataState
+            title="Aucune donnée d'appel"
+            description="Aucune donnée d'appel n'est disponible pour cette période."
+            onAction={onRefresh}
+            height="200px"
+          />
         ) : (
           <div className="h-[200px] sm:h-[300px]">
             <ResponsiveContainer width="100%" height="100%">

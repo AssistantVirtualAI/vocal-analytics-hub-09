@@ -23,7 +23,7 @@ const OrgContext = createContext<OrgContextType>({
 export const useOrg = () => useContext(OrgContext);
 
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Use a simple type annotation for params, avoiding the complex type instantiation
+  // Use a simple type annotation for params to avoid the complex type instantiation
   const params = useParams<{ orgSlug?: string }>();
   const orgSlug = params.orgSlug;
   

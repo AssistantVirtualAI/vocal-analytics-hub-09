@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  loading: boolean;
+  loading: boolean; // Changed from isLoading to loading for consistency
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -18,7 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  loading: true,
+  loading: true, // Changed from isLoading to loading
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
@@ -30,7 +30,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Changed from isLoading to loading
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <AuthContext.Provider value={{ 
       user, 
       session, 
-      loading, 
+      loading, // Changed from isLoading to loading
       signIn, 
       signUp, 
       signOut,

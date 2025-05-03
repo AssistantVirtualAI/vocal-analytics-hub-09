@@ -1,50 +1,79 @@
+
 import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useOrg } from '@/context/OrgContext';
 
-export const AuthRouteGuard = ({ children }: { children: ReactNode }) => {
-  const { user, isLoading } = useAuth();
+// Renamed from AuthRouteGuard to RequireAuth for consistent naming in routes config
+export const RequireAuth = ({ children }: { children: ReactNode }) => {
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && user) {
-      navigate('/');
-    }
-  }, [user, isLoading, navigate]);
-
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  return <>{children}</>;
-};
-
-export const PrivateRouteGuard = ({ children }: { children: ReactNode }) => {
-  const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isLoading && !user) {
+    if (!loading && !user) {
       navigate('/auth');
     }
-  }, [user, isLoading, navigate]);
+  }, [user, loading, navigate]);
 
-  if (isLoading) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
   return <>{children}</>;
 };
 
-// Fix the problematic part where the deep type instantiation occurs
-export const OrgRouteGuard = ({ children }: { children: ReactNode }) => {
+// Route guard for authentication pages (renamed from AuthRouteGuard)
+export const AuthRouteGuard = ({ children }: { children: ReactNode }) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return <>{children}</>;
+};
+
+// Route guard for admin-only pages
+export const RequireAdmin = ({ children }: { children: ReactNode }) => {
+  const { user, loading, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+      
+      if (!isAdmin) {
+        navigate('/');
+        return;
+      }
+    }
+  }, [user, loading, isAdmin, navigate]);
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return <>{children}</>;
+};
+
+// Route guard for organization access
+export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
   // Use simple type annotation for useParams to avoid excessive type instantiation
   const params = useParams<{ orgSlug?: string }>();
   const navigate = useNavigate();
   const { currentOrg, loading } = useOrg();
-  const { user, isLoading: userLoading } = useAuth();
+  const { user, loading: userLoading } = useAuth();
 
   useEffect(() => {
     if (!userLoading && !user) {

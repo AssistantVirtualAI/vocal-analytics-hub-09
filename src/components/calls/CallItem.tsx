@@ -5,6 +5,7 @@ import { Play, Pause } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { formatDuration } from '@/components/dashboard/utils/formatters';
 import type { Call } from '@/types';
 
 interface CallItemProps {
@@ -14,12 +15,6 @@ interface CallItemProps {
 export function CallItem({ call }: CallItemProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-
-  const formatDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   const togglePlayback = () => {
     if (!audioElement) {

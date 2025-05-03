@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/card';
 import { CallsList } from '@/components/calls/CallsList';
 import { CallsPagination } from '@/components/calls/CallsPagination';
+import { formatDuration } from '@/components/dashboard/utils/formatters';
 import type { Call } from '@/types';
 
 interface CallsContentProps {
@@ -21,7 +22,6 @@ interface CallsContentProps {
   totalCount: number;
   onPlayToggle: (call: Call) => void;
   onPageChange: (page: number) => void;
-  formatDuration: (seconds: number) => string;
 }
 
 export function CallsContent({
@@ -35,7 +35,6 @@ export function CallsContent({
   totalCount,
   onPlayToggle,
   onPageChange,
-  formatDuration,
 }: CallsContentProps) {
   return (
     <Card>
@@ -59,7 +58,6 @@ export function CallsContent({
               view={view}
               currentlyPlaying={currentlyPlaying}
               onPlayToggle={onPlayToggle}
-              formatDuration={formatDuration}
             />
             
             {totalPages > 1 && (

@@ -6,6 +6,7 @@ import { CallsHeader } from '@/components/calls/CallsHeader';
 import { CallsStats } from '@/components/calls/CallsStats';
 import { CallsToolbar } from '@/components/calls/CallsToolbar';
 import { CallsContent } from '@/components/calls/CallsContent';
+import { formatDuration } from '@/components/dashboard/utils/formatters';
 import type { Call } from '@/types';
 
 export default function Calls() {
@@ -40,12 +41,6 @@ export default function Calls() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const formatDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const handlePlayToggle = (call: Call) => {
@@ -109,7 +104,6 @@ export default function Calls() {
           totalCount={data?.totalCount || 0}
           onPlayToggle={handlePlayToggle}
           onPageChange={handlePageChange}
-          formatDuration={formatDuration}
         />
       </div>
     </DashboardLayout>

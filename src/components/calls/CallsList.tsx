@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatDuration } from '@/components/dashboard/utils/formatters';
 import type { Call } from '@/types';
 
 interface CallsListProps {
@@ -21,7 +22,6 @@ interface CallsListProps {
   view?: 'table' | 'grid';
   currentlyPlaying?: string | null;
   onPlayToggle?: (call: Call) => void;
-  formatDuration?: (seconds: number) => string;
 }
 
 export const CallsList = ({ 
@@ -29,11 +29,6 @@ export const CallsList = ({
   view = 'table', 
   currentlyPlaying = null, 
   onPlayToggle = () => {}, 
-  formatDuration = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  }
 }: CallsListProps) => {
   if (view === 'grid') {
     return (

@@ -3,15 +3,7 @@
  * Helper functions for formatting and displaying statistics
  */
 
-// Format duration in seconds to MM:SS
-export const formatDuration = (seconds: number | undefined): string => {
-  if (seconds === undefined || seconds === null || isNaN(seconds)) {
-    return 'N/A';
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
+import { formatDuration } from '@/components/dashboard/utils/formatters';
 
 // Format percentage with 1 decimal place
 export const formatPercentage = (value: number | undefined): string => {

@@ -34,8 +34,22 @@ export const useOrgCallsList = ({
   const offset = (page - 1) * limit;
   const { user } = useAuth();
 
+  // Use explicit type for queryKey to avoid excessive type instantiation
+  const queryKey = ["orgCalls", { 
+    orgSlug, 
+    limit, 
+    page, 
+    startDate, 
+    endDate, 
+    agentId, 
+    customerId, 
+    satisfactionScore, 
+    sortBy, 
+    sortOrder 
+  }] as const;
+
   return useQuery({
-    queryKey: ["orgCalls", { orgSlug, limit, page, startDate, endDate, agentId, customerId, satisfactionScore, sortBy, sortOrder }],
+    queryKey,
     queryFn: async () => {
       if (!user || !orgSlug) {
         throw new Error("Authentication and organization required");

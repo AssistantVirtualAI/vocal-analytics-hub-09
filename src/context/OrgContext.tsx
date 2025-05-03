@@ -58,7 +58,7 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           agentId: data.agent_id,
           description: data.description || undefined,
           createdAt: data.created_at,
-          slug: data.slug
+          slug: data.slug || orgSlug // Use the provided slug as fallback
         });
         console.log(`Found organization: ${data.name}`);
       }

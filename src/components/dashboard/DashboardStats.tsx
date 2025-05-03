@@ -1,10 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart2, Clock, Phone, Star } from "lucide-react";
+import { BarChart2, Clock, Phone, Star, Info } from "lucide-react";
 import type { CallStats } from "@/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { InfoCircle } from "lucide-react";
 
 interface DashboardStatsProps {
   callStats: CallStats | undefined;
@@ -88,9 +87,7 @@ export function DashboardStats({ callStats, isLoading, formatDuration }: Dashboa
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="cursor-help">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-muted-foreground">
-                      <path d="M7.5 11C7.22386 11 7 11.2239 7 11.5C7 11.7761 7.22386 12 7.5 12C7.77614 12 8 11.7761 8 11.5C8 11.2239 7.77614 11 7.5 11ZM7.5 3C5.55507 3 4 4.24001 4 6.25C4 6.52614 4.22386 6.75 4.5 6.75C4.77614 6.75 5 6.52614 5 6.25C5 4.87221 6.05861 4 7.5 4C8.94139 4 10 4.87221 10 6.25C10 7.0184 9.68526 7.50663 9.21071 7.85927C8.72348 8.22038 8.0468 8.43989 7.38373 8.6458C7.27136 8.6766 7.16256 8.70701 7.05876 8.73665C6.47259 8.89224 6 9.40172 6 10V10.5C6 10.7761 6.22386 11 6.5 11C6.77614 11 7 10.7761 7 10.5V10C7 9.94079 7.01758 9.88491 7.0463 9.84313C7.06756 9.81394 7.09255 9.79436 7.11424 9.78238C7.16689 9.75715 7.24015 9.73566 7.34115 9.70678C7.45131 9.67526 7.58165 9.63921 7.72252 9.59458C8.35044 9.40675 9.13466 9.15053 9.76516 8.67398C10.4035 8.189 11 7.40553 11 6.25C11 4.24001 9.44493 3 7.5 3Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                    </svg>
+                    <Info className="h-3 w-3 text-muted-foreground" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>

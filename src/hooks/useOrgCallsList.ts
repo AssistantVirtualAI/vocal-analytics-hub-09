@@ -9,25 +9,39 @@ interface OrgCallsListParams {
   page?: number;
   orgSlug?: string;
   enabled?: boolean;
+  startDate?: string;
+  endDate?: string;
+  agentId?: string;
+  customerId?: string;
+  satisfactionScore?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export const useOrgCallsList = ({
   limit = 10,
   page = 1,
   orgSlug,
-  enabled = true
+  enabled = true,
+  startDate,
+  endDate,
+  agentId = '',
+  customerId = '',
+  satisfactionScore,
+  sortBy = 'date',
+  sortOrder = 'desc'
 }: OrgCallsListParams = {}) => {
   const offset = (page - 1) * limit;
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["orgCalls", { orgSlug, limit, page }],
+    queryKey: ["orgCalls", { orgSlug, limit, page, startDate, endDate, agentId, customerId, satisfactionScore, sortBy, sortOrder }],
     queryFn: async () => {
       if (!user || !orgSlug) {
         throw new Error("Authentication and organization required");
       }
 
-      console.log(`Fetching calls for organization slug: ${orgSlug}`);
+      console.log(`Fetching calls for organization slug: ${orgSlug} with filters: startDate=${startDate}, endDate=${endDate}`);
       
       // First, get the organization details from the slug
       const { data: orgData, error: orgError } = await supabase
@@ -41,12 +55,21 @@ export const useOrgCallsList = ({
         throw orgError || new Error("Organization not found");
       }
 
+      // Use the provided agentId or the organization's agent_id
+      const effectiveAgentId = agentId || orgData.agent_id;
+
       // Then, fetch calls for this organization's agent
       const { data, error } = await supabase.functions.invoke("get-calls", {
         body: JSON.stringify({
           limit,
           offset,
-          agentId: orgData.agent_id
+          sort: sortBy,
+          order: sortOrder,
+          agentId: effectiveAgentId,
+          customerId,
+          startDate,
+          endDate,
+          satisfactionScore
         }),
       });
 

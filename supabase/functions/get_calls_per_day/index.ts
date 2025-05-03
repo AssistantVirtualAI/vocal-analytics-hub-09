@@ -14,98 +14,83 @@ serve(async (req) => {
   }
 
   console.log("Edge function get_calls_per_day called");
-  
-  // Parse request parameters
-  let days = 14; // Default to 14 days
-  let agentId = '';
-  
-  try {
-    const body = await req.json();
-    days = body.days || 14;
-    agentId = body.agentId || '';
-    console.log(`Request parameters: days=${days}, agentId=${agentId}`);
-  } catch (error) {
-    console.error('Error parsing request body:', error);
-    return new Response(JSON.stringify({ error: "Invalid request body" }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Calculate the start date
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    // Parse request parameters
+    const {
+      agentId,
+      startDate,
+      endDate,
+    } = JSON.parse(await req.text());
+
+    console.log(`Request parameters: agentId=${agentId}, startDate=${startDate}, endDate=${endDate}`);
+
+    if (!agentId) {
+      throw new Error("agentId is required");
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Prepare the query to get calls per day
+    let query = supabase.from("calls")
+      .select("date")
+      .eq("agent_id", agentId);
     
-    console.log(`Fetching calls from ${startDate.toISOString()} to ${endDate.toISOString()}`);
-
-    // Get real data from the database
-    const { data: calls, error } = await supabase
-      .from("calls_view")
-      .select("date, agent_id")
-      .gte("date", startDate.toISOString())
-      .lte("date", endDate.toISOString());
-
-    if (error) {
-      console.error("Error fetching calls per day:", error);
-      throw error;
+    // Apply date filters if provided
+    if (startDate) {
+      query = query.gte('date', startDate);
     }
 
-    // Initialize all days in our time range with zero calls
-    const callsPerDay = {};
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      callsPerDay[dateStr] = 0;
+    if (endDate) {
+      query = query.lte('date', `${endDate}T23:59:59`);
+    }
+    
+    const { data: calls, error: queryError } = await query;
+
+    if (queryError) {
+      console.error("Database query error:", queryError);
+      throw queryError;
     }
 
-    // If no data, return structure with zeros
+    console.log(`Retrieved ${calls?.length || 0} calls from database`);
+    
     if (!calls || calls.length === 0) {
-      console.log("No calls found in database");
-      return new Response(JSON.stringify(callsPerDay), {
+      return new Response(JSON.stringify([]), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Filter by agentId in memory if specified
-    const filteredCalls = agentId ? 
-      calls.filter(call => call.agent_id === agentId) : 
-      calls;
+    // Group calls by day and count them
+    const callsByDay = calls.reduce((acc, call) => {
+      // Extract just the date part (YYYY-MM-DD)
+      const dateOnly = new Date(call.date).toISOString().split('T')[0];
+      
+      if (!acc[dateOnly]) {
+        acc[dateOnly] = 0;
+      }
+      
+      acc[dateOnly]++;
+      return acc;
+    }, {} as Record<string, number>);
     
-    console.log(`Retrieved ${calls.length} calls, filtered to ${filteredCalls.length} for agent ${agentId}`);
+    // Convert to array format for the chart
+    const result = Object.entries(callsByDay).map(([date, count]) => ({
+      date,
+      count
+    })).sort((a, b) => a.date.localeCompare(b.date));
 
-    // If still no data after filtering, return structure with zeros
-    if (filteredCalls.length === 0) {
-      console.log("No calls found after filtering");
-      return new Response(JSON.stringify(callsPerDay), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Count calls per day
-    filteredCalls.forEach(call => {
-      if (!call.date) return;
-      const date = new Date(call.date).toISOString().split('T')[0];
-      callsPerDay[date] = (callsPerDay[date] || 0) + 1;
-    });
-    
-    console.log(`Generated data for ${Object.keys(callsPerDay).length} days`);
-
-    return new Response(JSON.stringify(callsPerDay), {
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in get_calls_per_day function:', error);
+    console.error("Error in get_calls_per_day function:", error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      message: "Failed to retrieve calls per day"
+      data: []
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

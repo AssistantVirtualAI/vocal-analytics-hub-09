@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
 import { InvitationForm } from './InvitationForm';
+import { ResetPasswordForm } from './ResetPasswordForm';
 
 interface AuthCardProps {
   activeTab: string;
@@ -13,6 +14,7 @@ interface AuthCardProps {
   setEmail: (email: string) => void;
   invitationToken: string | null;
   invitationEmail: string | null;
+  resetError?: string | null;
 }
 
 export const AuthCard: React.FC<AuthCardProps> = ({
@@ -21,7 +23,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   email,
   setEmail,
   invitationToken,
-  invitationEmail
+  invitationEmail,
+  resetError
 }) => {
   const currentYear = new Date().getFullYear();
 
@@ -29,17 +32,21 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle className="text-xl text-center">
-          {invitationToken ? "Accepter l'invitation" : "Authentification"}
+          {invitationToken ? "Accepter l'invitation" : 
+           activeTab === 'reset-password' ? "Réinitialisation du mot de passe" : 
+           "Authentification"}
         </CardTitle>
         <CardDescription className="text-center">
           {invitationToken 
             ? "Créez votre compte pour rejoindre l'organisation" 
+            : activeTab === 'reset-password'
+            ? "Entrez votre email pour réinitialiser votre mot de passe"
             : "Connectez-vous à votre compte ou créez-en un nouveau"}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {!invitationToken ? (
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="signin">Se connecter</TabsTrigger>
               <TabsTrigger value="signup">S'inscrire</TabsTrigger>
@@ -57,6 +64,14 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 onEmailChange={setEmail}
               />
             </TabsContent>
+
+            <TabsContent value="reset-password">
+              <ResetPasswordForm 
+                email={email} 
+                onEmailChange={setEmail} 
+                error={resetError} 
+              />
+            </TabsContent>
           </Tabs>
         ) : (
           <InvitationForm 
@@ -66,7 +81,23 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           />
         )}
       </CardContent>
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex flex-col items-center">
+        {activeTab === 'signin' && (
+          <button 
+            onClick={() => setActiveTab('reset-password')}
+            className="text-sm text-blue-500 hover:underline mb-2"
+          >
+            Mot de passe oublié ?
+          </button>
+        )}
+        {activeTab === 'reset-password' && (
+          <button 
+            onClick={() => setActiveTab('signin')}
+            className="text-sm text-blue-500 hover:underline mb-2"
+          >
+            Retour à la connexion
+          </button>
+        )}
         <p className="text-sm text-gray-500">
           © {currentYear} Votre application
         </p>

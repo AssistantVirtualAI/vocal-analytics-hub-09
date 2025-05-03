@@ -23,11 +23,8 @@ export const resetUserPassword = async (email: string): Promise<void> => {
     }
     
     console.log('Password reset email sent successfully:', data);
-
-    toast.success(`Un email de réinitialisation de mot de passe a été envoyé à ${email}`);
   } catch (error: any) {
     console.error('Error in resetUserPassword:', error);
-    toast.error("Erreur lors de la réinitialisation du mot de passe: " + error.message);
     throw error;
   }
 };

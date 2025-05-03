@@ -15,9 +15,11 @@ export const usePasswordReset = () => {
     try {
       await resetUserPassword(email);
       toast.dismiss(toastId);
+      toast.success(`Un email de réinitialisation a été envoyé à ${email}`);
     } catch (error: any) {
       console.error("Error resetting password:", error);
       toast.dismiss(toastId);
+      toast.error(`Erreur: ${error.message || "Problème lors de l'envoi de l'email de réinitialisation"}`);
     } finally {
       setLoading(false);
     }

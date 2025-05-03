@@ -9,6 +9,7 @@ import { CallsToolbar } from "@/components/calls/CallsToolbar";
 import { CallsTable } from "@/components/dashboard/CallsTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CallsListSectionProps {
   searchQuery: string;
@@ -22,7 +23,7 @@ interface CallsListSectionProps {
   formatDurationMinutes: (seconds: number) => string;
   currentPage: number;
   onPageChange: (page: number) => void;
-  onRenderError: (message: string) => JSX.Element;
+  onRetry: () => void;
 }
 
 export function CallsListSection({
@@ -37,7 +38,7 @@ export function CallsListSection({
   formatDurationMinutes,
   currentPage,
   onPageChange,
-  onRenderError
+  onRetry
 }: CallsListSectionProps) {
   return (
     <Card>
@@ -48,7 +49,22 @@ export function CallsListSection({
         </div>
       </CardHeader>
       <CardContent>
-        {callsError && onRenderError("Échec du chargement des appels. " + (callsError as Error).message)}
+        {callsError && (
+          <Alert variant="destructive" className="my-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <div>Échec du chargement des appels: {callsError.message}</div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onRetry}
+                className="mt-2"
+              >
+                Réessayer
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <CallsToolbar
           searchQuery={searchQuery}

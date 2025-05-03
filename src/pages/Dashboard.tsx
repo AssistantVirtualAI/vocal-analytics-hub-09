@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useState, useCallback } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/Layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,12 +12,13 @@ import { useOrganization } from "@/context/OrganizationContext";
 import { CallsLast30DaysChart } from "@/components/stats/CallsLast30DaysChart";
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { DashboardAlerts } from "@/components/dashboard/DashboardAlerts";
 import { KeyStatsSection } from "@/components/dashboard/KeyStatsSection";
 import { CallsListSection } from "@/components/dashboard/CallsListSection";
 import { formatDurationMinutes } from "@/components/dashboard/utils/formatters";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
+  const { toast } = useToast();
   const { currentOrganization } = useOrganization();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,65 +68,87 @@ export default function Dashboard() {
   };
 
   const handleRefresh = async () => {
-    await Promise.all([
-      refetchStats(),
-      refetchChart(),
-      refetchCalls()
-    ]);
+    toast({
+      title: "Actualisation",
+      description: "Mise à jour des données en cours...",
+    });
+
+    try {
+      await Promise.all([
+        refetchStats(),
+        refetchChart(),
+        refetchCalls()
+      ]);
+      
+      toast({
+        title: "Succès",
+        description: "Données actualisées avec succès",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'actualiser les données"
+      });
+    }
   };
 
-  const renderError = (message: string) => (
-    <Alert variant="destructive" className="my-4">
-      <AlertTriangle className="h-4 w-4" />
-      <AlertDescription>
-        {message}
-        {!currentOrganization && (
-          <div className="mt-2">
-            <p>Aucune organisation sélectionnée. Veuillez sélectionner une organisation dans les paramètres.</p>
-            <Button variant="outline" className="mt-2" asChild>
-              <Link to="/organizations">Aller aux paramètres d'organisation</Link>
-            </Button>
-          </div>
-        )}
-      </AlertDescription>
-    </Alert>
-  );
+  const renderNoOrganizationWarning = () => {
+    if (currentOrganization) return null;
+    
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          <p>Aucune organisation sélectionnée. Veuillez sélectionner une organisation et configurer un ID d'agent pour accéder aux données.</p>
+          <Button variant="outline" className="mt-2" asChild>
+            <Link to="/organizations">Aller aux paramètres d'organisation</Link>
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  };
 
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
-        <DashboardHeader onRefresh={handleRefresh} />
-        <DashboardAlerts 
-          currentOrganization={currentOrganization} 
-          onRenderError={renderError} 
-        />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold">Tableau de bord d'analyse d'appels</h1>
+          <div className="flex items-center gap-4">
+            {currentOrganization && (
+              <div className="text-sm text-muted-foreground">
+                Organisation: {currentOrganization.name}
+              </div>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh} 
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+            </Button>
+          </div>
+        </div>
+        
+        {renderNoOrganizationWarning()}
         
         {/* Section Statistiques Clés */}
         <KeyStatsSection 
           statsData={statsData} 
           isStatsLoading={isStatsLoading} 
+          statsError={statsError as Error | null}
           formatDurationMinutes={formatDurationMinutes} 
         />
 
-        {statsError && renderError("Échec du chargement des statistiques. " + (statsError as Error).message)}
-
         {/* Graphique d'appels sur 30 jours */}
         <div className="grid gap-4">
-          {chartError && renderError("Échec du chargement des données du graphique. " + (chartError as Error).message)}
-          
-          {is30DaysLoading ? (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-center h-[300px]">
-                  <div className="space-y-2 w-full">
-                    <div className="h-[300px] w-full bg-muted animate-pulse rounded"></div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <CallsLast30DaysChart data={calls30DaysData || []} />
-          )}
+          <CallsLast30DaysChart 
+            data={calls30DaysData || []} 
+            isLoading={is30DaysLoading}
+            error={chartError as Error | null}
+            onRetry={() => refetchChart()}
+          />
         </div>
 
         {/* Section Liste des Appels */}
@@ -141,7 +164,7 @@ export default function Dashboard() {
           formatDurationMinutes={formatDurationMinutes}
           currentPage={currentPage}
           onPageChange={handlePageChange}
-          onRenderError={renderError}
+          onRetry={() => refetchCalls()}
         />
       </div>
     </DashboardLayout>

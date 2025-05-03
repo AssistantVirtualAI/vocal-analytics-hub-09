@@ -16,6 +16,7 @@ interface CallsListParams {
   startDate?: string;
   endDate?: string;
   agentId?: string;
+  enabled?: boolean;
 }
 
 export const useCallsList = ({ 
@@ -27,7 +28,8 @@ export const useCallsList = ({
   customerId = '',
   startDate = '',
   endDate = '',
-  agentId = ''
+  agentId = '',
+  enabled = true
 }: CallsListParams = {}) => {
   // Calculate offset based on page number
   const offset = (page - 1) * limit;
@@ -74,9 +76,9 @@ export const useCallsList = ({
         customerId: call.customer_id,
         customerName: call.customer_name,
         agentId: call.agent_id,
-        agentName: call.agent_name,
+        agentName: call.agent_name || "Agent",
         date: call.date,
-        duration: call.duration,
+        duration: call.duration || 0,
         audioUrl: call.audio_url || "",
         summary: call.summary || "",
         transcript: call.transcript || undefined,
@@ -91,7 +93,11 @@ export const useCallsList = ({
         currentPage: page
       };
     },
-    enabled: !!user && !!effectiveAgentId,
+    enabled: !!user && !!effectiveAgentId && enabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: (failureCount, error) => {
+      // Don't retry more than 2 times
+      return failureCount < 2;
+    }
   });
 };

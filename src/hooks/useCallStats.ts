@@ -6,7 +6,7 @@ import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
 import { AGENT_ID } from "@/config/agent";
 
-export const useCallStats = () => {
+export const useCallStats = (enabled = true) => {
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
   // Use organization's agent ID if available, otherwise fall back to the default
@@ -50,7 +50,7 @@ export const useCallStats = () => {
         throw error;
       }
     },
-    enabled: !!user && !!agentId, // Only run the query if the user is authenticated and agent ID is available
+    enabled: !!user && !!agentId && enabled, // Only run the query if the user is authenticated and agent ID is available
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 2,
   });

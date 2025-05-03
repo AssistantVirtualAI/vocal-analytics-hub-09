@@ -48,13 +48,12 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log(`Fetching calls data for agent: ${agentId}`);
+    console.log(`Fetching all calls data from the database...`);
 
-    // Get call stats but without filtering by agent_id in the SQL query
-    // We'll filter in memory after fetching
+    // Get all calls to process agentId filter in memory
     const { data: calls, error: callsError } = await supabase
       .from("calls_view")
-      .select("duration, satisfaction_score, date, customer_id, customer_name, agent_id, agent_name");
+      .select("*");
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);
@@ -62,8 +61,8 @@ serve(async (req) => {
     }
 
     // Filter calls by agentId in memory
-    const filteredCalls = calls.filter(call => call.agent_id === agentId);
-    console.log(`Retrieved ${calls.length} calls, filtered to ${filteredCalls.length} for agent ${agentId}`);
+    const filteredCalls = agentId ? calls.filter(call => call.agent_id === agentId) : calls;
+    console.log(`Retrieved ${calls.length} calls from database, filtered to ${filteredCalls.length} for agent ${agentId}`);
 
     // Calculate stats from filtered calls
     const totalCalls = filteredCalls.length;
@@ -73,8 +72,19 @@ serve(async (req) => {
     const totalSatisfaction = filteredCalls.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
     const avgSatisfaction = totalCalls > 0 ? totalSatisfaction / totalCalls : 0;
     
-    // Group calls by date
+    // Group calls by date for the past 365 days
+    const today = new Date();
     const callsPerDay = {};
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    // Initialize all dates in the past year with 0 calls
+    for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      callsPerDay[dateStr] = 0;
+    }
+
+    // Count actual calls per day
     filteredCalls.forEach(call => {
       if (!call.date) return;
       const date = new Date(call.date).toISOString().split('T')[0];
@@ -89,7 +99,7 @@ serve(async (req) => {
       if (!customerStatsMap[call.customer_id]) {
         customerStatsMap[call.customer_id] = {
           customerId: call.customer_id,
-          customerName: call.customer_name,
+          customerName: call.customer_name || "Client inconnu",
           totalCalls: 0,
           totalDuration: 0,
           totalSatisfaction: 0,
@@ -108,7 +118,7 @@ serve(async (req) => {
         avgSatisfaction: stat.totalCalls > 0 ? stat.totalSatisfaction / stat.totalCalls : 0,
       }))
       .sort((a: any, b: any) => b.totalCalls - a.totalCalls)
-      .slice(0, 5);
+      .slice(0, 10); // Get top 10 customers
 
     const stats = {
       totalCalls,

@@ -5,7 +5,7 @@ import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
 import { AGENT_ID } from "@/config/agent";
 
-export const useCallsPerDay = (days = 14) => {
+export const useCallsPerDay = (days = 14, enabled = true) => {
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
   // Use organization's agent ID if available, otherwise fall back to the default
@@ -50,7 +50,7 @@ export const useCallsPerDay = (days = 14) => {
           return dateA.getTime() - dateB.getTime();
         });
     },
-    enabled: !!user && !!agentId,
+    enabled: !!user && !!agentId && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });

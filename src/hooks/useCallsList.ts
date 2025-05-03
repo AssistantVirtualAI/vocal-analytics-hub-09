@@ -14,6 +14,7 @@ interface CallsListParams {
   customerId?: string;
   startDate?: string;
   endDate?: string;
+  agentId?: string;  // Added agentId parameter
 }
 
 export const useCallsList = ({ 
@@ -24,22 +25,26 @@ export const useCallsList = ({
   search = '',
   customerId = '',
   startDate = '',
-  endDate = ''
+  endDate = '',
+  agentId = ''  // Added default value
 }: CallsListParams = {}) => {
   // Calculate offset based on page number
   const offset = (page - 1) * limit;
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
-  const agentId = currentOrganization?.agentId || '';
+  const organizationAgentId = currentOrganization?.agentId || '';
+  
+  // Use provided agentId or fall back to the organization's agentId
+  const effectiveAgentId = agentId || organizationAgentId;
 
   return useQuery({
-    queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search, customerId, agentId, startDate, endDate }],
+    queryKey: ["calls", { limit, page, offset, sortBy, sortOrder, search, customerId, agentId: effectiveAgentId, startDate, endDate }],
     queryFn: async () => {
       if (!user) {
         throw new Error("Authentication required");
       }
 
-      console.log(`Fetching calls with agentId: ${agentId}`);
+      console.log(`Fetching calls with agentId: ${effectiveAgentId}`);
       
       const { data, error } = await supabase.functions.invoke("get-calls", {
         body: JSON.stringify({
@@ -49,7 +54,7 @@ export const useCallsList = ({
           order: sortOrder,
           search: search,
           customerId: customerId,
-          agentId: agentId,
+          agentId: effectiveAgentId,
           startDate: startDate,
           endDate: endDate
         }),
@@ -85,7 +90,7 @@ export const useCallsList = ({
         currentPage: page
       };
     },
-    enabled: !!user && !!agentId,
+    enabled: !!user && !!effectiveAgentId,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };

@@ -13,6 +13,7 @@ interface OrgContextType {
   refetchOrg: () => Promise<void>;
 }
 
+// Create a context with default values
 const OrgContext = createContext<OrgContextType>({
   currentOrg: null,
   loading: true,
@@ -79,6 +80,7 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  // Set up effect to fetch the organization when the slug changes
   useEffect(() => {
     if (orgSlug) {
       fetchOrgBySlug();

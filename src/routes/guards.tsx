@@ -1,7 +1,7 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useOrg } from '@/context/OrgContext';
 
@@ -69,9 +69,11 @@ export const RequireAdmin = ({ children }: { children: ReactNode }) => {
 
 // Route guard for organization access
 export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
-  // Extract orgSlug directly without using a custom interface
-  const params = useParams();
-  const orgSlug = params.orgSlug;
+  // Extract orgSlug from the URL pathname instead of useParams
+  const location = useLocation();
+  const pathSegments = location.pathname.split('/');
+  const orgSlug = pathSegments.length > 1 ? pathSegments[1] : null;
+  
   const navigate = useNavigate();
   const { currentOrg, loading } = useOrg();
   const { user, loading: userLoading } = useAuth();

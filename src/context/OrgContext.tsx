@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
@@ -23,15 +23,15 @@ const OrgContext = createContext<OrgContextType>({
 export const useOrg = () => useContext(OrgContext);
 
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Extract orgSlug directly without using a custom interface
-  const params = useParams();
-  const orgSlug = params.orgSlug;
+  // Instead of using useParams, we'll extract the slug from the URL pathname
+  const location = useLocation();
+  const pathSegments = location.pathname.split('/');
+  const orgSlug = pathSegments.length > 1 ? pathSegments[1] : null;
   
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
-  const location = useLocation();
 
   // Define the function to fetch org by slug
   const fetchOrgBySlug = async () => {

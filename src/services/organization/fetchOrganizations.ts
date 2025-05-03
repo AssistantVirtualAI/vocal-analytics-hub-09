@@ -48,15 +48,19 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     console.log(`Successfully fetched ${data.length} organizations`);
     
     // Transform the data to match our Organization type
-    return data.map(org => ({
-      id: org.id,
-      name: org.name,
-      agentId: org.agent_id,
-      description: org.description || undefined,
-      createdAt: org.created_at,
-      // Generate slug from name if not present in the database
-      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    }));
+    return data.map(org => {
+      // Create a properly typed organization object
+      const organization: Organization = {
+        id: org.id,
+        name: org.name,
+        agentId: org.agent_id,
+        description: org.description || undefined,
+        createdAt: org.created_at,
+        // Generate slug from name if not present in the database
+        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      };
+      return organization;
+    });
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
     toast.error(`Erreur lors de la récupération des organisations: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);

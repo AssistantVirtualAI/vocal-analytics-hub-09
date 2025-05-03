@@ -30,8 +30,8 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user } = useAuth();
   const location = useLocation();
 
-  // Fix for the excessive type instantiation error - explicitly define the function without generics
-  const fetchOrgBySlug = async (): Promise<void> => {
+  // Define the function without type parameters to avoid excessive instantiation
+  const fetchOrgBySlug = async () => {
     if (!orgSlug) {
       setCurrentOrg(null);
       setLoading(false);
@@ -54,15 +54,17 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toast.error(`Organisation introuvable: ${orgSlug}`);
       } else {
         // Ensure the returned object matches our Organization type
-        // Including slug (which might be missing in the database)
-        setCurrentOrg({
+        // Make sure we handle the case where slug might not exist in the database
+        const orgData: Organization = {
           id: data.id,
           name: data.name,
           agentId: data.agent_id,
           description: data.description || undefined,
           createdAt: data.created_at,
-          slug: data.slug || orgSlug // Use the provided slug if the database doesn't have one
-        });
+          // Use the provided slug from the URL if the database doesn't have one
+          slug: data.slug || orgSlug
+        };
+        setCurrentOrg(orgData);
         console.log(`Found organization: ${data.name}`);
       }
     } catch (err: any) {

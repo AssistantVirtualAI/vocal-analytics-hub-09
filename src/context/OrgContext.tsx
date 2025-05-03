@@ -30,7 +30,7 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user } = useAuth();
   const location = useLocation();
 
-  // Define the function without type parameters to avoid excessive instantiation
+  // Define the function to fetch org by slug
   const fetchOrgBySlug = async () => {
     if (!orgSlug) {
       setCurrentOrg(null);
@@ -53,17 +53,16 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentOrg(null);
         toast.error(`Organisation introuvable: ${orgSlug}`);
       } else {
-        // Ensure the returned object matches our Organization type
-        // Make sure we handle the case where slug might not exist in the database
-        const orgData = {
+        // Transform the data to ensure it has the correct shape
+        const orgData: Organization = {
           id: data.id,
           name: data.name,
           agentId: data.agent_id,
           description: data.description || undefined,
           createdAt: data.created_at,
-          // Use the provided slug from the URL if the database doesn't have one
+          // Use the provided slug or generate from name
           slug: data.slug || orgSlug
-        } as Organization;
+        };
         
         setCurrentOrg(orgData);
         console.log(`Found organization: ${data.name}`);

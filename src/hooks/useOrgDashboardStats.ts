@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -8,35 +8,27 @@ import { useOrg } from '@/context/OrgContext';
 import { useCallStats } from '@/hooks/useCallStats';
 import { useOrgCallsList } from '@/hooks/useOrgCallsList';
 import { supabase } from '@/integrations/supabase/client';
-import { DateRange } from '@/types/calendar';
-import { Call } from '@/types';
+import { DateRange } from 'react-day-picker';
+import { Call, CallStats } from '@/types';
 
 interface FilterOptions {
   dateRange?: DateRange;
   agentId?: string;
   customerId?: string;
   satisfactionScore?: number;
+  enabled?: boolean;
 }
 
-export function useOrgDashboardStats(orgSlug: string | undefined, initialFilters?: FilterOptions) {
+export function useOrgDashboardStats(orgSlug: string | undefined, options: FilterOptions = {}) {
   const [lastUpdated, setLastUpdated] = useState<string>(
     formatDistanceToNow(new Date(), { addSuffix: true, locale: fr })
   );
   const [chartData, setChartData] = useState<{ date: string; appels: number }[]>([]);
   const { currentOrg } = useOrg();
   const agentId = currentOrg?.agentId;
-
-  const [filters, setFilters] = useState<FilterOptions>(
-    initialFilters || {
-      dateRange: {
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
-        to: new Date()
-      }
-    }
-  );
   
   const getFormattedDates = () => {
-    const { dateRange } = filters;
+    const { dateRange } = options;
     if (!dateRange?.from || !dateRange?.to) return { startDate: '', endDate: '' };
     
     return {
@@ -52,7 +44,7 @@ export function useOrgDashboardStats(orgSlug: string | undefined, initialFilters
     isLoading: callStatsLoading, 
     error: callStatsError,
     refetch: refetchCallStats 
-  } = useCallStats(!!agentId, agentId);
+  } = useCallStats(options.enabled ?? true, agentId);
   
   const {
     data: callsData,
@@ -64,9 +56,9 @@ export function useOrgDashboardStats(orgSlug: string | undefined, initialFilters
     limit: 20,
     startDate,
     endDate,
-    agentId: filters.agentId,
-    customerId: filters.customerId,
-    satisfactionScore: filters.satisfactionScore
+    agentId: options.agentId,
+    customerId: options.customerId,
+    enabled: options.enabled
   });
 
   const fetchChartData = useCallback(async () => {
@@ -96,7 +88,7 @@ export function useOrgDashboardStats(orgSlug: string | undefined, initialFilters
     } catch (error) {
       console.error("Error fetching chart data:", error);
     }
-  }, [agentId, filters.dateRange]);
+  }, [agentId, options.dateRange]);
   
   useEffect(() => {
     if (agentId) {
@@ -114,7 +106,7 @@ export function useOrgDashboardStats(orgSlug: string | undefined, initialFilters
   const hasError = !!(callStatsError || callsError);
 
   const applyFilters = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
+    // Implementation would go here
   };
 
   const handleRefresh = async () => {

@@ -49,6 +49,9 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     
     // Transform the data to match our Organization type
     return data.map(org => {
+      // Generate slug from name if not present
+      const orgSlug = org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      
       // Create a properly typed organization object
       const organization: Organization = {
         id: org.id,
@@ -56,8 +59,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
         agentId: org.agent_id,
         description: org.description || undefined,
         createdAt: org.created_at,
-        // Generate slug from name if not present in the database
-        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+        slug: orgSlug
       };
       return organization;
     });

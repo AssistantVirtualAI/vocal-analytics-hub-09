@@ -3,7 +3,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
-import { Phone, Clock, Star, AlertTriangle } from "lucide-react";
+import { Phone, Clock, Star, AlertTriangle, RefreshCw } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,15 +11,16 @@ import { useCallStats } from "@/hooks/useCallStats";
 import { useCallsList } from "@/hooks/useCallsList";
 import { CallsToolbar } from "@/components/calls/CallsToolbar";
 import { StatCard } from "@/components/stats/StatCard";
-import { DateRange } from "@/types/calendar";
 import { useCallsPerDay } from "@/hooks/useCallsPerDay";
 import { CallsLast30DaysChart } from "@/components/stats/CallsLast30DaysChart";
 import { useOrganization } from "@/context/OrganizationContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { currentOrganization } = useOrganization();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -30,15 +31,30 @@ export default function Dashboard() {
     endDate: "",
   });
 
-  const { data: statsData, isLoading: isStatsLoading, error: statsError } = useCallStats();
-  const { data: calls30DaysData, isLoading: is30DaysLoading, error: chartError } = useCallsPerDay(30);
+  const { 
+    data: statsData, 
+    isLoading: isStatsLoading, 
+    error: statsError,
+    refetch: refetchStats
+  } = useCallStats();
   
-  const { data: callsData, isLoading: isCallsLoading, error: callsError } = useCallsList({
+  const { 
+    data: calls30DaysData, 
+    isLoading: is30DaysLoading, 
+    error: chartError,
+    refetch: refetchChart
+  } = useCallsPerDay(30);
+  
+  const { 
+    data: callsData, 
+    isLoading: isCallsLoading, 
+    error: callsError,
+    refetch: refetchCalls
+  } = useCallsList({
     limit: 10,
     page: currentPage,
     search: searchQuery,
     customerId: filters.customerId,
-    agentId: currentOrganization?.agentId || '',
     startDate: filters.startDate,
     endDate: filters.endDate,
   });
@@ -64,6 +80,32 @@ export default function Dashboard() {
     setCurrentPage(page);
   };
 
+  const handleRefresh = async () => {
+    toast({
+      title: "Actualisation",
+      description: "Mise à jour des données en cours...",
+    });
+    
+    try {
+      await Promise.all([
+        refetchStats(),
+        refetchChart(),
+        refetchCalls()
+      ]);
+      
+      toast({
+        title: "Succès",
+        description: "Données actualisées avec succès",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les données",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderError = (message: string) => (
     <Alert variant="destructive" className="my-4">
       <AlertTriangle className="h-4 w-4" />
@@ -71,9 +113,9 @@ export default function Dashboard() {
         {message}
         {!currentOrganization && (
           <div className="mt-2">
-            <p>No organization selected. Please select an organization in settings.</p>
+            <p>Aucune organisation sélectionnée. Veuillez sélectionner une organisation dans les paramètres.</p>
             <Button variant="outline" className="mt-2" asChild>
-              <Link to="/organizations">Go to Organization Settings</Link>
+              <Link to="/organizations">Aller aux paramètres d'organisation</Link>
             </Button>
           </div>
         )}
@@ -84,16 +126,26 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold">Tableau de bord d'analyse d'appels</h1>
-          {currentOrganization && (
-            <div className="text-sm text-muted-foreground">
-              Organisation: {currentOrganization.name}
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {currentOrganization && (
+              <div className="text-sm text-muted-foreground">
+                Organisation: {currentOrganization.name}
+              </div>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh} 
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+            </Button>
+          </div>
         </div>
 
-        {!currentOrganization && renderError("No organization selected. Please select an organization in settings.")}
+        {!currentOrganization && renderError("Aucune organisation sélectionnée. Veuillez sélectionner une organisation dans les paramètres.")}
         
         {/* Section Statistiques Clés */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -117,11 +169,11 @@ export default function Dashboard() {
           />
         </div>
 
-        {statsError && renderError("Failed to load statistics. " + (statsError as Error).message)}
+        {statsError && renderError("Échec du chargement des statistiques. " + (statsError as Error).message)}
 
         {/* Graphique d'appels sur 30 jours */}
         <div className="grid gap-4">
-          {chartError && renderError("Failed to load chart data. " + (chartError as Error).message)}
+          {chartError && renderError("Échec du chargement des données du graphique. " + (chartError as Error).message)}
           
           {is30DaysLoading ? (
             <Card>
@@ -140,11 +192,14 @@ export default function Dashboard() {
 
         {/* Section Liste des Appels */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Derniers appels</CardTitle>
+            <div className="text-sm text-muted-foreground">
+              {!isCallsLoading && `${callsData?.totalCount || 0} appel(s) au total`}
+            </div>
           </CardHeader>
           <CardContent>
-            {callsError && renderError("Failed to load calls. " + (callsError as Error).message)}
+            {callsError && renderError("Échec du chargement des appels. " + (callsError as Error).message)}
             
             {/* Filtres et barre de recherche */}
             <CallsToolbar
@@ -183,7 +238,7 @@ export default function Dashboard() {
                   ) : !callsData || callsData.calls.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-6 text-center">
-                        Aucun appel trouvé.
+                        Aucun appel trouvé. Vérifiez votre connexion à ElevenLabs et l'ID de l'agent.
                       </td>
                     </tr>
                   ) : (

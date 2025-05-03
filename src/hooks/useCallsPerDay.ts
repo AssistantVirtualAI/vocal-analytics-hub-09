@@ -3,22 +3,19 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
+import { AGENT_ID } from "@/config/agent";
 
 export const useCallsPerDay = (days = 14) => {
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
-  const agentId = currentOrganization?.agentId;
+  // Use organization's agent ID if available, otherwise fall back to the default
+  const agentId = currentOrganization?.agentId || AGENT_ID;
   
   return useQuery({
     queryKey: ["callsPerDay", days, agentId],
     queryFn: async () => {
       if (!user) {
         throw new Error("Authentication required");
-      }
-      
-      if (!agentId) {
-        console.warn("No agent ID available, cannot fetch calls per day");
-        throw new Error("Organization selection required");
       }
       
       console.log(`Fetching calls per day for agent ${agentId} (last ${days} days)`);

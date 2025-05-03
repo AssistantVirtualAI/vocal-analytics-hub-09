@@ -47,12 +47,12 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Base query without agentId filter (since it's not a UUID)
+    // Base query without agentId filter
     let query = supabase
       .from("calls_view")
       .select("*", { count: "exact" });
     
-    // Apply other filters (except agentId)
+    // Apply other filters
     if (search) {
       query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%`);
     }
@@ -72,7 +72,7 @@ serve(async (req) => {
     // Order by specified field
     query = query.order(sort, { ascending: order === 'asc' });
 
-    // Execute query to get all calls (without pagination yet)
+    // Execute query to get all calls
     const { data: allCalls, error, count } = await query;
 
     if (error) {

@@ -50,11 +50,11 @@ serve(async (req) => {
   try {
     console.log(`Fetching calls data for agent: ${agentId}`);
 
-    // Get call stats but remove the equality filter on agent_id which expects a UUID
-    // Instead, we'll filter in memory after fetching
+    // Get call stats but without filtering by agent_id in the SQL query
+    // We'll filter in memory after fetching
     const { data: calls, error: callsError } = await supabase
       .from("calls_view")
-      .select("duration, satisfaction_score, date, customer_id, customer_name, agent_id");
+      .select("duration, satisfaction_score, date, customer_id, customer_name, agent_id, agent_name");
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);

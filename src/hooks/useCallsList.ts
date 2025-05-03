@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
+import { AGENT_ID } from "@/config/agent";
 
 interface CallsListParams {
   limit?: number;
@@ -14,7 +15,7 @@ interface CallsListParams {
   customerId?: string;
   startDate?: string;
   endDate?: string;
-  agentId?: string;  // Added agentId parameter
+  agentId?: string;
 }
 
 export const useCallsList = ({ 
@@ -26,13 +27,13 @@ export const useCallsList = ({
   customerId = '',
   startDate = '',
   endDate = '',
-  agentId = ''  // Added default value
+  agentId = ''
 }: CallsListParams = {}) => {
   // Calculate offset based on page number
   const offset = (page - 1) * limit;
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
-  const organizationAgentId = currentOrganization?.agentId || '';
+  const organizationAgentId = currentOrganization?.agentId || AGENT_ID;
   
   // Use provided agentId or fall back to the organization's agentId
   const effectiveAgentId = agentId || organizationAgentId;

@@ -1,46 +1,64 @@
-// Types for our application
-export type Call = {
+
+import { DateRange } from "./calendar";
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+  status?: 'active' | 'inactive' | 'pending';
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  agentId?: string;
+  plan: 'free' | 'pro' | 'enterprise';
+  createdAt: string;
+  updatedAt?: string;
+  users?: User[];
+}
+
+export interface Call {
   id: string;
   customerId: string;
   customerName: string;
   agentId: string;
   agentName: string;
   date: string;
-  duration: number; // in seconds
-  audioUrl: string;
-  summary: string;
+  duration: number;
+  audioUrl?: string;
+  summary?: string;
   transcript?: string;
-  satisfactionScore: number; // 1-5
+  satisfactionScore: number;
   tags?: string[];
-};
+}
 
-export type Customer = {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-};
-
-export type Agent = {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-};
+export interface CustomerStats {
+  customerId: string;
+  customerName: string;
+  totalCalls: number;
+  avgDuration: number;
+  avgSatisfaction: number;
+  lastCall?: string;
+}
 
 export interface CallStats {
   totalCalls: number;
   avgDuration: number;
   avgSatisfaction: number;
   callsPerDay: Record<string, number>;
-  lastUpdated: string; // Date ISO string de la dernière mise à jour
+  lastUpdated: string;
+  topCustomers?: CustomerStats[];
 }
 
-export type CustomerStats = {
-  customerId: string;
-  customerName: string;
+export interface AgentStats {
+  id: string;
+  name: string;
   totalCalls: number;
   avgDuration: number;
   avgSatisfaction: number;
-};
+}
+
+export type UserRole = "admin" | "user" | "guest";

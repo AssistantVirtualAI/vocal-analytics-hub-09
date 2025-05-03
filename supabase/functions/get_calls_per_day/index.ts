@@ -42,7 +42,7 @@ serve(async (req) => {
 
     console.log(`Fetching calls from ${startDate.toISOString()} to ${endDate.toISOString()} for agent ${agentId}`);
 
-    // Query calls within date range but without the agent_id filter
+    // Query calls within date range
     const { data: calls, error } = await supabase
       .from("calls_view")
       .select("date, agent_id")

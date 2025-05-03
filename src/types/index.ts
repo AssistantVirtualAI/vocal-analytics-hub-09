@@ -1,3 +1,4 @@
+
 export interface Organization {
   id: string;
   name: string;
@@ -41,4 +42,20 @@ export interface Call {
   transcript?: string;
   satisfactionScore: number;
   tags: string[];
+}
+
+// Add missing types for Agent and Customer
+export interface Agent {
+  id: string;
+  name: string;
+  role: string;
+  avatar?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
 }

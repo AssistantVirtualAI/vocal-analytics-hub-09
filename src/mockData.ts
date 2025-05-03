@@ -88,6 +88,15 @@ export const mockCalls: Call[] = Array.from({ length: 30 }).map((_, index) => {
   };
 });
 
+// Calculate customer stats per date
+const getLastCallDate = (customerId: string) => {
+  const customerCalls = mockCalls.filter(call => call.customerId === customerId);
+  if (customerCalls.length === 0) return null;
+  return customerCalls.sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  )[0].date;
+};
+
 // Calculate Call Stats
 export const mockCallStats: CallStats = {
   totalCalls: mockCalls.length,
@@ -98,7 +107,17 @@ export const mockCallStats: CallStats = {
     acc[date] = (acc[date] || 0) + 1;
     return acc;
   }, {} as Record<string, number>),
-  lastUpdated: new Date().toISOString(), // Added the missing property
+  lastUpdated: new Date().toISOString(),
+  topCustomers: mockCustomers.slice(0, 3).map(customer => ({
+    customerId: customer.id,
+    customerName: customer.name,
+    totalCalls: mockCalls.filter(call => call.customerId === customer.id).length,
+    avgDuration: mockCalls.filter(call => call.customerId === customer.id).reduce((sum, call) => sum + call.duration, 0) / 
+      Math.max(1, mockCalls.filter(call => call.customerId === customer.id).length),
+    avgSatisfaction: mockCalls.filter(call => call.customerId === customer.id).reduce((sum, call) => sum + call.satisfactionScore, 0) / 
+      Math.max(1, mockCalls.filter(call => call.customerId === customer.id).length),
+    lastCallDate: getLastCallDate(customer.id)
+  }))
 };
 
 // Calculate Customer Stats
@@ -108,8 +127,13 @@ export const mockCustomerStats: CustomerStats[] = mockCustomers.map(customer => 
     customerId: customer.id,
     customerName: customer.name,
     totalCalls: customerCalls.length,
-    avgDuration: customerCalls.reduce((sum, call) => sum + call.duration, 0) / customerCalls.length,
-    avgSatisfaction: customerCalls.reduce((sum, call) => sum + call.satisfactionScore, 0) / customerCalls.length,
+    avgDuration: customerCalls.length > 0 
+      ? customerCalls.reduce((sum, call) => sum + call.duration, 0) / customerCalls.length 
+      : 0,
+    avgSatisfaction: customerCalls.length > 0
+      ? customerCalls.reduce((sum, call) => sum + call.satisfactionScore, 0) / customerCalls.length
+      : 0,
+    lastCallDate: getLastCallDate(customer.id)
   };
 });
 

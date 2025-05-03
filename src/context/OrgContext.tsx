@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,11 +11,6 @@ interface OrgContextType {
   loading: boolean;
   error: Error | null;
   refetchOrg: () => Promise<void>;
-}
-
-// Use a simple interface instead of Record to avoid excessive type instantiation
-interface OrgParams {
-  orgSlug?: string;
 }
 
 const OrgContext = createContext<OrgContextType>({

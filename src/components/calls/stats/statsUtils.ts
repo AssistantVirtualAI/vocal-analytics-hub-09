@@ -3,7 +3,10 @@
  * Helper functions for formatting and displaying statistics
  */
 
-import { formatDuration } from '@/components/dashboard/utils/formatters';
+import { formatDuration as formatDurationBase } from '@/components/dashboard/utils/formatters';
+
+// Re-export the formatDuration function from formatters
+export const formatDuration = formatDurationBase;
 
 // Format percentage with 1 decimal place
 export const formatPercentage = (value: number | undefined): string => {

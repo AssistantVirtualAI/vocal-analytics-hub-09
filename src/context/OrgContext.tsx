@@ -13,6 +13,11 @@ interface OrgContextType {
   refetchOrg: () => Promise<void>;
 }
 
+// Define a type for the useParams hook
+type OrgParams = {
+  orgSlug?: string;
+};
+
 const OrgContext = createContext<OrgContextType>({
   currentOrg: null,
   loading: true,
@@ -23,7 +28,7 @@ const OrgContext = createContext<OrgContextType>({
 export const useOrg = () => useContext(OrgContext);
 
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const params = useParams<{ orgSlug?: string }>();
+  const params = useParams<OrgParams>();
   const orgSlug = params.orgSlug;
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

@@ -2,9 +2,26 @@
 import { useState } from 'react';
 import { useDashboardFetch } from '@/hooks/dashboard/useDashboardFetch';
 import { useLastUpdated } from '@/hooks/dashboard/useLastUpdated';
-import { useChartData } from '@/hooks/dashboard/useChartData';
 import { useRecentCalls } from '@/hooks/dashboard/useRecentCalls';
 import { useToastNotification } from '@/hooks/dashboard/useToastNotification';
+
+interface ChartDataItem {
+  date: string;
+  appels: number;
+}
+
+// Fonction séparée pour convertir les données de statistiques en données de graphique
+function convertToChartData(callStats: any): ChartDataItem[] {
+  if (!callStats || !callStats.callsPerDay) {
+    return [];
+  }
+  
+  return Object.entries(callStats.callsPerDay)
+    .map(([date, count]) => ({
+      date: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+      appels: typeof count === 'number' ? count : 0,
+    }));
+}
 
 export function useDashboardStats() {
   const { 
@@ -19,7 +36,7 @@ export function useDashboardStats() {
   const hasData = !!(callStats || customerStats || callsData);
   
   const { lastUpdated, setLastUpdated } = useLastUpdated(isLoading, hasError, hasData);
-  const { chartData } = useChartData(callStats);
+  const chartData = convertToChartData(callStats);
   const { recentCalls } = useRecentCalls(callsData);
   const { showSuccessToast, showErrorToast } = useToastNotification();
 

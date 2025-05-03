@@ -35,7 +35,7 @@ export function useChartData({ orgSlug, dateRange, enabled = true }: UseChartDat
       .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
       .map(([date, count]) => ({
         date: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
-        appels: count as number,
+        appels: typeof count === 'number' ? count : 0,
       }));
   }, [callsPerDayData]);
 

@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Organization } from '@/types/organization';
-import { fetchOrganizations } from '@/services/organization';
+import { fetchAllOrganizations, fetchUserOrganizations } from '@/services/organization/fetchOrganizations';
 import { toast } from 'sonner';
 
 export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
@@ -12,7 +12,14 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     setIsLoading(true);
     try {
       console.log("[useOrganizationLoading] Loading organizations for user:", userId, "isAdmin:", isAdmin);
-      const orgs = await fetchOrganizations(isAdmin, userId);
+      
+      // Utiliser fetchAllOrganizations pour les admins, et fetchUserOrganizations pour les utilisateurs normaux
+      const orgs = isAdmin
+        ? await fetchAllOrganizations()
+        : userId 
+          ? await fetchUserOrganizations(userId) 
+          : [];
+          
       console.log('[useOrganizationLoading] Fetched organizations:', orgs);
       setOrganizations(orgs);
       return orgs;

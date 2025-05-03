@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
+// Define a simple context type without circular references
 interface OrgContextType {
   currentOrg: Organization | null;
   loading: boolean;
@@ -24,7 +25,7 @@ const OrgContext = createContext<OrgContextType>({
 export const useOrg = () => useContext(OrgContext);
 
 export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Instead of using useParams, we'll extract the slug from the URL pathname
+  // Extract the slug from the URL pathname directly
   const location = useLocation();
   const pathSegments = location.pathname.split('/');
   const orgSlug = pathSegments.length > 1 ? pathSegments[1] : null;

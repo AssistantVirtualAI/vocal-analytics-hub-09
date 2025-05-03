@@ -60,8 +60,8 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           agentId: data.agent_id,
           description: data.description || undefined,
           createdAt: data.created_at,
-          // Use the provided slug or generate from name
-          slug: data.slug || orgSlug
+          // Use the provided slug from the URL parameter
+          slug: orgSlug
         };
         
         setCurrentOrg(orgData);

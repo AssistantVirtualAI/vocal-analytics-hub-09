@@ -1,24 +1,48 @@
 
-import type { CallStats } from '@/types';
+import { useMemo } from 'react';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { useCallsPerDay } from '@/hooks/useCallsPerDay';
 
-/**
- * Hook to transform call statistics into chart data format
- */
-export function useChartData(callStats: CallStats | undefined) {
-  const getChartData = () => {
-    if (callStats?.callsPerDay && Object.keys(callStats.callsPerDay).length > 0) {
-      return Object.entries(callStats.callsPerDay)
-        .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
-        .map(([date, count]) => ({
-          date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-          appels: count,
-        }))
-        .slice(-10); // Last 10 days
-    }
-    return [];
-  };
+interface UseChartDataOptions {
+  orgSlug?: string;
+  dateRange?: DateRange;
+  enabled?: boolean;
+}
+
+export function useChartData({ orgSlug, dateRange, enabled = true }: UseChartDataOptions = {}) {
+  const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+  const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+
+  const { 
+    data: callsPerDayData, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useCallsPerDay(
+    14,
+    !!orgSlug && enabled,
+    orgSlug,
+    startDate,
+    endDate
+  );
+
+  // Format chart data for display
+  const chartData = useMemo(() => {
+    if (!callsPerDayData) return [];
+    
+    return Object.entries(callsPerDayData)
+      .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+      .map(([date, count]) => ({
+        date: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+        appels: count,
+      }));
+  }, [callsPerDayData]);
 
   return {
-    chartData: getChartData()
+    chartData,
+    isLoading,
+    error,
+    refetch,
   };
 }

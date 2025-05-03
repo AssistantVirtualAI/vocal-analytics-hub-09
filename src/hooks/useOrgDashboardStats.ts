@@ -19,7 +19,7 @@ interface FilterOptions {
   enabled?: boolean;
 }
 
-export function useOrgDashboardStats(orgSlug: string | undefined, options: FilterOptions = {}) {
+export function useOrgDashboardStats(orgSlug: string = "", options: FilterOptions = {}) {
   const [lastUpdated, setLastUpdated] = useState<string>(
     formatDistanceToNow(new Date(), { addSuffix: true, locale: fr })
   );

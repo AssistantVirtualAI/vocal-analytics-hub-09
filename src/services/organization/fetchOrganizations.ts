@@ -1,71 +1,81 @@
 
-import { Organization } from '@/types/organization';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { Organization } from '@/types/organization';
 
-export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Promise<Organization[]> => {
+/**
+ * Fetch all organizations
+ */
+export async function fetchAllOrganizations(): Promise<Organization[]> {
   try {
-    console.log(`Fetching organizations for user ${userId} (isAdmin: ${isAdmin})`);
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*');
     
-    let query = supabase.from('organizations').select('*');
-    
-    // If not an admin, fetch only the organizations the user is a member of
-    if (!isAdmin && userId) {
-      console.log('Non-admin user - fetching organizations via user_organizations join');
-      const { data: userOrganizations, error: userOrgError } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', userId);
-      
-      if (userOrgError) {
-        console.error("Error fetching user's organizations:", userOrgError);
-        throw userOrgError;
-      }
-      
-      if (userOrganizations && userOrganizations.length > 0) {
-        const orgIds = userOrganizations.map(userOrg => userOrg.organization_id);
-        console.log(`User belongs to ${orgIds.length} organizations:`, orgIds);
-        query = query.in('id', orgIds);
-      } else {
-        console.log('User does not belong to any organizations');
-        return [];
-      }
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error("Error fetching organizations:", error);
-      toast.error(`Erreur lors de la récupération des organisations: ${error.message}`);
-      throw error;
-    }
-    
+    if (error) throw error;
+
     if (!data || data.length === 0) {
-      console.log("No organizations found");
       return [];
     }
-    
-    console.log(`Successfully fetched ${data.length} organizations`);
-    
-    // Transform the data to match our Organization type
-    return data.map(org => {
-      // Generate slug from name if not present
-      const orgSlug = org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      
-      // Create a properly typed organization object
-      const organization: Organization = {
-        id: org.id,
-        name: org.name,
-        agentId: org.agent_id,
-        description: org.description || undefined,
-        createdAt: org.created_at,
-        slug: orgSlug
-      };
-      return organization;
-    });
+
+    // Map the data to ensure it has the right shape
+    return data.map((org: any): Organization => ({
+      id: org.id,
+      name: org.name,
+      agentId: org.agent_id,
+      description: org.description || undefined,
+      createdAt: org.created_at,
+      // Generate a slug from the name if not available
+      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-')
+    }));
   } catch (error) {
-    console.error("Error in fetchOrganizations:", error);
-    toast.error(`Erreur lors de la récupération des organisations: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    console.error('Error fetching all organizations:', error);
     throw error;
   }
-};
+}
+
+/**
+ * Fetch organizations for a specific user
+ */
+export async function fetchUserOrganizations(userId: string): Promise<Organization[]> {
+  try {
+    const { data, error } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Extract organization IDs
+    const orgIds = data.map((item: any) => item.organization_id);
+    
+    // Fetch the actual organization data
+    const { data: orgs, error: orgsError } = await supabase
+      .from('organizations')
+      .select('*')
+      .in('id', orgIds);
+    
+    if (orgsError) throw orgsError;
+
+    if (!orgs || orgs.length === 0) {
+      return [];
+    }
+
+    // Map the data to ensure it has the right shape
+    return orgs.map((org: any): Organization => ({
+      id: org.id,
+      name: org.name,
+      agentId: org.agent_id,
+      description: org.description || undefined,
+      createdAt: org.created_at,
+      // Generate a slug from the name if not available
+      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-')
+    }));
+  } catch (error) {
+    console.error('Error fetching user organizations:', error);
+    throw error;
+  }
+}

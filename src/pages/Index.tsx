@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/dashboard/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays } from "date-fns";
 import { RefreshCw } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
 import { useOrg } from "@/context/OrgContext";
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
@@ -14,10 +14,13 @@ import { CallsChart } from "@/components/dashboard/CallsChart";
 import { CallsList } from "@/components/dashboard/CallsList";
 import { CustomerStatsList } from "@/components/dashboard/CustomerStatsList";
 
-// Custom hooks
-import { useOrgCallsList } from "@/hooks/useOrgCallsList";
-import { useCallsPerDay } from "@/hooks/useCallsPerDay";
-import { useCustomerStats } from "@/hooks/useCustomerStats";
+// Import our new specialized hooks
+import { 
+  useStats, 
+  useCallsData, 
+  useCustomerData, 
+  useChartData 
+} from "@/hooks/dashboard";
 
 const CALLS_PER_PAGE = 5;
 
@@ -37,69 +40,68 @@ export default function Index() {
   const [callsSortBy, setCallsSortBy] = useState("date");
   const [callsSortOrder, setCallsSortOrder] = useState<"asc" | "desc">("desc");
 
-  const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
-  const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
-
-  // Setup the stats query - we need to fix the hook call
+  // Use our new specialized hooks
   const { 
-    callStats: statsData, 
+    statsData, 
     isLoading: isLoadingStats, 
-    hasError: errorStats, 
-    handleRefresh: refetchStats,
-    chartData: callsPerDayData
-  } = useOrgDashboardStats(orgSlug || "", {
+    error: errorStats, 
+    refetch: refetchStats 
+  } = useStats({
+    orgSlug,
     dateRange,
     enabled: !!orgSlug
   });
 
-  // Fetch calls list data
-  const { data: callsListData, isLoading: isLoadingCallsList, error: errorCallsList, refetch: refetchCallsList } = useOrgCallsList({
+  const { 
+    chartData, 
+    isLoading: isLoadingChartData, 
+    error: errorChartData, 
+    refetch: refetchChartData 
+  } = useChartData({
     orgSlug,
-    limit: CALLS_PER_PAGE,
-    page: callsPage,
-    sortBy: callsSortBy,
-    sortOrder: callsSortOrder,
-    startDate,
-    endDate,
-    enabled: !!orgSlug && activeTab === "calls",
+    dateRange,
+    enabled: !!orgSlug
   });
 
-  // Fetch customer stats
-  const { data: customerStatsData, isLoading: isLoadingCustomerStats, error: errorCustomerStats, refetch: refetchCustomerStats } = useCustomerStats({ 
-    orgSlug, 
-    startDate, 
-    endDate, 
-    enabled: !!orgSlug && activeTab === "customers" 
+  const { 
+    callsList, 
+    totalCount: callsTotalCount, 
+    totalPages: callsTotalPages, 
+    isLoading: isLoadingCallsList, 
+    error: errorCallsList, 
+    refetch: refetchCallsList 
+  } = useCallsData({
+    orgSlug,
+    dateRange,
+    page: callsPage,
+    limit: CALLS_PER_PAGE,
+    sortBy: callsSortBy,
+    sortOrder: callsSortOrder,
+    enabled: !!orgSlug && activeTab === "calls"
+  });
+
+  const { 
+    customerStats, 
+    isLoading: isLoadingCustomerStats, 
+    error: errorCustomerStats, 
+    refetch: refetchCustomerStats 
+  } = useCustomerData({
+    orgSlug,
+    dateRange,
+    enabled: !!orgSlug && activeTab === "customers"
   });
 
   // Function to refetch all overview data
   const handleRefreshOverview = () => {
     refetchStats();
+    refetchChartData();
   };
-
-  // Prepare chart data for calls per day using real data
-  const chartData = useMemo(() => {
-    return callsPerDayData || [];
-  }, [callsPerDayData]);
-
-  // Get calls list data
-  const callsList = callsListData?.calls || [];
-  const callsTotalCount = callsListData?.totalCount || 0;
-  const callsTotalPages = callsListData?.totalPages || 0;
-
-  // Get customer stats using real data
-  const customerStats = customerStatsData || [];
 
   // Handle sort change
   const handleSortChange = (sort: string, order: "asc" | "desc") => {
     setCallsSortBy(sort);
     setCallsSortOrder(order);
   };
-
-  // Reset page to 1 when filters/sorting change
-  useEffect(() => {
-    setCallsPage(1);
-  }, [callsSortBy, callsSortOrder, dateRange]); 
 
   return (
     <DashboardLayout>
@@ -114,10 +116,10 @@ export default function Index() {
               variant="outline"
               size="icon"
               onClick={handleRefreshOverview}
-              disabled={isLoadingStats}
+              disabled={isLoadingStats || isLoadingChartData}
             >
               <RefreshCw
-                className={cn("h-4 w-4", isLoadingStats && "animate-spin")}
+                className={cn("h-4 w-4", (isLoadingStats || isLoadingChartData) && "animate-spin")}
               />
             </Button>
           </div>
@@ -125,7 +127,7 @@ export default function Index() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-            <TabsTrigger value="overview">Vue d\u0027ensemble</TabsTrigger>
+            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="calls">Appels</TabsTrigger>
             <TabsTrigger value="customers">Clients</TabsTrigger>
           </TabsList>
@@ -135,14 +137,14 @@ export default function Index() {
             <StatsOverview 
               data={statsData} 
               isLoading={isLoadingStats} 
-              error={errorStats ? new Error("Error loading stats") : null} 
+              error={errorStats} 
               refetch={refetchStats} 
             />
             <CallsChart 
               chartData={chartData} 
-              isLoading={isLoadingStats} 
-              error={errorStats ? new Error("Error loading chart data") : null} 
-              refetch={refetchStats} 
+              isLoading={isLoadingChartData} 
+              error={errorChartData} 
+              refetch={refetchChartData} 
             />
           </TabsContent>
 

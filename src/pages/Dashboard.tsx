@@ -148,8 +148,8 @@ export default function Dashboard() {
         {!currentOrganization && renderError("Aucune organisation sélectionnée. Veuillez sélectionner une organisation dans les paramètres.")}
         
         {currentOrganization && !currentOrganization.agentId && (
-          <Alert variant="warning" className="my-4">
-            <AlertTriangle className="h-4 w-4" />
+          <Alert variant="default" className="my-4 border-yellow-400 bg-yellow-50 text-yellow-800">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
             <AlertDescription>
               Aucun ID d'agent ElevenLabs configuré pour cette organisation. Veuillez configurer un ID d'agent dans les paramètres de l'organisation.
             </AlertDescription>

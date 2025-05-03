@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,10 +12,8 @@ interface OrgContextType {
   refetchOrg: () => Promise<void>;
 }
 
-// Define a type for the useParams hook
-type OrgParams = {
-  orgSlug?: string;
-};
+// Define a type for the useParams hook using Record to avoid excessive type instantiation
+type OrgParams = Record<string, string | undefined>;
 
 const OrgContext = createContext<OrgContextType>({
   currentOrg: null,

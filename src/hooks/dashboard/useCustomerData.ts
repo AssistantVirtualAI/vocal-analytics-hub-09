@@ -18,9 +18,7 @@ export function useCustomerData({ orgSlug, dateRange, enabled = true }: UseCusto
     isLoading, 
     error, 
     refetch 
-  } = useCustomerStats({
-    enabled: !!orgSlug && enabled,
-  });
+  } = useCustomerStats(!!orgSlug && enabled);
 
   return {
     customerStats: customerStatsData || [],

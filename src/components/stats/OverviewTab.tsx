@@ -9,13 +9,28 @@ type OverviewTabProps = {
     appels: number;
   }>;
   customerStats: CustomerStats[];
+  isLoading?: boolean;
+  onRefresh?: () => void;
 };
 
-export const OverviewTab = ({ chartData, customerStats }: OverviewTabProps) => {
+export const OverviewTab = ({ 
+  chartData, 
+  customerStats, 
+  isLoading = false,
+  onRefresh 
+}: OverviewTabProps) => {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <CallsPerDayChart data={chartData} />
-      <CustomerDistributionChart data={customerStats} />
+      <CallsPerDayChart 
+        data={chartData} 
+        isLoading={isLoading} 
+        onRefresh={onRefresh} 
+      />
+      <CustomerDistributionChart 
+        data={customerStats} 
+        isLoading={isLoading} 
+        onRefresh={onRefresh} 
+      />
     </div>
   );
 };

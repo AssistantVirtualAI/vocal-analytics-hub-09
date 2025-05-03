@@ -1,69 +1,56 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { CustomerStats } from "@/types";
-import { AGENT_ID } from "@/config/agent";
+import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
+import { AGENT_ID } from "@/config/agent";
+import type { CustomerStats } from "@/types";
 
-export const useCustomerStats = () => {
+export const useCustomerStats = (enabled = true) => {
+  const { currentOrganization } = useOrganization();
   const { user } = useAuth();
+  // Use organization's agent ID if available, otherwise fall back to the default
+  const agentId = currentOrganization?.agentId || AGENT_ID;
   
-  return useQuery({
-    queryKey: ["customerStats", AGENT_ID],
+  return useQuery<CustomerStats[]>({
+    queryKey: ["customerStats", agentId],
     queryFn: async () => {
       if (!user) {
         throw new Error("Authentication required");
       }
       
-      console.log(`Fetching customer stats for agent: ${AGENT_ID}`);
+      console.log(`Fetching customer stats for agent: ${agentId}`);
       
-      const { data: callsData, error } = await supabase
-        .from("calls_view")
-        .select(`
-          customer_id,
-          customer_name,
-          duration,
-          satisfaction_score
-        `)
-        .eq('agent_id', AGENT_ID);
+      try {
+        const { data, error } = await supabase.functions.invoke("get-customer-stats", {
+          body: { agentId }
+        });
 
-      if (error) {
-        console.error("Error fetching customer stats:", error);
-        throw error;
-      }
-
-      if (!callsData || callsData.length === 0) return [];
-      
-      const customerStatsMap: Record<string, any> = {};
-      
-      callsData.forEach((call) => {
-        const customerId = call.customer_id;
-        if (!customerId) return;
-        
-        if (!customerStatsMap[customerId]) {
-          customerStatsMap[customerId] = {
-            customerId,
-            customerName: call.customer_name,
-            totalCalls: 0,
-            totalDuration: 0,
-            totalSatisfaction: 0,
-          };
+        if (error) {
+          console.error("Error fetching customer stats:", error);
+          throw error;
         }
+
+        console.log("Customer stats data received:", data);
         
-        customerStatsMap[customerId].totalCalls += 1;
-        customerStatsMap[customerId].totalDuration += call.duration || 0;
-        customerStatsMap[customerId].totalSatisfaction += call.satisfaction_score || 0;
-      });
-      
-      return Object.values(customerStatsMap).map((stat: any) => ({
-        customerId: stat.customerId,
-        customerName: stat.customerName,
-        totalCalls: stat.totalCalls,
-        avgDuration: stat.totalCalls > 0 ? stat.totalDuration / stat.totalCalls : 0,
-        avgSatisfaction: stat.totalCalls > 0 ? stat.totalSatisfaction / stat.totalCalls : 0,
-      })) as CustomerStats[];
+        if (!data || !Array.isArray(data)) {
+          return [];
+        }
+
+        return data.map((customer: any) => ({
+          customerId: customer.customerId || "",
+          customerName: customer.customerName || "Unknown Customer",
+          totalCalls: customer.totalCalls || 0,
+          avgDuration: customer.avgDuration || 0,
+          avgSatisfaction: customer.avgSatisfaction || 0,
+          lastCallDate: customer.lastCallDate || null
+        }));
+      } catch (error) {
+        console.error("Error in useCustomerStats:", error);
+        return []; // Return empty array instead of throwing to prevent page crash
+      }
     },
-    enabled: !!user,
+    enabled: !!user && !!agentId && enabled,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 2,
   });

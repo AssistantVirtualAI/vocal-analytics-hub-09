@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RequireAuth, RequireAdmin } from './guards';
+import { RequireAuth, RequireAdmin, RequireOrgAccess } from './guards';
 
 // Page imports
 import Dashboard from '@/pages/Dashboard';
@@ -13,6 +13,8 @@ import NotFound from '@/pages/NotFound';
 import OrganizationSettings from '@/pages/OrganizationSettings';
 import AuthPage from '@/pages/AuthPage';
 import UsersManagement from '@/pages/UsersManagement';
+import OrganizationLanding from '@/pages/OrganizationLanding';
+import OrgDashboard from '@/pages/OrgDashboard';
 
 // Route configuration
 export interface RouteConfig {
@@ -57,6 +59,15 @@ export const routes: RouteConfig[] = [
   {
     path: "/users",
     element: <RequireAdmin><UsersManagement /></RequireAdmin>
+  },
+  // New organization-specific routes
+  {
+    path: "/:orgSlug",
+    element: <OrganizationLanding />
+  },
+  {
+    path: "/:orgSlug/dashboard",
+    element: <RequireOrgAccess><OrgDashboard /></RequireOrgAccess>
   },
   {
     path: "*",

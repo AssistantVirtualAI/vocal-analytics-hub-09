@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 import { OrganizationProvider } from './context/OrganizationContext';
 import { AuthProvider } from './context/AuthContext';
+import { OrgProvider } from './context/OrgContext';
 import { AppRoutes } from './routes';
 
 // Create a client
@@ -22,8 +23,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <OrganizationProvider>
-          <AppRoutes />
-          <Toaster />
+          <OrgProvider>
+            <AppRoutes />
+            <Toaster />
+          </OrgProvider>
         </OrganizationProvider>
       </AuthProvider>
     </QueryClientProvider>

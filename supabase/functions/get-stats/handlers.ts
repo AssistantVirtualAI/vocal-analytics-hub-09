@@ -12,10 +12,12 @@ export async function handleRequest(req: Request): Promise<Response> {
 
   // Parse request body to get agentId
   let agentId = '';
+  let orgSlug = '';
   try {
     const body = await req.json();
     agentId = body.agentId || '';
-    console.log(`Received agentId: ${agentId}`);
+    orgSlug = body.orgSlug || '';
+    console.log(`Received agentId: ${agentId}, orgSlug: ${orgSlug}`);
   } catch (error) {
     console.error('Error parsing request body:', error);
     return new Response(JSON.stringify({ 
@@ -34,6 +36,26 @@ export async function handleRequest(req: Request): Promise<Response> {
 
   try {
     console.log(`Fetching calls data from the database...`);
+
+    // If orgSlug is provided, get the organization's agent ID
+    if (orgSlug && !agentId) {
+      console.log(`Finding agent ID for organization slug: ${orgSlug}`);
+      const { data: orgData, error: orgError } = await supabase
+        .from("organizations")
+        .select("agent_id")
+        .eq("slug", orgSlug)
+        .single();
+        
+      if (orgError) {
+        console.error("Error fetching organization:", orgError);
+        throw new Error(`Organization not found: ${orgSlug}`);
+      }
+      
+      if (orgData) {
+        agentId = orgData.agent_id;
+        console.log(`Found agent ID ${agentId} for organization slug ${orgSlug}`);
+      }
+    }
 
     // Get real data from the database, specifically from the calls_view
     const { data: calls, error: callsError } = await supabase

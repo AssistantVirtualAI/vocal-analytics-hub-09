@@ -6,11 +6,12 @@ import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
 import { AGENT_ID } from "@/config/agent";
 
-export const useCallStats = (enabled = true) => {
+export const useCallStats = (enabled = true, overrideAgentId?: string) => {
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
-  // Use organization's agent ID if available, otherwise fall back to the default
-  const agentId = currentOrganization?.agentId || AGENT_ID;
+  
+  // Use provided agent ID, organization's agent ID, or fallback to default
+  const agentId = overrideAgentId || currentOrganization?.agentId || AGENT_ID;
   
   return useQuery({
     queryKey: ["callStats", agentId],

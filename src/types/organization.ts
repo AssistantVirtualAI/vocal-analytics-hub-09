@@ -7,6 +7,7 @@ export interface Organization {
   agentId: string;
   description?: string;
   createdAt: string;
+  slug?: string;
 }
 
 export interface OrganizationWithAgent extends Organization {
@@ -49,4 +50,3 @@ export interface OrganizationInvitation {
   token?: string;
   expiresAt?: string;
 }
-

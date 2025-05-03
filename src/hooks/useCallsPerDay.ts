@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
 import { AGENT_ID } from "@/config/agent";
+import { mockCalls } from "@/mockData";
 
 export const useCallsPerDay = (days = 14, enabled = true) => {
   const { currentOrganization } = useOrganization();
@@ -30,6 +31,46 @@ export const useCallsPerDay = (days = 14, enabled = true) => {
       }
 
       console.log("Calls per day data received:", data);
+      
+      // If we got no data or empty data, use mock data as fallback
+      if (!data || Object.keys(data).length === 0) {
+        console.log("No real data, using mock data as fallback");
+        
+        // Generate mock data for the past X days
+        const mockData = {};
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - days);
+        
+        // Use mock calls to generate daily counts
+        const filteredCalls = mockCalls.filter(call => {
+          const callDate = new Date(call.date);
+          return callDate >= startDate && callDate <= endDate;
+        });
+
+        for (const call of filteredCalls) {
+          const dateStr = new Date(call.date).toISOString().split('T')[0];
+          mockData[dateStr] = (mockData[dateStr] || 0) + 1;
+        }
+        
+        // Format the data for the chart
+        return Object.entries(mockData)
+          .map(([date, count]) => ({
+            date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+            appels: count as number,
+          }))
+          .sort((a, b) => {
+            const dateA = new Date(Object.keys(mockData).find(key => 
+              new Date(key).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) === a.date
+            ) || "");
+            
+            const dateB = new Date(Object.keys(mockData).find(key => 
+              new Date(key).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) === b.date
+            ) || "");
+            
+            return dateA.getTime() - dateB.getTime();
+          });
+      }
       
       // Format the data for the chart
       return Object.entries(data || {})

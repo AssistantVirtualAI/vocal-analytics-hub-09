@@ -39,10 +39,10 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Base query - no filtering by agent at database level
+    // Query directly on the calls_view to get real data from the database
     let query = supabase.from("calls_view").select("*", { count: "exact" });
     
-    // Apply date filters at database level
+    // Apply date filters
     if (startDate) {
       query = query.gte('date', startDate);
     }
@@ -51,69 +51,49 @@ serve(async (req) => {
       query = query.lte('date', endDate);
     }
 
-    // Apply customer filter at database level
+    // Apply customer filter
     if (customerId) {
       query = query.eq('customer_id', customerId);
     }
 
-    // If search is specified, apply search filter at database level
+    // Apply agent filter
+    if (agentId) {
+      query = query.eq('agent_id', agentId);
+    }
+
+    // Apply search filter
     if (search) {
       query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%`);
     }
     
-    // Execute the query to get all matching calls
-    const { data: allCalls, error: queryError, count: totalCount } = await query;
+    // Apply sorting
+    query = query.order(sort, { ascending: order === 'asc' });
+    
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+    
+    // Execute the query
+    const { data: calls, error: queryError, count: totalCount } = await query;
 
     if (queryError) {
       console.error("Database query error:", queryError);
       throw queryError;
     }
 
-    console.log(`Retrieved ${allCalls?.length || 0} calls from database before agent filtering`);
+    console.log(`Retrieved ${calls?.length || 0} calls from database`);
+    
+    if (!calls || calls.length === 0) {
+      return new Response(JSON.stringify({
+        calls: [],
+        count: 0
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Filter by agentId in memory if specified
-    const filteredCalls = agentId ? 
-      allCalls.filter(call => call.agent_id === agentId) : 
-      allCalls;
-    
-    const totalFilteredCount = filteredCalls.length;
-    console.log(`Filtered to ${totalFilteredCount} calls for agent ${agentId}`);
-    
-    // Sort in memory
-    filteredCalls.sort((a, b) => {
-      const aValue = a[sort];
-      const bValue = b[sort];
-      
-      // Handle null values
-      if (aValue === null && bValue === null) return 0;
-      if (aValue === null) return order === 'asc' ? -1 : 1;
-      if (bValue === null) return order === 'asc' ? 1 : -1;
-      
-      // Compare dates
-      if (sort === 'date') {
-        return order === 'asc' 
-          ? new Date(aValue).getTime() - new Date(bValue).getTime()
-          : new Date(bValue).getTime() - new Date(aValue).getTime();
-      }
-      
-      // Compare numbers or strings
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return order === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-      
-      // Default string comparison
-      return order === 'asc'
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
-    });
-    
-    // Apply pagination in memory
-    const paginatedCalls = filteredCalls.slice(offset, offset + limit);
-    
-    console.log(`Returning ${paginatedCalls.length} calls after pagination`);
-
-    // Clean up each call record and ensure all fields are present
-    const formattedCalls = paginatedCalls.map(call => ({
+    // Clean up each call record to ensure consistent formatting
+    const formattedCalls = calls.map(call => ({
       id: call.id,
       customer_id: call.customer_id || null,
       customer_name: call.customer_name || "Client inconnu",
@@ -130,7 +110,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       calls: formattedCalls,
-      count: totalFilteredCount
+      count: totalCount || formattedCalls.length
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

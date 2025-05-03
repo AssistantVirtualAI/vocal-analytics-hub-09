@@ -70,6 +70,16 @@ export const useCallsList = ({
 
       console.log("Calls data received:", data);
 
+      if (!data || !data.calls || data.calls.length === 0) {
+        console.warn("No calls data found, making sure to return empty array to prevent errors");
+        return {
+          calls: [],
+          totalCount: 0,
+          totalPages: 0,
+          currentPage: page
+        };
+      }
+
       // Format the calls to match our Call type
       const formattedCalls: Call[] = data.calls.map((call: any) => ({
         id: call.id,

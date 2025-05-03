@@ -38,79 +38,47 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log(`Fetching all calls data from the database...`);
+    console.log(`Fetching calls data from the database...`);
 
-    // Generate sample data for testing - we'll gradually replace this with real data
-    // as it becomes available in the database
-    const generateSampleData = () => {
-      const today = new Date();
-      const callsPerDay = {};
-      const topCustomers = [];
-      
-      // Generate sample data for the past 30 days
-      for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(today.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        callsPerDay[dateStr] = Math.floor(Math.random() * 10); // 0-9 calls per day
-      }
-      
-      // Generate sample top customers
-      for (let i = 0; i < 5; i++) {
-        topCustomers.push({
-          customerId: `cust-${i}`,
-          customerName: `Client ${i+1}`,
-          totalCalls: Math.floor(Math.random() * 50) + 5,
-          avgDuration: Math.floor(Math.random() * 600) + 60,
-          avgSatisfaction: (Math.random() * 3) + 2,
-          lastCallDate: new Date().toISOString()
-        });
-      }
-      
-      return {
-        totalCalls: Object.values(callsPerDay).reduce((a: number, b: number) => a + b, 0),
-        avgDuration: 180, // 3 minutes average
-        avgSatisfaction: 4.2,
-        callsPerDay,
-        topCustomers
-      };
-    };
-
-    // Try to get real data from the database
+    // Get real data from the database, specifically from the calls_view
     const { data: calls, error: callsError } = await supabase
       .from("calls_view")
       .select("*");
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);
-      // Fall back to sample data if there's an error
-      const sampleData = generateSampleData();
-      console.log("Using sample data due to database error");
-      return new Response(JSON.stringify(sampleData), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw callsError;
     }
 
-    // If no real data, use sample data
+    // If no data in the database, return that we have no data
     if (!calls || calls.length === 0) {
-      console.log("No calls found in database, using sample data");
-      const sampleData = generateSampleData();
-      return new Response(JSON.stringify(sampleData), {
+      console.log("No calls found in database");
+      return new Response(JSON.stringify({ 
+        totalCalls: 0,
+        avgDuration: 0,
+        avgSatisfaction: 0,
+        callsPerDay: {},
+        topCustomers: []
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Filter calls by agentId in memory if provided
+    // Filter calls by agentId if provided
     const filteredCalls = agentId ? calls.filter(call => call.agent_id === agentId) : calls;
     console.log(`Retrieved ${calls.length} calls from database, filtered to ${filteredCalls.length} for agent ${agentId}`);
 
-    // If still no data after filtering, use sample data
+    // If no calls after filtering, return no data
     if (filteredCalls.length === 0) {
-      console.log("No calls found after filtering, using sample data");
-      const sampleData = generateSampleData();
-      return new Response(JSON.stringify(sampleData), {
+      console.log("No calls found after filtering by agent");
+      return new Response(JSON.stringify({ 
+        totalCalls: 0,
+        avgDuration: 0,
+        avgSatisfaction: 0,
+        callsPerDay: {},
+        topCustomers: []
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -124,14 +92,14 @@ serve(async (req) => {
     const totalSatisfaction = filteredCalls.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
     const avgSatisfaction = totalCalls > 0 ? totalSatisfaction / totalCalls : 0;
     
-    // Group calls by date for the past 365 days
+    // Group calls by date for the past 30 days
     const today = new Date();
     const callsPerDay = {};
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    // Initialize all dates in the past year with 0 calls
-    for (let d = new Date(oneYearAgo); d <= today; d.setDate(d.getDate() + 1)) {
+    // Initialize all dates in the past 30 days with 0 calls
+    for (let d = new Date(thirtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
       callsPerDay[dateStr] = 0;
     }
@@ -143,7 +111,7 @@ serve(async (req) => {
       callsPerDay[date] = (callsPerDay[date] || 0) + 1;
     });
 
-    // Get top customers
+    // Get customer stats and top customers
     const customerStatsMap = {};
     filteredCalls.forEach(call => {
       if (!call.customer_id) return;
@@ -199,18 +167,11 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in get-stats function:', error);
-    
-    // Return sample data in case of error
-    const sampleData = {
-      totalCalls: 125,
-      avgDuration: 180,
-      avgSatisfaction: 4.2,
-      callsPerDay: {},
-      topCustomers: []
-    };
-    
-    return new Response(JSON.stringify(sampleData), {
-      status: 200,
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      message: "Failed to retrieve statistics"
+    }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

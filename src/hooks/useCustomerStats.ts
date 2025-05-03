@@ -33,7 +33,8 @@ export const useCustomerStats = (enabled = true) => {
 
         console.log("Customer stats data received:", data);
         
-        if (!data || !Array.isArray(data)) {
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          console.warn("No customer stats found, returning empty array");
           return [];
         }
 

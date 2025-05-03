@@ -46,10 +46,21 @@ serve(async (req) => {
 
     console.log(`Retrieved ${customers?.length || 0} customers from database`);
 
-    // Get calls - no filtering by agent at database level to avoid UUID type issues
-    const { data: calls, error: callsError } = await supabase
-      .from("calls_view")
-      .select("*");
+    if (!customers || customers.length === 0) {
+      console.log("No customers found in database");
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get calls data filtered by agent if applicable
+    let query = supabase.from("calls_view").select("*");
+    if (agentId) {
+      query = query.eq("agent_id", agentId);
+    }
+    
+    const { data: calls, error: callsError } = await query;
 
     if (callsError) {
       console.error("Error fetching calls:", callsError);
@@ -58,14 +69,26 @@ serve(async (req) => {
 
     console.log(`Retrieved ${calls?.length || 0} calls from database`);
 
-    // Filter calls by agentId in memory
-    const filteredCalls = agentId ? calls.filter(call => call.agent_id === agentId) : calls;
-    
-    console.log(`Filtered to ${filteredCalls.length} calls for agent ${agentId}`);
+    if (!calls || calls.length === 0) {
+      console.log("No calls found in database, returning empty customer stats");
+      const emptyCustomerStats = customers.map(customer => ({
+        customerId: customer.id,
+        customerName: customer.name,
+        totalCalls: 0,
+        avgDuration: 0,
+        avgSatisfaction: 0,
+        lastCallDate: null
+      }));
+      
+      return new Response(JSON.stringify(emptyCustomerStats), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Calculate customer stats
     const customerStats = customers.map(customer => {
-      const customerCalls = filteredCalls.filter(call => call.customer_id === customer.id);
+      const customerCalls = calls.filter(call => call.customer_id === customer.id);
       const totalCalls = customerCalls.length;
       
       // Calculate averages

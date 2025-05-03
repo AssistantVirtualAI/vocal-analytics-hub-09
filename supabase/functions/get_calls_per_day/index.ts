@@ -44,18 +44,7 @@ serve(async (req) => {
     
     console.log(`Fetching calls from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
-    // Generate sample data if no real data exists
-    const generateSampleData = () => {
-      const callsPerDay = {};
-      // Initialize all days with random data
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
-        callsPerDay[dateStr] = Math.floor(Math.random() * 10); // 0-9 calls per day
-      }
-      return callsPerDay;
-    };
-
-    // Try to get real data
+    // Get real data from the database
     const { data: calls, error } = await supabase
       .from("calls_view")
       .select("date, agent_id")
@@ -64,18 +53,20 @@ serve(async (req) => {
 
     if (error) {
       console.error("Error fetching calls per day:", error);
-      // Use sample data on error
-      console.log("Using sample data due to database error");
-      return new Response(JSON.stringify(generateSampleData()), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw error;
     }
 
-    // If no data, return sample data
+    // Initialize all days in our time range with zero calls
+    const callsPerDay = {};
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      callsPerDay[dateStr] = 0;
+    }
+
+    // If no data, return structure with zeros
     if (!calls || calls.length === 0) {
-      console.log("No calls found in database, using sample data");
-      return new Response(JSON.stringify(generateSampleData()), {
+      console.log("No calls found in database");
+      return new Response(JSON.stringify(callsPerDay), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -88,22 +79,15 @@ serve(async (req) => {
     
     console.log(`Retrieved ${calls.length} calls, filtered to ${filteredCalls.length} for agent ${agentId}`);
 
-    // If still no data after filtering, use sample data
+    // If still no data after filtering, return structure with zeros
     if (filteredCalls.length === 0) {
-      console.log("No calls found after filtering, using sample data");
-      return new Response(JSON.stringify(generateSampleData()), {
+      console.log("No calls found after filtering");
+      return new Response(JSON.stringify(callsPerDay), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Initialize all days with zero calls
-    const callsPerDay = {};
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      callsPerDay[dateStr] = 0;
-    }
-    
     // Count calls per day
     filteredCalls.forEach(call => {
       if (!call.date) return;
@@ -119,15 +103,11 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in get_calls_per_day function:', error);
-    // Return sample data on error for resilience
-    const sampleData = {};
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      sampleData[dateStr] = Math.floor(Math.random() * 10); // 0-9 calls per day
-    }
-    
-    return new Response(JSON.stringify(sampleData), {
-      status: 200,
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      message: "Failed to retrieve calls per day"
+    }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

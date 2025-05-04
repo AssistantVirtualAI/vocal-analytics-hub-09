@@ -7,7 +7,7 @@ import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
 // Define a simple context type without circular references
-interface OrgContextType {
+type OrgContextType = {
   currentOrg: Organization | null;
   loading: boolean;
   error: Error | null;

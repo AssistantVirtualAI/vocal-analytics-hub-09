@@ -6,25 +6,31 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
-// Define a simple context type without circular references
-type OrgContextType = {
+// Define the context type explicitly without any circular references
+type OrgContextValue = {
   currentOrg: Organization | null;
   loading: boolean;
   error: Error | null;
   refetchOrg: () => Promise<void>;
-}
+};
 
-// Create a context with default values
-const OrgContext = createContext<OrgContextType>({
+// Create the context with default values
+const OrgContext = createContext<OrgContextValue>({
   currentOrg: null,
   loading: true,
   error: null,
-  refetchOrg: async () => {}
+  refetchOrg: async () => {},
 });
 
+// Export the useOrg hook
 export const useOrg = () => useContext(OrgContext);
 
-export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// Define the provider component props
+type OrgProviderProps = {
+  children: ReactNode;
+};
+
+export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   // Extract the slug from the URL pathname directly
   const location = useLocation();
   const pathSegments = location.pathname.split('/');
@@ -46,13 +52,13 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setLoading(true);
     try {
       console.log(`Fetching organization with slug: ${orgSlug}`);
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('organizations')
         .select('*')
         .eq('slug', orgSlug)
         .single();
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       
       if (!data) {
         setCurrentOrg(null);
@@ -72,9 +78,9 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCurrentOrg(orgData);
         console.log(`Found organization: ${data.name}`);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching organization:', err);
-      setError(err);
+      setError(err instanceof Error ? err : new Error(String(err)));
       setCurrentOrg(null);
     } finally {
       setLoading(false);
@@ -91,12 +97,21 @@ export const OrgProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [orgSlug, location.pathname, user]);
 
+  // Define the refetch function
   const refetchOrg = async () => {
     await fetchOrgBySlug();
   };
 
+  // Create the context value object
+  const contextValue: OrgContextValue = {
+    currentOrg,
+    loading,
+    error,
+    refetchOrg
+  };
+
   return (
-    <OrgContext.Provider value={{ currentOrg, loading, error, refetchOrg }}>
+    <OrgContext.Provider value={contextValue}>
       {children}
     </OrgContext.Provider>
   );

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -176,7 +175,7 @@ export default function OrgDashboard() {
         ) : (
           <>
             <DashboardStats
-              callStats={callStats}
+              displayData={callStats}
               isLoading={isLoading}
               formatDuration={formatDuration}
             />

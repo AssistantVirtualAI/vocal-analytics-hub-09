@@ -75,6 +75,6 @@ export const useCallDetails = (callId: string | undefined) => {
     },
     enabled: !!callId,
     staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Cache for 30 minutes
+    gcTime: 30 * 60 * 1000, // Cache for 30 minutes (formerly cacheTime)
   });
 };

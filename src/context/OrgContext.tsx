@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
-// Create the context with a simpler type definition
+// Create the context with a concrete type definition
 const OrgContext = createContext<{
   currentOrg: Organization | null;
   loading: boolean;

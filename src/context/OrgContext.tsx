@@ -6,16 +6,13 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
-// Define the context type explicitly without any circular references
-type OrgContextValue = {
+// Create the context with a simpler type definition
+const OrgContext = createContext<{
   currentOrg: Organization | null;
   loading: boolean;
   error: Error | null;
   refetchOrg: () => Promise<void>;
-};
-
-// Create the context with default values
-const OrgContext = createContext<OrgContextValue>({
+}>({
   currentOrg: null,
   loading: true,
   error: null,
@@ -26,9 +23,9 @@ const OrgContext = createContext<OrgContextValue>({
 export const useOrg = () => useContext(OrgContext);
 
 // Define the provider component props
-type OrgProviderProps = {
+interface OrgProviderProps {
   children: ReactNode;
-};
+}
 
 export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   // Extract the slug from the URL pathname directly
@@ -102,16 +99,13 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
     await fetchOrgBySlug();
   };
 
-  // Create the context value object
-  const contextValue: OrgContextValue = {
-    currentOrg,
-    loading,
-    error,
-    refetchOrg
-  };
-
   return (
-    <OrgContext.Provider value={contextValue}>
+    <OrgContext.Provider value={{ 
+      currentOrg, 
+      loading, 
+      error, 
+      refetchOrg 
+    }}>
       {children}
     </OrgContext.Provider>
   );

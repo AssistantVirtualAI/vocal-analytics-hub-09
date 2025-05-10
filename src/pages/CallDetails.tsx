@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function CallDetails() {
   const { id } = useParams<{ id: string }>();
-  // Utilisation de showToast à la place de la fonction toast
+  // Using the useToast hook
   const { toast } = useToast();
   
   // Fetch call details from the API
@@ -31,7 +31,7 @@ export default function CallDetails() {
   } = useCallAudio(id);
 
   const handleRefresh = () => {
-    // Utilisation directe de toast car c'est l'objet depuis useToast()
+    // Using the toast method from the useToast hook
     toast({
       title: "Refreshing",
       description: "Updating ElevenLabs data...",

@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { showToast } from '@/hooks/use-toast'; // Utilisation de showToast à la place de toast
+import { toast } from '@/hooks/use-toast'; // Using the renamed toast function 
 import { AGENT_ID } from '@/config/agent';
 import { handleApiError } from '@/utils/api-metrics';
 
@@ -29,7 +29,7 @@ export function useSyncElevenLabsHistory() {
   
   const syncHistory = async (agentId = AGENT_ID) => {
     if (!agentId) {
-      showToast("Erreur", {
+      toast("Erreur", {
         description: "Aucun ID d'agent ElevenLabs n'est configuré",
         variant: "destructive"
       });
@@ -59,11 +59,11 @@ export function useSyncElevenLabsHistory() {
       }
       
       if (data.success) {
-        showToast("Synchronisation réussie", {
+        toast("Synchronisation réussie", {
           description: `${data.summary.success} appels importés sur ${data.summary.total}.`
         });
       } else if (data.error) {
-        showToast("Erreur de synchronisation", {
+        toast("Erreur de synchronisation", {
           description: data.error.message || "Une erreur s'est produite",
           variant: "destructive"
         });
@@ -72,7 +72,7 @@ export function useSyncElevenLabsHistory() {
       return data;
     } catch (error) {
       handleApiError(error, (props) => {
-        showToast(props.title, { 
+        toast(props.title, { 
           description: props.description,
           variant: props.variant as "default" | "destructive" | undefined
         });

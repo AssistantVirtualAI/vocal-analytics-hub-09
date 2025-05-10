@@ -3,7 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { ErrorCode, CallAudioResponse } from "./types.ts";
 import { createErrorResponse, getEnvVars } from "./utils.ts";
 import { fetchCallFromDatabase, fetchExistingCallData, updateCallInDatabase } from "./database.ts";
-// Importer depuis notre nouveau module partagé
+// Import from our shared module
 import { fetchElevenLabsHistoryItem } from "../_shared/elevenlabs-api.ts";
 
 /**
@@ -86,7 +86,7 @@ async function processCall(
 
   // The primary source of truth is now the ElevenLabs history API
   try {
-    // Utiliser notre fonction partagée pour récupérer les données
+    // Use our shared function to retrieve data
     const historyData = await fetchElevenLabsHistoryItem(historyItemId, env.elevenlabsApiKey);
     
     // Update variables with data from ElevenLabs

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
 import { reportApiMetrics, handleApiError } from "@/utils/api-metrics";
-import { showToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 export const useCallDetails = (callId: string | undefined) => {
   const queryClient = useQueryClient();
@@ -53,7 +53,7 @@ export const useCallDetails = (callId: string | undefined) => {
         return formattedCall;
       } catch (error: any) {
         handleApiError(error, (props) => {
-          showToast(props.title, { 
+          toast(props.title, { 
             description: props.description,
             variant: props.variant as "default" | "destructive" | undefined
           });

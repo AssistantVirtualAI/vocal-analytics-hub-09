@@ -13,12 +13,12 @@ export default function OrganizationSettings() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-slate-900 to-blue-950">
       <img 
-        src="/lovable-uploads/64a312fc-c114-4026-9b9d-2ee5d608c95b.png" 
-        alt="AVA Dashboard Logo" 
+        src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" 
+        alt="Logo" 
         className="h-24 w-auto mb-6" 
       />
       <div className="text-lg text-center">
-        <div className="animate-pulse text-amber-400 font-semibold">Redirection vers les paramètres...</div>
+        <div className="animate-pulse text-blue-400 font-semibold">Redirection vers les paramètres...</div>
       </div>
     </div>
   );

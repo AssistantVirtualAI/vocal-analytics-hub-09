@@ -74,13 +74,13 @@ export function DashboardSidebar() {
         <div className="flex flex-col items-center p-4 space-y-2">
           <div className="relative">
             <img 
-              src="/lovable-uploads/64a312fc-c114-4026-9b9d-2ee5d608c95b.png" 
-              alt="AVA Dashboard Logo" 
-              className="h-16 w-auto z-10 relative" 
+              src="/lovable-uploads/3afe405e-fa0b-4618-a5a5-433ff1339c5c.png" 
+              alt="Logo" 
+              className="h-14 w-auto z-10 relative" 
             />
             <div className="absolute -inset-1 rounded-full bg-blue-500/20 blur-md z-0"></div>
           </div>
-          <span className="text-xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-yellow-500">AI Agent Dashboard</span>
+          <span className="text-xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-indigo-100">AI Agent Dashboard</span>
           {currentOrganization && (
             <div className="px-3 py-1 bg-blue-800/50 border border-blue-700/50 backdrop-blur-sm rounded-full text-xs text-blue-100 mt-1 flex items-center">
               <Database className="h-3 w-3 mr-1 text-blue-300" />

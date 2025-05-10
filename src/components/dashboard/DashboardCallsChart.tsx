@@ -1,20 +1,30 @@
-
 import React from 'react';
-import { CallsChart } from './CallsChart';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CallStats } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart3 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 
+interface ChartDataItem {
+  date: string;
+  appels: number;
+}
+
 export interface DashboardCallsChartProps {
+  data?: ChartDataItem[];
   callData?: CallStats;
   isLoading?: boolean;
 }
 
-export function DashboardCallsChart({ callData, isLoading = false }: DashboardCallsChartProps) {
+export function DashboardCallsChart({ data, callData, isLoading = false }: DashboardCallsChartProps) {
   const chartData = React.useMemo(() => {
+    // Use provided data if available
+    if (data && data.length > 0) {
+      return data;
+    }
+    
+    // Otherwise try to generate from callData
     if (!callData?.callsPerDay) return [];
     
     return Object.entries(callData.callsPerDay)
@@ -24,7 +34,7 @@ export function DashboardCallsChart({ callData, isLoading = false }: DashboardCa
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-14); // Show only last 14 days for better visualization
-  }, [callData]);
+  }, [data, callData]);
 
   return (
     <Card className="border-secondary/20 bg-gradient-to-br from-card to-secondary/5 transition-all duration-200">

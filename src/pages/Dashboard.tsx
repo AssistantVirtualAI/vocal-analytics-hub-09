@@ -13,12 +13,7 @@ import { StatsError } from '@/components/stats/StatsError';
 import { EmptyDataState } from '@/components/stats/EmptyDataState';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Star } from 'lucide-react';
-
-const formatDuration = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
+import { formatDuration } from '@/utils/formatters';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');

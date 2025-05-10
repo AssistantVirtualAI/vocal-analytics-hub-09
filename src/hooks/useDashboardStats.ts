@@ -4,6 +4,8 @@ import { useDashboardFetch } from '@/hooks/dashboard/useDashboardFetch';
 import { useLastUpdated } from '@/hooks/dashboard/useLastUpdated';
 import { useRecentCalls } from '@/hooks/dashboard/useRecentCalls';
 import { useToastNotification } from '@/hooks/dashboard/useToastNotification';
+import { useCustomerStats } from '@/hooks/useCustomerStats';
+import type { CustomerStats, Call } from '@/types';
 
 interface ChartDataItem {
   date: string;
@@ -27,12 +29,16 @@ export function useDashboardStats() {
   const { 
     callStats, 
     callsData, 
-    isLoading, 
-    hasError, 
-    handleRefresh 
+    isLoading: callsLoading, 
+    hasError: callsError, 
+    handleRefresh: refreshCalls
   } = useDashboardFetch();
   
-  const hasData = !!(callStats || callsData);
+  const { data: customerStatsData, isLoading: customerStatsLoading, isError: customerStatsError } = useCustomerStats();
+
+  const isLoading = callsLoading || customerStatsLoading;
+  const hasError = callsError || customerStatsError;
+  const hasData = !!(callStats || callsData || customerStatsData);
   
   const { lastUpdated, setLastUpdated } = useLastUpdated(isLoading, hasError, hasData);
   const chartData = convertToChartData(callStats);
@@ -42,7 +48,7 @@ export function useDashboardStats() {
   // Handle manual refresh
   const handleRefreshWithToast = async () => {
     try {
-      await handleRefresh();
+      await refreshCalls();
       setLastUpdated(new Date());
       showSuccessToast();
     } catch (error) {
@@ -52,6 +58,7 @@ export function useDashboardStats() {
 
   return {
     callStats,
+    customerStats: customerStatsData || [],
     recentCalls,
     chartData,
     lastUpdated,

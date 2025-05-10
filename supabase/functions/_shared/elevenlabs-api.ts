@@ -210,14 +210,19 @@ export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
     });
 
     if (!response.ok) {
+      console.error(`Error fetching history. Status: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Error response: ${errorText}`);
       handleElevenLabsApiError(response, "Error fetching history items");
     }
 
     const historyData = await response.json();
+    console.log(`Received history data with ${historyData.history?.length || 0} items`);
     
     // Filter by agent ID if provided
     let filteredItems = historyData.history;
     if (agentId) {
+      console.log(`Filtering history items by agent ID: ${agentId}`);
       filteredItems = historyData.history.filter((item: any) => 
         item.voice_id === agentId || 
         item.model_id === agentId
@@ -228,6 +233,7 @@ export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
     
     return filteredItems;
   } catch (error) {
+    console.error(`Error in fetchElevenLabsHistory:`, error);
     if (error instanceof Response) {
       throw error;
     }

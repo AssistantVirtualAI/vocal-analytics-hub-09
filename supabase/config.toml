@@ -27,6 +27,9 @@ site_url = "http://localhost:5173"
 [analytics]
 enabled = false
 
-# Add the new edge function
+# Add edge functions
 [functions.sync-elevenlabs-conversations]
+verify_jwt = true
+
+[functions.sync-elevenlabs-history]
 verify_jwt = true

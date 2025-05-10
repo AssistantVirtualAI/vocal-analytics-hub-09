@@ -20,7 +20,9 @@ export function SyncElevenLabsHistoryButton({
   const { syncHistory, isSyncing } = useSyncElevenLabsHistory();
 
   const handleSync = async () => {
+    console.log("Starting ElevenLabs history sync with agentId:", agentId);
     const result = await syncHistory(agentId);
+    console.log("Sync result:", result);
     
     if (result.success && onSuccess) {
       onSuccess();

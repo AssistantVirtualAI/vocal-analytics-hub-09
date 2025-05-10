@@ -6,42 +6,7 @@ import {
   CallData, 
   SyncResult 
 } from "./models.ts";
-
-/**
- * Récupère l'historique des appels depuis l'API ElevenLabs
- */
-export async function fetchElevenLabsHistory(
-  apiKey: string,
-  agentId: string
-): Promise<HistoryItem[]> {
-  console.log(`Fetching history for agent ID: ${agentId}`);
-  
-  const historyResponse = await fetch("https://api.elevenlabs.io/v1/history", {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "xi-api-key": apiKey,
-    }
-  });
-
-  if (!historyResponse.ok) {
-    const errorData = await historyResponse.json();
-    console.error("ElevenLabs API Error:", historyResponse.status, errorData);
-    throw new Error(`Failed to fetch history from ElevenLabs: ${errorData.detail || historyResponse.statusText}`);
-  }
-
-  const historyData = await historyResponse.json() as ElevenLabsHistoryResponse;
-  
-  // Filtrer les éléments qui correspondent à l'agent ID
-  const agentHistory = historyData.history.filter(item => 
-    item.voice_id === agentId || 
-    item.model_id === agentId
-  );
-
-  console.log(`Found ${agentHistory.length} history items for agent ID: ${agentId}`);
-  
-  return agentHistory;
-}
+import { fetchElevenLabsHistory } from "../_shared/elevenlabs-api.ts";
 
 /**
  * Convertit un élément d'historique en données d'appel pour la base de données

@@ -1,9 +1,10 @@
 
 import { corsHeaders } from "../_shared/cors.ts";
 import { SyncRequest, SyncResponse } from "./models.ts";
-import { fetchElevenLabsHistory, syncHistoryItems } from "./service.ts";
+import { syncHistoryItems } from "./service.ts";
 import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
 import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
+import { fetchElevenLabsHistory } from "../_shared/elevenlabs-api.ts";
 
 /**
  * Gère la requête de synchronisation de l'historique ElevenLabs
@@ -27,6 +28,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
       const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
       
       // Étape 1: Récupérer tous les éléments d'historique de l'agent depuis ElevenLabs
+      // Utilise notre module partagé pour appeler l'API
       const historyItems = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
       
       // Étape 2: Synchroniser avec Supabase

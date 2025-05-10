@@ -3,8 +3,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { ErrorCode, CallAudioResponse } from "./types.ts";
 import { createErrorResponse, getEnvVars } from "./utils.ts";
 import { fetchCallFromDatabase, fetchExistingCallData, updateCallInDatabase } from "./database.ts";
-// Import the corrected client function
-import { fetchElevenLabsHistoryData } from "./elevenlabs-client.ts";
+// Importer depuis notre nouveau module partagé
+import { fetchElevenLabsHistoryItem } from "../_shared/elevenlabs-api.ts";
 
 /**
  * Main request handler function
@@ -38,8 +38,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       return createErrorResponse(error.message, 500, ErrorCode.MISSING_ENV_VAR);
     }
 
-    // Fetch call data from the database (this might need adjustment if the primary ID in DB is not historyItemId)
-    // For now, assuming 'callId' from DB maps to 'historyItemId'
+    // Fetch call data from the database
     let call;
     try {
       call = await fetchCallFromDatabase(historyItemId, env.supabaseUrl, env.supabaseServiceKey);
@@ -81,27 +80,25 @@ async function processCall(
   env: { elevenlabsApiKey: string; supabaseUrl: string; supabaseServiceKey: string }
 ): Promise<CallAudioResponse> {
   let audioUrl = call.audio_url || null; // Use existing audio_url from DB if present
-  let transcript = ""; // This will be the input text to ElevenLabs
-  let summary = ""; // Summary is not directly provided by ElevenLabs history endpoint
-  let statistics: any = null; // Statistics will be part of the history data
+  let transcript = ""; 
+  let summary = ""; 
+  let statistics: any = null; 
 
   // The primary source of truth is now the ElevenLabs history API
   try {
-    // Fetch data from ElevenLabs History API using historyItemId
-    const historyData = await fetchElevenLabsHistoryData(historyItemId, env.elevenlabsApiKey);
+    // Utiliser notre fonction partagée pour récupérer les données
+    const historyData = await fetchElevenLabsHistoryItem(historyItemId, env.elevenlabsApiKey);
     
     // Update variables with data from ElevenLabs
     audioUrl = historyData.audio_url || audioUrl;
     transcript = historyData.text || ""; // Input text from history
     // Statistics are embedded in historyData, e.g., character count
-    // We can pass the whole historyData or extract specific fields for 'statistics'
     statistics = {
       character_count: historyData.character_count_change_to,
       date_unix: historyData.date_unix,
       voice_id: historyData.voice_id,
       voice_name: historyData.voice_name,
       state: historyData.state,
-      // Add any other relevant fields from historyData that constitute 'statistics'
     };
 
     console.log(
@@ -112,19 +109,17 @@ async function processCall(
     );
 
     // Asynchronously update the database with the retrieved data
-    // The fields to update might need to be adjusted based on the database schema
     if (transcript || audioUrl || statistics) {
       const updatePayload: any = {
-        transcript: transcript, // Store the input text as transcript
-        // summary: summary, // Summary is not available from this endpoint
-        statistics: statistics, // Store the extracted statistics object
+        transcript: transcript,
+        statistics: statistics,
       };
       if (audioUrl) {
         updatePayload.audio_url = audioUrl;
       }
 
       const updatePromise = updateCallInDatabase(
-        historyItemId, // Use historyItemId as the primary key for update
+        historyItemId,
         updatePayload,
         env.supabaseUrl,
         env.supabaseServiceKey
@@ -165,7 +160,7 @@ async function processCall(
   }
 
   return {
-    audioUrl: audioUrl as string, // Assert as string, assuming error thrown if null and required
+    audioUrl: audioUrl as string,
     transcript,
     summary,
     statistics
@@ -173,5 +168,4 @@ async function processCall(
 }
 
 // Ensure EdgeRuntime is declared if it's used, to avoid TypeScript errors
-// This is a common pattern for Supabase Edge Functions
 declare var EdgeRuntime: any;

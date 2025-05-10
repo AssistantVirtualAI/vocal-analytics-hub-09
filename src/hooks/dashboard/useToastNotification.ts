@@ -1,5 +1,5 @@
 
-import { showToast } from '@/hooks/use-toast';
+import { showToast } from '@/hooks/use-toast'; // Utilisation de showToast à la place de toast
 import { handleApiError } from '@/utils/api-metrics';
 
 /**

@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { showToast } from '@/hooks/use-toast';
+import { showToast } from '@/hooks/use-toast'; // Utilisation de showToast à la place de toast
 import { AGENT_ID } from '@/config/agent';
 import { handleApiError } from '@/utils/api-metrics';
 

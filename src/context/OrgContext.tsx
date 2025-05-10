@@ -6,30 +6,29 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
-// Define the context value type explicitly to avoid deep type instantiation issues
-interface OrgContextValue {
+// Define the context type explicitly without any circular references
+type OrgContextValue = {
   currentOrg: Organization | null;
   loading: boolean;
   error: Error | null;
   refetchOrg: () => Promise<void>;
-}
-
-// Create the context with an initial empty value
-const OrgContext = createContext<OrgContextValue | undefined>(undefined);
-
-// Export the useOrg hook with proper type safety
-export const useOrg = () => {
-  const context = useContext(OrgContext);
-  if (context === undefined) {
-    throw new Error('useOrg must be used within an OrgProvider');
-  }
-  return context;
 };
 
+// Create the context with default values
+const OrgContext = createContext<OrgContextValue>({
+  currentOrg: null,
+  loading: true,
+  error: null,
+  refetchOrg: async () => {},
+});
+
+// Export the useOrg hook
+export const useOrg = () => useContext(OrgContext);
+
 // Define the provider component props
-interface OrgProviderProps {
+type OrgProviderProps = {
   children: ReactNode;
-}
+};
 
 export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   // Extract the slug from the URL pathname directly
@@ -55,7 +54,7 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
       console.log(`Fetching organization with slug: ${orgSlug}`);
       const { data, error: supabaseError } = await supabase
         .from('organizations')
-        .select('*')
+        .select('id, name, agent_id, description, created_at') // Explicitly select columns to avoid deep type instantiation
         .eq('slug', orgSlug)
         .single();
 
@@ -103,8 +102,8 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
     await fetchOrgBySlug();
   };
 
-  // Create the context value object to provide
-  const value = {
+  // Create the context value object
+  const contextValue: OrgContextValue = {
     currentOrg,
     loading,
     error,
@@ -112,7 +111,7 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   };
 
   return (
-    <OrgContext.Provider value={value}>
+    <OrgContext.Provider value={contextValue}>
       {children}
     </OrgContext.Provider>
   );

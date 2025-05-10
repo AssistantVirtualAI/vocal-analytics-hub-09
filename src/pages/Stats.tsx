@@ -26,7 +26,12 @@ export default function Stats() {
 
   return (
     <DashboardLayout>
-      <div className="container p-4 sm:p-6 space-y-6">
+      <div className="container p-4 sm:p-6 space-y-6 relative z-10">
+        {/* Decorative elements */}
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-400/5 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-indigo-400/5 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute top-1/2 left-0 w-40 h-40 bg-purple-400/5 dark:bg-purple-600/10 rounded-full blur-3xl -z-10"></div>
+        
         <StatsHeader 
           onRefresh={handleRefresh}
           lastUpdatedText={formatLastUpdated()}
@@ -61,19 +66,19 @@ export default function Stats() {
           setActiveTab={setActiveTab}
           isLoading={isLoading}
         >
-          <TabsContent value="overview">
+          <TabsContent value="overview" className="animate-fade-in">
             <OverviewTab chartData={chartData} customerStats={customerStats || []} />
           </TabsContent>
           
-          <TabsContent value="satisfaction">
+          <TabsContent value="satisfaction" className="animate-fade-in">
             <SatisfactionTab />
           </TabsContent>
           
-          <TabsContent value="agents">
+          <TabsContent value="agents" className="animate-fade-in">
             <AgentsTab />
           </TabsContent>
           
-          <TabsContent value="customers">
+          <TabsContent value="customers" className="animate-fade-in">
             <CustomersTab data={customerStats || []} />
           </TabsContent>
         </StatsTabsContainer>

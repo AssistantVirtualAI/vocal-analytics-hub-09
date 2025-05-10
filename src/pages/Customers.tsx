@@ -20,6 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { mockCustomerStats, mockCustomers } from '@/mockData';
 
 const formatDuration = (seconds: number): string => {
@@ -40,19 +46,26 @@ export default function Customers() {
 
   return (
     <DashboardLayout>
-      <div className="container p-4 sm:p-6 space-y-6">
+      <div className="container p-4 sm:p-6 space-y-6 relative z-10">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-1/4 w-72 h-72 bg-blue-400/5 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-indigo-400/5 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
+        
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-          <h1 className="text-2xl sm:text-3xl font-bold">Clients</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">Clients</h1>
           <Link to="/customers/new">
-            <Button>
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 dark:shadow-blue-800/20 transition-all duration-300">
               Ajouter un client
             </Button>
           </Link>
         </div>
 
-        <Card>
+        <Card className="border-blue-200/20 dark:border-blue-800/30 bg-gradient-to-br from-white/80 to-blue-50/80 dark:from-slate-900/80 dark:to-blue-900/20 backdrop-blur-sm shadow-xl shadow-blue-100/20 dark:shadow-blue-900/20">
           <CardHeader>
-            <CardTitle>Liste des clients ({filteredCustomers.length})</CardTitle>
+            <CardTitle className="text-blue-900 dark:text-blue-100 flex items-center">
+              <div className="h-1.5 w-1.5 rounded-full bg-blue-500 mr-2"></div>
+              Liste des clients ({filteredCustomers.length})
+            </CardTitle>
             <CardDescription>
               Liste de tous les clients avec leurs statistiques d'appels
             </CardDescription>
@@ -63,19 +76,19 @@ export default function Customers() {
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Rechercher par nom ou entreprise..."
-                  className="pl-8"
+                  className="pl-8 border-blue-200/50 dark:border-blue-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex">
+                  <Button variant="outline" className="flex border-blue-200/50 dark:border-blue-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
                     <Filter className="mr-2 h-4 w-4" />
                     Filtrer
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-blue-200/50 dark:border-blue-800/50 shadow-lg">
                   <DropdownMenuItem>Tous les clients</DropdownMenuItem>
                   <DropdownMenuItem>Clients actifs</DropdownMenuItem>
                   <DropdownMenuItem>Clients inactifs</DropdownMenuItem>
@@ -83,9 +96,9 @@ export default function Customers() {
               </DropdownMenu>
             </div>
 
-            <div className="border rounded-md overflow-hidden">
+            <div className="border border-blue-100/50 dark:border-blue-900/30 rounded-md overflow-hidden bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-blue-50/70 dark:bg-blue-900/30">
                   <TableRow>
                     <TableHead>Nom</TableHead>
                     <TableHead>Entreprise</TableHead>
@@ -101,7 +114,7 @@ export default function Customers() {
                     const stats = mockCustomerStats.find(s => s.customerId === customer.id);
                     
                     return (
-                      <TableRow key={customer.id} className="group">
+                      <TableRow key={customer.id} className="group hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors">
                         <TableCell>
                           <div className="font-medium">{customer.name}</div>
                         </TableCell>
@@ -112,7 +125,7 @@ export default function Customers() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-1 text-muted-foreground" />
+                            <Phone className="h-4 w-4 mr-1 text-blue-500/70 dark:text-blue-400/70" />
                             {stats?.totalCalls || 0}
                           </div>
                         </TableCell>
@@ -132,7 +145,7 @@ export default function Customers() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Link to={`/customers/${customer.id}`}>
-                            <Button variant="link" size="sm">
+                            <Button variant="link" size="sm" className="text-blue-600 dark:text-blue-400">
                               Voir détails
                             </Button>
                           </Link>
@@ -149,10 +162,3 @@ export default function Customers() {
     </DashboardLayout>
   );
 }
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';

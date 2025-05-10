@@ -76,7 +76,12 @@ export default function OrgDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="container p-4 sm:p-6 space-y-6">
+      <div className="container p-4 sm:p-6 space-y-6 relative z-10">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/5 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-indigo-400/5 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute top-1/3 left-0 w-48 h-48 bg-purple-400/5 dark:bg-purple-600/10 rounded-full blur-3xl -z-10"></div>
+        
         <div className="flex justify-between items-center mb-4">
           <DashboardHeader
             lastUpdated={lastUpdated}

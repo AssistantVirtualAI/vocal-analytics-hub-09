@@ -6,7 +6,7 @@ import { CallsHeader } from '@/components/calls/CallsHeader';
 import { CallsStats } from '@/components/calls/CallsStats';
 import { CallsToolbar } from '@/components/calls/CallsToolbar';
 import { CallsContent } from '@/components/calls/CallsContent';
-import { formatDuration } from '@/components/dashboard/utils/formatters';
+import { formatDuration } from '@/utils/formatters';
 import type { Call } from '@/types';
 
 export default function Calls() {
@@ -77,7 +77,11 @@ export default function Calls() {
 
   return (
     <DashboardLayout>
-      <div className="container p-4 sm:p-6 space-y-6">
+      <div className="container p-4 sm:p-6 space-y-6 relative z-10">
+        {/* Decorative elements */}
+        <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
+        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
+        
         <CallsHeader 
           view={view} 
           onViewChange={setView} 

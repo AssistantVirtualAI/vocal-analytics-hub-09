@@ -4,6 +4,7 @@ export interface SyncRequest {
   fromDate?: string;
   toDate?: string;
   limit?: number;
+  usePagination?: boolean;
 }
 
 export interface Conversation {

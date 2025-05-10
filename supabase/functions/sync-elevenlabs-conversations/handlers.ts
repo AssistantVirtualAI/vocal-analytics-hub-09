@@ -4,7 +4,7 @@ import { SyncRequest, SyncResponse } from "./models.ts";
 import { syncConversations } from "./service.ts";
 import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
 import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
-import { fetchElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
+import { fetchElevenLabsConversations, fetchAllElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
 
 /**
  * Gère la requête de synchronisation des conversations ElevenLabs
@@ -13,7 +13,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
   try {
     // Parse request body
     const requestData = await req.json() as SyncRequest;
-    const { agentId, fromDate, toDate, limit } = requestData;
+    const { agentId, fromDate, toDate, limit, usePagination = true } = requestData;
     
     if (!agentId) {
       return createErrorResponse({
@@ -31,27 +31,47 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
       const parsedFromDate = fromDate ? new Date(fromDate) : undefined;
       const parsedToDate = toDate ? new Date(toDate) : undefined;
       
-      // Étape 1: Récupérer les conversations de l'agent depuis ElevenLabs
-      const conversationsData = await fetchElevenLabsConversations(elevenlabsApiKey, {
-        agentId,
-        fromDate: parsedFromDate,
-        toDate: parsedToDate,
-        limit: limit || 100
-      });
+      let conversations = [];
       
-      if (!conversationsData.conversations || !Array.isArray(conversationsData.conversations)) {
-        return createErrorResponse({
-          status: 500,
-          message: "Invalid response from ElevenLabs API",
-          code: "INVALID_RESPONSE"
+      // Étape 1: Récupérer les conversations de l'agent depuis ElevenLabs
+      if (usePagination) {
+        console.log("Using pagination to fetch all conversations");
+        // Use the new function that handles pagination internally
+        conversations = await fetchAllElevenLabsConversations(elevenlabsApiKey, {
+          agentId,
+          fromDate: parsedFromDate,
+          toDate: parsedToDate,
+          limit: limit || 100,
+          maxPages: 5 // Limit to 5 pages (500 conversations) for safety
         });
+      } else {
+        console.log("Fetching single page of conversations");
+        // For backward compatibility or when pagination is not needed
+        const conversationsData = await fetchElevenLabsConversations(elevenlabsApiKey, {
+          agentId,
+          fromDate: parsedFromDate,
+          toDate: parsedToDate,
+          limit: limit || 100
+        });
+        
+        if (!conversationsData.conversations || !Array.isArray(conversationsData.conversations)) {
+          return createErrorResponse({
+            status: 500,
+            message: "Invalid response from ElevenLabs API",
+            code: "INVALID_RESPONSE"
+          });
+        }
+        
+        conversations = conversationsData.conversations;
       }
+
+      console.log(`Total conversations to sync: ${conversations.length}`);
       
       // Étape 2: Synchroniser avec Supabase
       const syncResults = await syncConversations(
         supabaseUrl,
         supabaseServiceKey,
-        conversationsData.conversations,
+        conversations,
         agentId
       );
       
@@ -63,7 +83,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
         success: errorCount === 0,
         results: syncResults,
         summary: {
-          total: conversationsData.conversations.length,
+          total: conversations.length,
           success: successCount,
           error: errorCount
         }

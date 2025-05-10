@@ -1,4 +1,3 @@
-
 // Shared module for interacting with the ElevenLabs API
 
 const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
@@ -34,14 +33,14 @@ export function createErrorResponse(message: string, status: number = 500, code:
  * 
  * @param apiKey - ElevenLabs API key
  * @param options - Optional parameters for filtering
- * @returns List of conversations
+ * @returns List of conversations and cursor for pagination
  */
 export async function fetchElevenLabsConversations(apiKey: string, options: {
   agentId?: string;
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
-  offset?: number;
+  cursor?: string;
 } = {}) {
   console.log("Fetching conversations from ElevenLabs API with filters:", options);
   
@@ -63,8 +62,9 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
     // Set default limit if not provided
     params.append('limit', options.limit?.toString() || '100');
     
-    if (options.offset) {
-      params.append('offset', options.offset.toString());
+    // Add cursor for pagination if provided
+    if (options.cursor) {
+      params.append('cursor', options.cursor);
     }
     
     const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
@@ -84,6 +84,7 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
 
     const conversationsData = await response.json();
     console.log(`Retrieved ${conversationsData.conversations?.length || 0} conversations from ElevenLabs`);
+    console.log(`Pagination cursor: ${conversationsData.cursor || 'none'}`);
     
     return conversationsData;
   } catch (error) {
@@ -97,6 +98,59 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
       ErrorCode.ELEVENLABS_API_ERROR
     );
   }
+}
+
+/**
+ * Fetch all conversations with pagination handling
+ * This function will continue fetching until all pages are retrieved
+ * 
+ * @param apiKey - ElevenLabs API key
+ * @param options - Optional parameters for filtering
+ * @returns All conversations matching the criteria
+ */
+export async function fetchAllElevenLabsConversations(apiKey: string, options: {
+  agentId?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  limit?: number;
+  maxPages?: number; // Safety parameter to limit the number of API calls
+} = {}) {
+  console.log("Fetching all conversations with pagination from ElevenLabs API");
+  
+  let allConversations = [];
+  let cursor = null;
+  let hasMore = true;
+  let pageCount = 0;
+  const maxPages = options.maxPages || 10; // Default to 10 pages max to prevent endless loops
+  
+  while (hasMore && pageCount < maxPages) {
+    pageCount++;
+    console.log(`Fetching page ${pageCount} with cursor: ${cursor || 'initial'}`);
+    
+    const result = await fetchElevenLabsConversations(apiKey, {
+      ...options,
+      cursor
+    });
+    
+    if (result.conversations && Array.isArray(result.conversations)) {
+      allConversations = [...allConversations, ...result.conversations];
+      console.log(`Added ${result.conversations.length} conversations, total: ${allConversations.length}`);
+    }
+    
+    // Check if there's another page
+    cursor = result.cursor;
+    hasMore = cursor !== null && cursor !== undefined && cursor !== '';
+    
+    if (!hasMore) {
+      console.log("No more pages to fetch");
+    }
+  }
+  
+  if (pageCount >= maxPages && hasMore) {
+    console.warn(`Reached maximum number of pages (${maxPages}), some conversations might be missing`);
+  }
+  
+  return allConversations;
 }
 
 /**

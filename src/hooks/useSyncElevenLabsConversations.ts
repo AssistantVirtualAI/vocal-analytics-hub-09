@@ -9,6 +9,7 @@ interface SyncOptions {
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
+  usePagination?: boolean;
 }
 
 interface SyncResult {
@@ -35,7 +36,8 @@ export function useSyncElevenLabsConversations() {
   
   const syncConversations = async (agentId = AGENT_ID, options: SyncOptions = {}) => {
     if (!agentId) {
-      toast("Erreur", {
+      toast({
+        title: "Erreur",
         description: "Aucun ID d'agent ElevenLabs n'est configuré",
         variant: "destructive"
       });
@@ -47,6 +49,9 @@ export function useSyncElevenLabsConversations() {
     try {
       console.log("Calling sync-elevenlabs-conversations function with agentId:", agentId, "and options:", options);
       
+      // Default to using pagination
+      const usePagination = options.usePagination !== false;
+      
       const { data, error } = await supabase.functions.invoke<SyncResult>(
         'sync-elevenlabs-conversations', 
         {
@@ -54,7 +59,8 @@ export function useSyncElevenLabsConversations() {
             agentId,
             fromDate: options.fromDate?.toISOString(),
             toDate: options.toDate?.toISOString(),
-            limit: options.limit
+            limit: options.limit,
+            usePagination
           }
         }
       );
@@ -70,11 +76,13 @@ export function useSyncElevenLabsConversations() {
       }
       
       if (data.success) {
-        toast("Synchronisation réussie", {
-          description: `${data.summary.success} conversations importées sur ${data.summary.total}.`
+        toast({
+          title: "Synchronisation réussie",
+          description: `${data.summary.success} conversations importées sur ${data.summary.total}.${usePagination ? ' (Pagination activée)' : ''}`
         });
       } else if (data.error) {
-        toast("Erreur de synchronisation", {
+        toast({
+          title: "Erreur de synchronisation",
           description: data.error.message || "Une erreur s'est produite",
           variant: "destructive"
         });
@@ -83,7 +91,8 @@ export function useSyncElevenLabsConversations() {
       return data;
     } catch (error) {
       handleApiError(error, (props) => {
-        toast(props.title, { 
+        toast({ 
+          title: props.title,
           description: props.description,
           variant: props.variant as "default" | "destructive" | undefined
         });
@@ -97,7 +106,8 @@ export function useSyncElevenLabsConversations() {
   // On conserve l'ancienne fonction pour compatibilité
   const syncHistory = async (agentId = AGENT_ID) => {
     if (!agentId) {
-      toast("Erreur", {
+      toast({
+        title: "Erreur",
         description: "Aucun ID d'agent ElevenLabs n'est configuré",
         variant: "destructive"
       });
@@ -127,11 +137,13 @@ export function useSyncElevenLabsConversations() {
       }
       
       if (data.success) {
-        toast("Synchronisation réussie", {
+        toast({
+          title: "Synchronisation réussie",
           description: `${data.summary.success} appels importés sur ${data.summary.total}.`
         });
       } else if (data.error) {
-        toast("Erreur de synchronisation", {
+        toast({
+          title: "Erreur de synchronisation",
           description: data.error.message || "Une erreur s'est produite",
           variant: "destructive"
         });
@@ -140,7 +152,8 @@ export function useSyncElevenLabsConversations() {
       return data;
     } catch (error) {
       handleApiError(error, (props) => {
-        toast(props.title, { 
+        toast({ 
+          title: props.title,
           description: props.description,
           variant: props.variant as "default" | "destructive" | undefined
         });

@@ -25,6 +25,16 @@ const OrgContext = createContext<OrgContextValue>({
 // Export the useOrg hook
 export const useOrg = () => useContext(OrgContext);
 
+// List of known non-organization routes to exclude from org slug extraction
+const NON_ORG_ROUTES = [
+  'calls',
+  'stats',
+  'customers',
+  'auth',
+  'users',
+  'organizations'
+];
+
 // Define the provider component props
 interface OrgProviderProps {
   children: ReactNode;
@@ -34,7 +44,10 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
   // Extract the slug from the URL pathname directly
   const location = useLocation();
   const pathSegments = location.pathname.split('/');
-  const orgSlug = pathSegments.length > 1 ? pathSegments[1] : null;
+  const potentialSlug = pathSegments.length > 1 ? pathSegments[1] : null;
+  
+  // Only treat it as an org slug if it's not one of our known application routes
+  const orgSlug = potentialSlug && !NON_ORG_ROUTES.includes(potentialSlug) ? potentialSlug : null;
   
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

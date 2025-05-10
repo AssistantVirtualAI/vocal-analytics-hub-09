@@ -5,6 +5,16 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useOrg } from '@/context/OrgContext';
 
+// List of known non-organization routes to exclude from org slug extraction
+const NON_ORG_ROUTES = [
+  'calls',
+  'stats',
+  'customers',
+  'auth',
+  'users',
+  'organizations'
+];
+
 // Renamed from AuthRouteGuard to RequireAuth for consistent naming in routes config
 export const RequireAuth = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
@@ -72,7 +82,10 @@ export const RequireOrgAccess = ({ children }: { children: ReactNode }) => {
   // Extract orgSlug from the URL pathname instead of useParams
   const location = useLocation();
   const pathSegments = location.pathname.split('/');
-  const orgSlug = pathSegments.length > 1 ? pathSegments[1] : null;
+  const potentialSlug = pathSegments.length > 1 ? pathSegments[1] : null;
+  
+  // Only treat it as an org slug if it's not one of our known application routes
+  const orgSlug = potentialSlug && !NON_ORG_ROUTES.includes(potentialSlug) ? potentialSlug : null;
   
   const navigate = useNavigate();
   const { currentOrg, loading } = useOrg();

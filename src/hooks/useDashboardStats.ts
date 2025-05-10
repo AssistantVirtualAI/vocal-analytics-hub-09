@@ -10,7 +10,7 @@ interface ChartDataItem {
   appels: number;
 }
 
-// Fonction séparée pour convertir les données de statistiques en données de graphique
+// Function to convert call stats into chart data
 function convertToChartData(callStats: any): ChartDataItem[] {
   if (!callStats || !callStats.callsPerDay) {
     return [];
@@ -26,14 +26,13 @@ function convertToChartData(callStats: any): ChartDataItem[] {
 export function useDashboardStats() {
   const { 
     callStats, 
-    customerStats, 
     callsData, 
     isLoading, 
     hasError, 
     handleRefresh 
   } = useDashboardFetch();
   
-  const hasData = !!(callStats || customerStats || callsData);
+  const hasData = !!(callStats || callsData);
   
   const { lastUpdated, setLastUpdated } = useLastUpdated(isLoading, hasError, hasData);
   const chartData = convertToChartData(callStats);
@@ -53,7 +52,6 @@ export function useDashboardStats() {
 
   return {
     callStats,
-    customerStats,
     recentCalls,
     chartData,
     lastUpdated,

@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { CallsChart } from './CallsChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Call, CallStats } from '@/types';
+import { CallStats } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export interface DashboardCallsChartProps {
@@ -10,8 +11,6 @@ export interface DashboardCallsChartProps {
 }
 
 export function DashboardCallsChart({ callData, isLoading = false }: DashboardCallsChartProps) {
-  
-
   return (
     <Card>
       <CardHeader className="pb-2">

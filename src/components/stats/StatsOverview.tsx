@@ -1,20 +1,25 @@
 
 import { Clock, Phone, Star } from "lucide-react";
 import { StatCard } from "./StatCard";
+import { CallStats } from "@/types";
 
 interface StatsOverviewProps {
-  totalCalls: number;
-  avgDuration: number;
-  avgSatisfaction: number;
+  data?: CallStats;
   isLoading?: boolean;
+  error?: Error | null;
+  refetch?: () => void;
 }
 
 export function StatsOverview({ 
-  totalCalls, 
-  avgDuration, 
-  avgSatisfaction,
-  isLoading = false
+  data, 
+  isLoading = false,
+  error = null,
+  refetch
 }: StatsOverviewProps) {
+  const totalCalls = data?.totalCalls || 0;
+  const avgDuration = data?.avgDuration || 0;
+  const avgSatisfaction = data?.avgSatisfaction || 0;
+
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;

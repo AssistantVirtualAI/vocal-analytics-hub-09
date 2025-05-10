@@ -32,8 +32,8 @@ export default function CallDetails() {
 
   const handleRefresh = () => {
     toast({
-      title: "Rafraîchissement",
-      description: "Mise à jour des données ElevenLabs en cours...",
+      title: "Refreshing",
+      description: "Updating ElevenLabs data...",
     });
     refetchCallAudio();
   };
@@ -43,7 +43,7 @@ export default function CallDetails() {
     return (
       <DashboardLayout>
         <div className="container p-6 space-y-6 text-center">
-          <h1 className="text-3xl font-bold">Chargement des détails de l'appel...</h1>
+          <h1 className="text-3xl font-bold">Loading call details...</h1>
         </div>
       </DashboardLayout>
     );
@@ -54,10 +54,10 @@ export default function CallDetails() {
     return (
       <DashboardLayout>
         <div className="container p-6 space-y-6 text-center">
-          <h1 className="text-3xl font-bold">Erreur</h1>
-          <p>Impossible de charger les détails de l'appel : {callDetailsError?.message || 'Appel non trouvé.'}</p>
+          <h1 className="text-3xl font-bold">Error</h1>
+          <p>Unable to load call details: {callDetailsError?.message || 'Call not found.'}</p>
           <Link to="/calls">
-            <Button>Retour à la liste des appels</Button>
+            <Button>Back to calls list</Button>
           </Link>
         </div>
       </DashboardLayout>
@@ -65,7 +65,7 @@ export default function CallDetails() {
   }
 
   // Format the date for display in the title
-  const formattedDate = format(new Date(call.date), 'dd/MM/yyyy à HH:mm', { locale: fr });
+  const formattedDate = format(new Date(call.date), 'dd/MM/yyyy at HH:mm', { locale: fr });
 
   // Use ElevenLabs data for transcript and summary if available
   const transcript = audioData?.transcript ?? call.transcript ?? '';
@@ -79,16 +79,16 @@ export default function CallDetails() {
     const errorCode = (audioError as any)?.code;
     switch (errorCode) {
       case 'ELEVENLABS_AUTH_ERROR':
-        audioErrorMessage = "Échec de l'authentification avec ElevenLabs. Vérifiez la clé API.";
+        audioErrorMessage = "Authentication with ElevenLabs failed. Check your API key.";
         break;
       case 'ELEVENLABS_NOT_FOUND':
-        audioErrorMessage = "L'appel n'a pas été trouvé sur ElevenLabs.";
+        audioErrorMessage = "Call not found on ElevenLabs.";
         break;
       case 'ELEVENLABS_QUOTA_EXCEEDED':
-        audioErrorMessage = "Quota de l'API ElevenLabs dépassé.";
+        audioErrorMessage = "ElevenLabs API quota exceeded.";
         break;
       default:
-        audioErrorMessage = `Erreur lors du chargement des données ElevenLabs: ${audioError.message || 'Erreur inconnue'}`;
+        audioErrorMessage = `Error loading ElevenLabs data: ${audioError.message || 'Unknown error'}`;
     }
   }
 
@@ -102,7 +102,7 @@ export default function CallDetails() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold">Détails de l'appel du {formattedDate}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Call details for {formattedDate}</h1>
           </div>
           <Button 
             variant="outline" 
@@ -111,13 +111,13 @@ export default function CallDetails() {
             disabled={isFetchingAudio}
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isFetchingAudio ? 'animate-spin' : ''}`} />
-            {isFetchingAudio ? 'Mise à jour...' : 'Rafraîchir les données ElevenLabs'}
+            {isFetchingAudio ? 'Updating...' : 'Refresh ElevenLabs Data'}
           </Button>
         </div>
 
         {audioErrorMessage && !isFetchingAudio && (
           <div className="p-4 bg-destructive/10 text-destructive border border-destructive/30 rounded-md">
-            <p className="font-medium">Erreur de chargement des données ElevenLabs</p>
+            <p className="font-medium">Error loading ElevenLabs data</p>
             <p className="text-sm">{audioErrorMessage}</p>
           </div>
         )}

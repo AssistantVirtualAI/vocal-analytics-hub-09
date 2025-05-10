@@ -40,7 +40,7 @@ export function SyncCallsButton({
       {isSyncing ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : null}
-      Synchroniser les appels ElevenLabs
+      Sync ElevenLabs Calls
     </Button>
   );
 }

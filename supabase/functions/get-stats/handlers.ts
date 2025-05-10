@@ -4,28 +4,50 @@ import { corsHeaders } from "./utils.ts";
 import { calculateStats } from "./statsCalculator.ts";
 
 /**
- * Helper function to get Agent UUID from an external string ID.
- * Assumes the string ID is stored in a column like 'external_id' in the 'agents' table.
+ * Helper function to get Agent UUID by matching the agent_id from organizations table
+ * to the appropriate field in the agents table.
  */
 async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentId: string): Promise<string | null> {
   if (!externalAgentId) return null;
-  console.log(`[get-stats] Fetching UUID for externalAgentId: ${externalAgentId}`);
+  
+  console.log(`[get-stats] Looking up agent with ID matching: ${externalAgentId}`);
+  
+  // First try looking up by the ID directly (in case it's already a UUID)
+  try {
+    const { data: directData, error: directError } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("id", externalAgentId)
+      .maybeSingle();
+      
+    if (!directError && directData) {
+      console.log(`[get-stats] Found agent directly with ID: ${directData.id}`);
+      return directData.id;
+    }
+  } catch (err) {
+    console.log(`[get-stats] Direct ID lookup failed, will try name lookup: ${err}`);
+    // This is expected if the ID is not a UUID, continue to next approach
+  }
+  
+  // If direct lookup failed, try looking up by name field
   const { data: agentData, error: agentError } = await supabase
-    .from("agents") // Your agents table
-    .select("id")     // The UUID column in agents table
-    .eq("external_id", externalAgentId) // The column storing string IDs like "QNdB45Jpgh..."
-    .single();
+    .from("agents")
+    .select("id")
+    .eq("name", externalAgentId)
+    .maybeSingle();
 
-  if (agentError) {
-    console.error(`[get-stats] Error fetching agent UUID for external_id ${externalAgentId}:`, agentError);
+  if (agentError && agentError.code !== 'PGRST116') {
+    console.error(`[get-stats] Error fetching agent by name ${externalAgentId}:`, agentError);
     return null;
   }
-  if (!agentData) {
-    console.warn(`[get-stats] No agent found with external_id: ${externalAgentId}`);
-    return null;
+  
+  if (agentData) {
+    console.log(`[get-stats] Found agent by name: ${agentData.id}`);
+    return agentData.id;
   }
-  console.log(`[get-stats] Found agent UUID: ${agentData.id} for externalAgentId: ${externalAgentId}`);
-  return agentData.id; // This is the UUID
+  
+  console.warn(`[get-stats] No agent found with ID or name matching: ${externalAgentId}`);
+  return null;
 }
 
 /**
@@ -85,14 +107,21 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     // Now, if we have an externalAgentId (either from request body or from orgSlug lookup),
-    // get the actual agent UUID from the "agents" table.
+    // try to find the corresponding agent UUID.
     if (externalAgentId) {
       agentUUID = await getAgentUUIDByExternalId(supabase, externalAgentId);
       if (!agentUUID) {
-        console.warn(`[get-stats] Could not map externalAgentId ${externalAgentId} to an agent UUID. Stats might be incomplete or for all agents if no UUID found.`);
-        // Depending on requirements, you might want to return an error or empty stats here
-        // if an agentId was provided but couldn't be mapped.
-        // For now, if mapping fails, we proceed to fetch general stats or stats for no specific agent.
+        console.warn(`[get-stats] Could not find an agent with ID or name matching ${externalAgentId}. Stats might be incomplete.`);
+        // If we're passing an agent ID from the frontend that we expect to exist but doesn't,
+        // we'll return empty stats to avoid showing incorrect data
+        if (externalAgentId) {
+          return new Response(JSON.stringify({ 
+            totalCalls: 0, avgDuration: 0, avgSatisfaction: 0, callsPerDay: {}, topCustomers: [] 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     }
 
@@ -103,17 +132,11 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (agentUUID) {
       query = query.eq("agent_id", agentUUID); // agent_id in calls_view is UUID
     }
-    // Note: If no agentUUID is found/resolved, this will fetch stats for ALL calls.
-    // Adjust if stats should ONLY be for a specific agent if externalAgentId was given.
 
     const { data: calls, error: callsError } = await query;
 
     if (callsError) {
       console.error("[get-stats] Error fetching calls:", callsError);
-      // Check for specific UUID error again, though mapping should prevent it if external_id exists
-      if (callsError.code === "22P02") {
-         console.error("[get-stats] UUID syntax error still occurred. Check agent_id in calls_view and mapping logic.");
-      }
       throw callsError;
     }
 

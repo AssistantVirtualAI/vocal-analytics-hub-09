@@ -56,8 +56,34 @@ serve(async (req) => {
 
     // Get calls data filtered by agent if applicable
     let query = supabase.from("calls_view").select("*");
+    
+    // Modified: Check if agentId matches a UUID pattern before using it in a query
+    // This prevents SQL errors when using non-UUID strings with UUID columns
     if (agentId) {
-      query = query.eq("agent_id", agentId);
+      // Check if agentId is associated with an organization
+      const { data: orgCheck } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("agent_id", agentId)
+        .maybeSingle();
+      
+      if (orgCheck?.id) {
+        // If found in organizations, filter by organization_id
+        query = query.eq("organization_id", orgCheck.id);
+        console.log(`Found organization with agent_id: ${agentId}, filtering by organization_id: ${orgCheck.id}`);
+      } else {
+        // Check if this is a real agent UUID in the agents table
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidPattern.test(agentId)) {
+          // If it matches UUID pattern, use it directly
+          query = query.eq("agent_id", agentId);
+          console.log(`Using agent_id as UUID filter: ${agentId}`);
+        } else {
+          // For non-UUID ElevenLabs IDs that aren't in organizations, use external_id field
+          query = query.eq("agent_external_id", agentId);
+          console.log(`Using agent_external_id filter for non-UUID: ${agentId}`);
+        }
+      }
     }
     
     const { data: calls, error: callsError } = await query;

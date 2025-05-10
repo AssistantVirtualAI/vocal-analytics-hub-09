@@ -24,10 +24,10 @@ export function useSyncCalls() {
 
   const syncCalls = async (agentId: string): Promise<SyncResult> => {
     if (!agentId) {
-      toast("Agent ID manquant", {
-        description: "Veuillez d'abord sélectionner un agent"
+      toast("Missing Agent ID", {
+        description: "Please select an agent first"
       });
-      return { success: false, error: "Agent ID manquant" };
+      return { success: false, error: "Missing Agent ID" };
     }
 
     setIsSyncing(true);
@@ -39,14 +39,14 @@ export function useSyncCalls() {
           id: `call-${Date.now()}-1`,
           date: new Date().toISOString(),
           duration: "0:19",
-          customerName: "Client test 1",
+          customerName: "Test client 1",
           evaluationResult: "Successful"
         },
         {
           id: `call-${Date.now()}-2`,
           date: new Date().toISOString(),
           duration: "0:27",
-          customerName: "Client test 2",
+          customerName: "Test client 2",
           evaluationResult: "Successful"
         }
       ];
@@ -60,28 +60,28 @@ export function useSyncCalls() {
 
       if (error) {
         console.error("Sync error:", error);
-        throw new Error(error.message || "Une erreur s'est produite lors de l'appel de la fonction");
+        throw new Error(error.message || "An error occurred while calling the function");
       }
 
       if (!data || !data.success) {
-        const errorMsg = data?.error || "Échec de la synchronisation des appels";
+        const errorMsg = data?.error || "Failed to synchronize calls";
         console.error("Sync failed:", errorMsg);
         throw new Error(errorMsg);
       }
 
-      toast("Synchronisation réussie", {
-        description: `${data.summary?.success || 0} appel(s) synchronisé(s)`
+      toast("Sync successful", {
+        description: `${data.summary?.success || 0} call(s) synchronized`
       });
       
       return data as SyncResult;
     } catch (error: any) {
       console.error("Error syncing calls:", error);
-      toast("Erreur de synchronisation", {
-        description: error.message || "Une erreur s'est produite lors de la synchronisation des appels"
+      toast("Sync error", {
+        description: error.message || "An error occurred while synchronizing calls"
       });
       return { 
         success: false, 
-        error: error.message || "Une erreur s'est produite lors de la synchronisation des appels" 
+        error: error.message || "An error occurred while synchronizing calls" 
       };
     } finally {
       setIsSyncing(false);

@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface SyncCallsButtonProps {
   agentId: string;
   onSuccess?: () => void;
+  className?: string;
 }
 
-export function SyncCallsButton({ agentId, onSuccess }: SyncCallsButtonProps) {
+export function SyncCallsButton({ agentId, onSuccess, className }: SyncCallsButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
@@ -83,7 +85,7 @@ export function SyncCallsButton({ agentId, onSuccess }: SyncCallsButtonProps) {
       onClick={handleSync} 
       disabled={isSyncing}
       variant="outline"
-      className="gap-2"
+      className={cn("gap-2", className)}
     >
       {isSyncing ? (
         <Loader2 className="h-4 w-4 animate-spin" />

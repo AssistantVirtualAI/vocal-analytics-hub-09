@@ -261,31 +261,13 @@ export type Database = {
       }
     }
     Views: {
-      calls_summary_view: {
-        Row: {
-          agent_name: string | null
-          customer_name: string | null
-          date: string | null
-          duration: number | null
-          id: string | null
-          summary: string | null
-          transcript: string | null
-        }
-        Relationships: []
-      }
       calls_view: {
         Row: {
-          agent_avatar: string | null
           agent_id: string | null
           agent_name: string | null
-          agent_role: string | null
           audio_url: string | null
           created_at: string | null
-          customer_company: string | null
-          customer_email: string | null
           customer_id: string | null
-          customer_name: string | null
-          customer_phone: string | null
           date: string | null
           duration: number | null
           id: string | null

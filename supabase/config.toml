@@ -55,6 +55,11 @@ verify_jwt = true
 rate_limit = 20
 rate_limit_window = "1m"
 
+[functions.sync-elevenlabs-history]
+verify_jwt = true
+rate_limit = 20
+rate_limit_window = "1m"
+
 [functions.api-docs]
 verify_jwt = false
 rate_limit = 100

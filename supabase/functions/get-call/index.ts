@@ -1,58 +1,30 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCorsOptions } from "../_shared/api-utils.ts";
+import { handleGetCall } from "./handlers.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Gestion des requêtes CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   try {
-    // Get call ID from the request body
-    const { callId } = await req.json();
-
-    if (!callId) {
-      return new Response(JSON.stringify({ error: 'Call ID is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Fetch call details by ID
-    const { data: call, error } = await supabase
-      .from("calls_view")
-      .select("*")
-      .eq("id", callId)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    if (!call) {
-      return new Response(JSON.stringify({ error: 'Call not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify(call), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return await handleGetCall(req);
   } catch (error) {
-    console.error('Error in get-call function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Unhandled error in get-call function:', error);
+    return new Response(JSON.stringify({ 
+      error: {
+        message: error.message || "Une erreur inattendue s'est produite",
+        code: "INTERNAL_SERVER_ERROR"
+      }
+    }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Content-Type': 'application/json'
+      },
     });
   }
 });

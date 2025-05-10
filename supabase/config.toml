@@ -39,7 +39,7 @@ port = 54327
 vector_port = 54328
 backend = "postgres"
 
-# Add rate limiting to edge functions
+# Configuration des fonctions edge avec rate limiting
 [functions.get-customer-stats]
 verify_jwt = true
 rate_limit = 100
@@ -61,6 +61,36 @@ rate_limit = 100
 rate_limit_window = "1m"
 
 [functions.api-monitor]
+verify_jwt = true
+rate_limit = 100
+rate_limit_window = "1m"
+
+[functions.generate-summary]
+verify_jwt = true
+rate_limit = 50
+rate_limit_window = "1m"
+
+[functions.generate-summary-fallback]
+verify_jwt = true
+rate_limit = 50
+rate_limit_window = "1m"
+
+[functions.elevenlabs-tts]
+verify_jwt = true
+rate_limit = 60
+rate_limit_window = "1m"
+
+[functions.elevenlabs-call-audio]
+verify_jwt = true
+rate_limit = 60 
+rate_limit_window = "1m"
+
+[functions.get-stats]
+verify_jwt = true
+rate_limit = 100
+rate_limit_window = "1m"
+
+[functions.get_calls_per_day]
 verify_jwt = true
 rate_limit = 100
 rate_limit_window = "1m"

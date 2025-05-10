@@ -2,28 +2,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
+import { reportApiMetrics } from "@/utils/api-metrics";
 
 export const useCallDetails = (callId: string | undefined) => {
   const queryClient = useQueryClient();
-
-  // Report API metrics to our monitoring function
-  const reportApiMetrics = async (functionName: string, startTime: number, status: number, error?: string) => {
-    try {
-      const duration = Date.now() - startTime;
-      await supabase.functions.invoke("api-monitor", {
-        body: {
-          functionName,
-          duration,
-          status,
-          error,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (e) {
-      console.error("Failed to report API metrics:", e);
-      // Don't throw - this is a non-critical operation
-    }
-  };
 
   return useQuery({
     queryKey: ["call", callId],

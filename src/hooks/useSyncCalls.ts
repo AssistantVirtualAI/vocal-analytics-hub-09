@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { reportApiMetrics } from '@/utils/api-metrics';
 
 interface SyncResult {
   success: boolean;
@@ -21,25 +22,6 @@ interface SyncResult {
 
 export function useSyncCalls() {
   const [isSyncing, setIsSyncing] = useState(false);
-
-  // Report API metrics to our monitoring function
-  const reportApiMetrics = async (functionName: string, startTime: number, status: number, error?: string) => {
-    try {
-      const duration = Date.now() - startTime;
-      await supabase.functions.invoke("api-monitor", {
-        body: {
-          functionName,
-          duration,
-          status,
-          error,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (e) {
-      console.error("Failed to report API metrics:", e);
-      // Don't throw - this is a non-critical operation
-    }
-  };
 
   const syncCalls = async (agentId: string): Promise<SyncResult> => {
     if (!agentId) {

@@ -22,6 +22,25 @@ interface SyncResult {
 export function useSyncCalls() {
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Report API metrics to our monitoring function
+  const reportApiMetrics = async (functionName: string, startTime: number, status: number, error?: string) => {
+    try {
+      const duration = Date.now() - startTime;
+      await supabase.functions.invoke("api-monitor", {
+        body: {
+          functionName,
+          duration,
+          status,
+          error,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (e) {
+      console.error("Failed to report API metrics:", e);
+      // Don't throw - this is a non-critical operation
+    }
+  };
+
   const syncCalls = async (agentId: string): Promise<SyncResult> => {
     if (!agentId) {
       toast("Missing Agent ID", {
@@ -31,6 +50,7 @@ export function useSyncCalls() {
     }
 
     setIsSyncing(true);
+    const startTime = Date.now();
     
     try {
       // Sample dummy calls data - in a real app, you would fetch this from ElevenLabs API
@@ -60,14 +80,19 @@ export function useSyncCalls() {
 
       if (error) {
         console.error("Sync error:", error);
+        await reportApiMetrics("sync-calls-elevenlabs", startTime, 500, error.message);
         throw new Error(error.message || "An error occurred while calling the function");
       }
 
       if (!data || !data.success) {
         const errorMsg = data?.error || "Failed to synchronize calls";
         console.error("Sync failed:", errorMsg);
+        await reportApiMetrics("sync-calls-elevenlabs", startTime, 400, errorMsg);
         throw new Error(errorMsg);
       }
+
+      // Report successful API call
+      await reportApiMetrics("sync-calls-elevenlabs", startTime, 200);
 
       toast("Sync successful", {
         description: `${data.summary?.success || 0} call(s) synchronized`

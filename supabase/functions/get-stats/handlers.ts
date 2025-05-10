@@ -11,7 +11,7 @@ async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentI
   
   console.log(`[get-stats] Looking up agent with ID matching: ${externalAgentId}`);
   
-  // First try looking up by the ID directly (in case it's already a UUID)
+  // First try looking up by the ID directly in the agents table (in case it's already a UUID)
   try {
     const { data: directData, error: directError } = await supabase
       .from("agents")
@@ -28,35 +28,47 @@ async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentI
     // This is expected if the ID is not a UUID, continue to next approach
   }
   
-  // If direct lookup failed, look for an agent where this ID is stored in any identifying field
-  // First try the name field
-  const { data: nameData, error: nameError } = await supabase
-    .from("agents")
-    .select("id")
-    .eq("name", externalAgentId)
-    .maybeSingle();
+  // Try looking up the agent by name in the agents table
+  try {
+    const { data: nameData, error: nameError } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("name", externalAgentId)
+      .maybeSingle();
 
-  if (!nameError && nameData) {
-    console.log(`[get-stats] Found agent by name: ${nameData.id}`);
-    return nameData.id;
+    if (!nameError && nameData) {
+      console.log(`[get-stats] Found agent by name: ${nameData.id}`);
+      return nameData.id;
+    }
+    
+    if (nameError) {
+      console.log(`[get-stats] Error fetching agent by name: ${nameError.message || JSON.stringify(nameError)}`);
+    }
+  } catch (err) {
+    console.log(`[get-stats] Name lookup failed: ${err}`);
+    // Continue to next approach
   }
   
-  if (nameError) {
-    console.log(`[get-stats] Error fetching agent by name: ${nameError.message || nameError}`);
-  }
-  
-  // Next, check if there's an organization with this agent_id 
-  const { data: orgData, error: orgError } = await supabase
-    .from("organizations")
-    .select("id")
-    .eq("agent_id", externalAgentId)
-    .maybeSingle();
-  
-  if (!orgError && orgData) {
-    console.log(`[get-stats] Found organization with agent_id: ${externalAgentId}, using default agent`);
-    // This is a special case - return a non-null value to indicate we should proceed with query
-    // but without a specific agent filter
-    return "USE_NO_FILTER";
+  // Try finding by agent_id in the organizations table
+  try {
+    const { data: orgData, error: orgError } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("agent_id", externalAgentId)
+      .maybeSingle();
+    
+    if (!orgError && orgData) {
+      console.log(`[get-stats] Found organization with agent_id: ${externalAgentId}, using default agent`);
+      // This is a special case - return a non-null value to indicate we should proceed with query
+      // but without a specific agent filter
+      return "USE_NO_FILTER";
+    }
+    
+    if (orgError) {
+      console.log(`[get-stats] Error checking organization table: ${orgError.message || JSON.stringify(orgError)}`);
+    }
+  } catch (err) {
+    console.log(`[get-stats] Organization lookup failed: ${err}`);
   }
   
   console.warn(`[get-stats] No agent found with ID or name matching: ${externalAgentId}`);
@@ -70,7 +82,7 @@ export async function handleRequest(req: Request): Promise<Response> {
   const startTime = performance.now();
   console.log("Edge function get-stats called");
 
-  let externalAgentId = null; // This will be the string ID like "QNdB45Jpgh..."
+  let externalAgentId = null; // This will be the string ID like "QNdB45Jpgh06Hr67TzFO..."
   let orgSlug = null;
 
   try {

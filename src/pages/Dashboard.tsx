@@ -89,7 +89,7 @@ export default function Dashboard() {
         </div>
 
         <StatsOverview 
-          callStats={callStats} 
+          data={callStats} 
           isLoading={isLoading}
           hasError={hasError}
           onRetry={handleRefreshData}

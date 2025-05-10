@@ -25,8 +25,7 @@ export function useSyncCalls() {
   const syncCalls = async (agentId: string): Promise<SyncResult> => {
     if (!agentId) {
       toast("Agent ID manquant", {
-        description: "Veuillez d'abord sélectionner un agent",
-        variant: "destructive"
+        description: "Veuillez d'abord sélectionner un agent"
       });
       return { success: false, error: "Agent ID manquant" };
     }
@@ -71,15 +70,14 @@ export function useSyncCalls() {
       }
 
       toast("Synchronisation réussie", {
-        description: `${data.summary?.success || 0} appel(s) synchronisé(s)`,
+        description: `${data.summary?.success || 0} appel(s) synchronisé(s)`
       });
       
       return data as SyncResult;
     } catch (error: any) {
       console.error("Error syncing calls:", error);
       toast("Erreur de synchronisation", {
-        description: error.message || "Une erreur s'est produite lors de la synchronisation des appels",
-        variant: "destructive"
+        description: error.message || "Une erreur s'est produite lors de la synchronisation des appels"
       });
       return { 
         success: false, 

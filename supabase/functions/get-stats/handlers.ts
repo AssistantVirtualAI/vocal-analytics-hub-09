@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./utils.ts";
 import { calculateStats } from "./statsCalculator.ts";

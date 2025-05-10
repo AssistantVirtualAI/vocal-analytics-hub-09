@@ -1,34 +1,52 @@
 
-import { Organization } from '../types/organization';
+import type { Agent } from './index';
 
-// Default organization with the current Agent ID
-export const DEFAULT_ORGANIZATION_ID = 'default';
+export interface Organization {
+  id: string;
+  name: string;
+  agentId: string;
+  description?: string;
+  createdAt: string;
+  slug: string;
+}
 
-// Initial organizations - in a real app, these would come from a database
-export const organizations: Organization[] = [
-  {
-    id: DEFAULT_ORGANIZATION_ID,
-    name: 'Organisation par défaut',
-    agentId: 'QNdB45Jpgh06Hr67TzFO', // Using the current Agent ID
-    description: 'Organisation créée automatiquement',
-    createdAt: new Date().toISOString(),
-    slug: 'default' // Added the slug property
-  }
-];
+export interface OrganizationWithAgent extends Organization {
+  agent?: Agent;
+}
 
-// Get all organizations
-export const getOrganizations = (): Organization[] => {
-  // In a real app, this would fetch from a database or API
-  return organizations;
-};
+export interface OrganizationUser {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  isPending: boolean;
+  isOrgAdmin?: boolean; // Organization admin
+  isSuperAdmin?: boolean; // Super admin (can control everything)
+}
 
-// Get a specific organization by ID
-export const getOrganization = (id: string): Organization | undefined => {
-  return organizations.find(org => org.id === id);
-};
+export interface UserRole {
+  id: string;
+  userId: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
 
-// Get the Agent ID for a specific organization
-export const getAgentId = (organizationId: string = DEFAULT_ORGANIZATION_ID): string => {
-  const organization = getOrganization(organizationId);
-  return organization?.agentId || 'QNdB45Jpgh06Hr67TzFO'; // Fallback to default
-};
+export interface UserOrganization {
+  id: string;
+  userId: string;
+  organizationId: string;
+  createdAt: string;
+  isOrgAdmin?: boolean;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  email: string;
+  organizationId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+  token?: string;
+  expiresAt?: string;
+}

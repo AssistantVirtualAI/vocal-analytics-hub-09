@@ -37,16 +37,22 @@ export default function Stats() {
 
         {isLoading ? (
           <StatsOverview
-            totalCalls={0}
-            avgDuration={0}
-            avgSatisfaction={0}
+            data={{
+              totalCalls: 0,
+              avgDuration: 0,
+              avgSatisfaction: 0,
+              callsPerDay: {},
+              lastUpdated: '',
+              topCustomers: []
+            }}
             isLoading={true}
           />
         ) : (
           <StatsOverview
-            totalCalls={callStats?.totalCalls || 0}
-            avgDuration={callStats?.avgDuration || 0}
-            avgSatisfaction={callStats?.avgSatisfaction || 0}
+            data={callStats}
+            isLoading={false}
+            error={hasError ? new Error("Failed to load stats") : null}
+            refetch={handleRefresh}
           />
         )}
 

@@ -141,7 +141,7 @@ export default function Index() {
               refetch={refetchStats} 
             />
             <CallsChart 
-              chartData={chartData} 
+              data={statsData?.callsPerDay || {}} 
               isLoading={isLoadingChartData} 
               error={errorChartData} 
               refetch={refetchChartData} 

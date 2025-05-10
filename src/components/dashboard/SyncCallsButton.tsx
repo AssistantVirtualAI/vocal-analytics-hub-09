@@ -48,15 +48,21 @@ export function SyncCallsButton({ agentId, onSuccess, className }: SyncCallsButt
       ];
 
       const { data, error } = await supabase.functions.invoke("sync-calls-elevenlabs", {
-        body: { calls: dummyCalls, agentId }
+        body: { 
+          calls: dummyCalls, 
+          agentId 
+        }
       });
 
       if (error) {
-        throw error;
+        console.error("Sync error:", error);
+        throw new Error(error.message || "Une erreur s'est produite lors de l'appel de la fonction");
       }
 
-      if (!data.success) {
-        throw new Error(data.error || "Échec de la synchronisation des appels");
+      if (!data || !data.success) {
+        const errorMsg = data?.error || "Échec de la synchronisation des appels";
+        console.error("Sync failed:", errorMsg);
+        throw new Error(errorMsg);
       }
 
       toast({
@@ -68,7 +74,7 @@ export function SyncCallsButton({ agentId, onSuccess, className }: SyncCallsButt
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error syncing calls:", error);
       toast({
         title: "Erreur de synchronisation",

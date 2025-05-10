@@ -93,7 +93,7 @@ export default function Dashboard() {
           </div>
 
           <DashboardStats 
-            callStats={callStats} 
+            displayData={callStats} 
             isLoading={isLoading}
             formatDuration={formatDurationMinutes}
           />

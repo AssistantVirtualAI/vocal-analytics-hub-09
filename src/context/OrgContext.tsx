@@ -56,7 +56,7 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
         .from('organizations')
         .select('id, name, agent_id, description, created_at, slug')
         .eq('slug', orgSlug)
-        .single();
+        .maybeSingle();
 
       if (supabaseError) throw supabaseError;
       

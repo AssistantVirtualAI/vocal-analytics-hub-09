@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Organization } from '@/types/organization';
+import { Organization } from '@/config/organizations';
 import { DEFAULT_ORGANIZATION_ID } from '@/config/organizations';
 
 export const useCurrentOrganization = () => {

@@ -162,6 +162,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          slug: string | null
         }
         Insert: {
           agent_id: string
@@ -169,6 +170,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          slug?: string | null
         }
         Update: {
           agent_id?: string
@@ -176,6 +178,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          slug?: string | null
         }
         Relationships: []
       }

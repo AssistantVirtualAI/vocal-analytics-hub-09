@@ -14,16 +14,17 @@ interface OrgContextValue {
   refetchOrg: () => Promise<void>;
 }
 
-// Create the context with the explicit interface
-const OrgContext = createContext<OrgContextValue>({
-  currentOrg: null,
-  loading: true,
-  error: null,
-  refetchOrg: async () => {},
-});
+// Create the context with an initial empty value
+const OrgContext = createContext<OrgContextValue | undefined>(undefined);
 
-// Export the useOrg hook
-export const useOrg = () => useContext(OrgContext);
+// Export the useOrg hook with proper type safety
+export const useOrg = () => {
+  const context = useContext(OrgContext);
+  if (context === undefined) {
+    throw new Error('useOrg must be used within an OrgProvider');
+  }
+  return context;
+};
 
 // Define the provider component props
 interface OrgProviderProps {
@@ -102,16 +103,16 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
     await fetchOrgBySlug();
   };
 
-  // Create the context value object outside of the JSX to avoid deep instantiation
-  const contextValue: OrgContextValue = {
-    currentOrg, 
-    loading, 
-    error, 
+  // Create the context value object to provide
+  const value = {
+    currentOrg,
+    loading,
+    error,
     refetchOrg
   };
 
   return (
-    <OrgContext.Provider value={contextValue}>
+    <OrgContext.Provider value={value}>
       {children}
     </OrgContext.Provider>
   );

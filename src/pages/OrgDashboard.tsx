@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { useAuth } from '@/context/AuthContext';
+import { SecurityIssuesFixer } from '@/components/security/SecurityIssuesFixer';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { StatsError } from '@/components/stats/StatsError';
 import { CallsLast30DaysChart } from '@/components/stats/CallsLast30DaysChart';
@@ -17,6 +18,7 @@ import { useOrg } from '@/context/OrgContext';
 export default function OrgDashboard() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const { currentOrg } = useOrg();
+  const { isAdmin } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -81,6 +83,9 @@ export default function OrgDashboard() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/5 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
         <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-indigo-400/5 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
         <div className="absolute top-1/3 left-0 w-48 h-48 bg-purple-400/5 dark:bg-purple-600/10 rounded-full blur-3xl -z-10"></div>
+        
+        {/* Add the security fixer component only for admins */}
+        {isAdmin && <SecurityIssuesFixer />}
         
         <div className="flex justify-between items-center mb-4">
           <DashboardHeader

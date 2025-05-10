@@ -16,7 +16,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useConfig } from '@/hooks/useConfig';
 
 export default function Dashboard() {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,7 +32,8 @@ export default function Dashboard() {
     callsData,
     isLoading,
     hasError,
-    handleRefresh
+    handleRefresh,
+    lastUpdated
   } = useDashboardFetch();
 
   // Format duration in minutes:seconds
@@ -66,7 +70,11 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <DashboardHeader />
+          <DashboardHeader 
+            lastUpdated={lastUpdated} 
+            isLoading={isLoading} 
+            onRefresh={handleRefreshData} 
+          />
           
           <div className="flex gap-2">
             <SyncCallsButton 
@@ -74,21 +82,21 @@ export default function Dashboard() {
               onSuccess={handleRefreshData} 
             />
             <DateRangeSelector 
-              dateRange={dateRange} 
+              dateRange={dateRange || { from: undefined, to: undefined }} 
               onDateRangeChange={handleDateRangeChange}
             />
           </div>
         </div>
 
         <StatsOverview 
-          stats={callStats} 
+          callStats={callStats} 
           isLoading={isLoading}
           hasError={hasError}
           onRetry={handleRefreshData}
         />
 
         <DashboardCallsChart 
-          stats={callStats}
+          callData={callStats}
           isLoading={isLoading}
         />
 

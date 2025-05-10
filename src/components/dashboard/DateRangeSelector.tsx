@@ -3,7 +3,7 @@ import React from 'react';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { DateRange } from '@/types/calendar';
+import { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -21,7 +21,7 @@ import {
 
 interface DateRangeSelectorProps {
   dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
+  onDateRangeChange: (range: DateRange | undefined) => void;
   className?: string;
 }
 
@@ -75,7 +75,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
     {
       label: 'Personnalisé',
       value: 'custom',
-      range: { from: dateRange.from, to: dateRange.to },
+      range: { from: dateRange?.from || undefined, to: dateRange?.to || undefined },
     },
   ];
 
@@ -90,8 +90,8 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
   const findCurrentPreset = (): string => {
     if (!dateRange.from || !dateRange.to) return 'custom';
 
-    const currentFrom = dateRange.from.setHours(0, 0, 0, 0);
-    const currentTo = dateRange.to.setHours(0, 0, 0, 0);
+    const currentFrom = dateRange.from?.setHours(0, 0, 0, 0);
+    const currentTo = dateRange.to?.setHours(0, 0, 0, 0);
 
     for (const preset of presets) {
       if (preset.value === 'custom') continue;
@@ -131,7 +131,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
               className="w-[130px] justify-start text-left font-normal"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.from ? (
+              {dateRange?.from ? (
                 format(dateRange.from, 'dd/MM/yyyy', { locale: fr })
               ) : (
                 <span>Du</span>
@@ -141,7 +141,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={dateRange.from || undefined}
+              selected={dateRange?.from || undefined}
               onSelect={(date) => onDateRangeChange({ ...dateRange, from: date || undefined })}
               initialFocus
               className="pointer-events-auto"
@@ -159,7 +159,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
               className="w-[130px] justify-start text-left font-normal"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.to ? (
+              {dateRange?.to ? (
                 format(dateRange.to, 'dd/MM/yyyy', { locale: fr })
               ) : (
                 <span>Au</span>
@@ -169,11 +169,11 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={dateRange.to || undefined}
+              selected={dateRange?.to || undefined}
               onSelect={(date) => onDateRangeChange({ ...dateRange, to: date || undefined })}
               initialFocus
               className="pointer-events-auto"
-              disabled={(date) => (dateRange.from ? date < dateRange.from : false)}
+              disabled={(date) => (dateRange?.from ? date < dateRange.from : false)}
             />
           </PopoverContent>
         </Popover>

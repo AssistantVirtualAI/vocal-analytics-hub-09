@@ -1,58 +1,87 @@
 
-import { useCallStats } from '@/hooks/useCallStats';
+import { useState, useEffect, useCallback } from 'react';
 import { useCallsList } from '@/hooks/useCallsList';
-import { useCustomerStats } from '@/hooks/useCustomerStats';
+import { useCallStats } from '@/hooks/useCallStats';
+import type { Call, CallStats } from '@/types';
 
-/**
- * Hook to fetch all dashboard data
- */
+interface CallsData {
+  calls: Call[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+}
+
 export function useDashboardFetch() {
-  const { 
-    data: callStats, 
-    isLoading: callStatsLoading, 
-    error: callStatsError,
-    refetch: refetchCallStats 
-  } = useCallStats();
+  const [callStats, setCallStats] = useState<CallStats>({
+    totalCalls: 0,
+    avgDuration: 0,
+    avgSatisfaction: 0,
+    callsPerDay: {},
+    lastUpdated: new Date().toISOString(),
+    topCustomers: []
+  });
   
-  const {
-    data: callsData,
-    isLoading: callsLoading,
-    error: callsError,
-    refetch: refetchCalls
-  } = useCallsList({ limit: 5, page: 1 });
+  const [callsData, setCallsData] = useState<CallsData>({
+    calls: [],
+    totalCount: 0,
+    totalPages: 0,
+    currentPage: 1
+  });
   
-  const { 
-    data: customerStats, 
-    isLoading: customerStatsLoading, 
-    error: customerStatsError,
-    refetch: refetchCustomerStats 
-  } = useCustomerStats();
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [hasError, setHasError] = useState<boolean>(false);
 
-  // Determine loading and error states
-  const isLoading = callStatsLoading || customerStatsLoading || callsLoading;
-  const hasError = !!(callStatsError || customerStatsError || callsError);
-  
-  // Function for manual refresh with loading state
-  const handleRefresh = async () => {
+  // Fetch call statistics
+  const { data: statsData, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useCallStats();
+
+  // Fetch call list
+  const { data: callsListData, isLoading: isCallsLoading, isError: isCallsError, refetch: refetchCalls } = useCallsList();
+
+  // Update states when data is available
+  useEffect(() => {
+    if (statsData) {
+      setCallStats(statsData);
+    }
+    
+    if (callsListData) {
+      setCallsData(callsListData);
+    }
+    
+    if (!isStatsLoading && !isCallsLoading) {
+      setIsLoading(false);
+      setLastUpdated(new Date().toISOString());
+    }
+    
+    setHasError(isStatsError || isCallsError);
+  }, [statsData, callsListData, isStatsLoading, isCallsLoading, isStatsError, isCallsError]);
+
+  // Function to manually refresh data
+  const handleRefresh = useCallback(async () => {
+    setIsLoading(true);
+    setHasError(false);
+    
     try {
-      const results = await Promise.all([
-        refetchCallStats(),
-        refetchCustomerStats(),
+      await Promise.all([
+        refetchStats(),
         refetchCalls()
       ]);
-      return results;
+      
+      setLastUpdated(new Date().toISOString());
     } catch (error) {
       console.error("Error refreshing dashboard data:", error);
-      throw error; // Re-throw to be caught by the calling function
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [refetchStats, refetchCalls]);
 
   return {
     callStats,
-    customerStats,
     callsData,
     isLoading,
     hasError,
-    handleRefresh
+    handleRefresh,
+    lastUpdated
   };
 }

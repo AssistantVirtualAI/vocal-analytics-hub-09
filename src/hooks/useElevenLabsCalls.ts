@@ -35,26 +35,28 @@ export function useElevenLabsCalls({
     queryFn: async () => {
       setIsLoading(true);
       try {
-        const params = new URLSearchParams();
+        // Build query parameters
+        const params: Record<string, string> = {};
         
         if (agentId) {
-          params.append('agent_id', agentId);
+          params.agent_id = agentId;
         }
         
         if (fromDate) {
-          params.append('from_date', fromDate.toISOString());
+          params.from_date = fromDate.toISOString();
         }
         
         if (toDate) {
-          params.append('to_date', toDate.toISOString());
+          params.to_date = toDate.toISOString();
         }
         
-        const queryParams = params.toString();
-        const url = queryParams ? `get-elevenlabs-calls?${queryParams}` : 'get-elevenlabs-calls';
+        console.log(`Fetching ElevenLabs calls with params:`, params);
         
-        console.log(`Calling Supabase function: ${url}`);
-        
-        const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[], error?: string }>(url);
+        // Call Supabase function with query parameters
+        const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[], error?: string }>(
+          'get-elevenlabs-calls',
+          { query: params }
+        );
         
         if (error) {
           console.error('Supabase function error:', error);

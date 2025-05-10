@@ -13,10 +13,33 @@ serve(async (req: Request) => {
   }
   
   try {
-    const url = new URL(req.url);
-    const agentId = url.searchParams.get('agent_id') || undefined;
-    const fromDateStr = url.searchParams.get('from_date') || undefined;
-    const toDateStr = url.searchParams.get('to_date') || undefined;
+    // Variable to store our parameters
+    let agentId: string | undefined = undefined;
+    let fromDateStr: string | undefined = undefined;
+    let toDateStr: string | undefined = undefined;
+    
+    // Process parameters based on request method
+    if (req.method === 'POST') {
+      console.log("Processing POST request");
+      try {
+        const requestData = await req.json();
+        console.log("Request body:", requestData);
+        
+        // Extract parameters from request body
+        agentId = requestData.agent_id;
+        fromDateStr = requestData.from_date;
+        toDateStr = requestData.to_date;
+      } catch (parseError) {
+        console.error("Failed to parse request body:", parseError);
+      }
+    } else {
+      // Default to GET method
+      console.log("Processing GET request");
+      const url = new URL(req.url);
+      agentId = url.searchParams.get('agent_id') || undefined;
+      fromDateStr = url.searchParams.get('from_date') || undefined;
+      toDateStr = url.searchParams.get('to_date') || undefined;
+    }
     
     console.log(`Request params: agent_id=${agentId}, from_date=${fromDateStr}, to_date=${toDateStr}`);
     

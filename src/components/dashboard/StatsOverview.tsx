@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CallStats } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,14 +8,26 @@ import { AlertCircle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface StatsOverviewProps {
-  callStats: CallStats;
+  data?: CallStats;  // Changed from callStats to data to match usage in Index.tsx
   isLoading?: boolean;
   hasError?: boolean;
+  error?: Error | null;  // Added to match usage in Index.tsx
+  refetch?: () => void;  // Added to match usage in Index.tsx
   onRetry?: () => void;
 }
 
-export function StatsOverview({ callStats, isLoading = false, hasError = false, onRetry }: StatsOverviewProps) {
-  if (hasError) {
+export function StatsOverview({ 
+  data, // Changed from callStats to data
+  isLoading = false, 
+  hasError = false,
+  error = null, 
+  refetch,
+  onRetry 
+}: StatsOverviewProps) {
+  // Check if there's an error from either source
+  const hasAnyError = hasError || !!error;
+  
+  if (hasAnyError) {
     return (
       <div className="grid grid-cols-1 gap-4">
         <Card className="border-destructive">
@@ -27,8 +40,8 @@ export function StatsOverview({ callStats, isLoading = false, hasError = false, 
                   Impossible de récupérer les données des appels.
                 </p>
               </div>
-              {onRetry && (
-                <Button onClick={onRetry} variant="outline" className="gap-2">
+              {(onRetry || refetch) && (
+                <Button onClick={onRetry || refetch} variant="outline" className="gap-2">
                   <RefreshCcw className="h-4 w-4" />
                   Réessayer
                 </Button>
@@ -50,7 +63,7 @@ export function StatsOverview({ callStats, isLoading = false, hasError = false, 
           {isLoading ? (
             <Skeleton className="h-8 w-20" />
           ) : (
-            <div className="text-2xl font-bold">{callStats.totalCalls || 0}</div>
+            <div className="text-2xl font-bold">{data?.totalCalls || 0}</div>
           )}
           <p className="text-xs text-muted-foreground">
             Nombre total d'appels enregistrés
@@ -66,7 +79,7 @@ export function StatsOverview({ callStats, isLoading = false, hasError = false, 
           {isLoading ? (
             <Skeleton className="h-8 w-20" />
           ) : (
-            <div className="text-2xl font-bold">{formatDuration(callStats.avgDuration || 0)}</div>
+            <div className="text-2xl font-bold">{formatDuration(data?.avgDuration || 0)}</div>
           )}
           <p className="text-xs text-muted-foreground">
             Durée moyenne des appels
@@ -83,7 +96,7 @@ export function StatsOverview({ callStats, isLoading = false, hasError = false, 
             <Skeleton className="h-8 w-20" />
           ) : (
             <div className="text-2xl font-bold">
-              {callStats.avgSatisfaction ? callStats.avgSatisfaction.toFixed(1) : "0"}/5
+              {data?.avgSatisfaction ? data.avgSatisfaction.toFixed(1) : "0"}/5
             </div>
           )}
           <p className="text-xs text-muted-foreground">

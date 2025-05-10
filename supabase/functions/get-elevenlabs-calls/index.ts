@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { fetchAllElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
-import { getElevenLabsEnvVars } from "../_shared/env.ts";
 
 // Main handler for the function
 serve(async (req: Request) => {
@@ -20,20 +18,17 @@ serve(async (req: Request) => {
     const fromDateStr = url.searchParams.get('from_date') || undefined;
     const toDateStr = url.searchParams.get('to_date') || undefined;
     
-    const fromDate = fromDateStr ? new Date(fromDateStr) : undefined;
-    const toDate = toDateStr ? new Date(toDateStr) : undefined;
+    console.log(`Request params: agent_id=${agentId}, from_date=${fromDateStr}, to_date=${toDateStr}`);
     
-    console.log(`Fetching ElevenLabs calls with agent_id: ${agentId}, from_date: ${fromDateStr}, to_date: ${toDateStr}`);
+    // Get ElevenLabs API key from environment
+    const apiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
     
-    // Get the API key from environment variables
-    const { elevenlabsApiKey } = getElevenLabsEnvVars();
-    
-    if (!elevenlabsApiKey) {
+    if (!apiKey) {
       console.error("ElevenLabs API key is not configured");
       return new Response(
         JSON.stringify({ 
           error: "ElevenLabs API key is not configured",
-          data: [] // Return empty array for more resilient frontend handling
+          data: [] 
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -42,20 +37,73 @@ serve(async (req: Request) => {
       );
     }
     
-    console.log("Using ElevenLabs API key (first 5 chars):", elevenlabsApiKey.substring(0, 5) + "...");
+    console.log(`Using ElevenLabs API key (masked): ${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}`);
     
-    // Use the shared fetchAllElevenLabsConversations function to get the conversations
-    const calls = await fetchAllElevenLabsConversations(elevenlabsApiKey, {
-      agentId,
-      fromDate,
-      toDate,
-      limit: 100
+    // Build query parameters for the ElevenLabs API call
+    const params = new URLSearchParams();
+    
+    if (agentId) {
+      params.append('agent_id', agentId);
+    }
+    
+    if (fromDateStr) {
+      const fromDate = new Date(fromDateStr);
+      params.append('call_start_after_unix', Math.floor(fromDate.getTime() / 1000).toString());
+    }
+    
+    if (toDateStr) {
+      const toDate = new Date(toDateStr);
+      params.append('call_start_before_unix', Math.floor(toDate.getTime() / 1000).toString());
+    }
+    
+    // Add default limit
+    params.append('limit', '100');
+    
+    // Call ElevenLabs API directly
+    const apiUrl = `https://api.elevenlabs.io/v1/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
+    console.log(`Calling ElevenLabs API: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "xi-api-key": apiKey,
+      }
     });
+
+    console.log(`ElevenLabs API response status: ${response.status}`);
     
-    console.log(`Retrieved ${calls.length} conversations from ElevenLabs API`);
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = `ElevenLabs API returned status ${status}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+        console.error("Error response from ElevenLabs:", errorData);
+      } catch (parseError) {
+        console.error("Failed to parse error response", parseError);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: errorMessage,
+          data: [] 
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: status >= 400 && status < 600 ? status : 500,
+        }
+      );
+    }
+
+    // Successfully got response, convert to JSON
+    const responseData = await response.json();
+    const conversations = responseData.conversations || [];
+    console.log(`Retrieved ${conversations.length} conversations from ElevenLabs API`);
     
-    // Transform the data for the frontend
-    const transformedCalls = calls.map(call => ({
+    // Transform the conversations for the frontend
+    const transformedCalls = conversations.map(call => ({
       id: call.id,
       customer_id: call.caller_id || 'unknown',
       customer_name: call.caller_name || 'Unknown Caller',
@@ -79,15 +127,15 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in get-elevenlabs-calls function:', error);
     
-    // Return a structured error response with an empty data array
+    // Return a structured error response
     return new Response(
       JSON.stringify({ 
         error: error.message || "An unexpected error occurred",
-        data: [] // Always include an empty data array for more resilient frontend handling
+        data: [] 
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.status || 500,
+        status: 500,
       }
     );
   }

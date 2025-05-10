@@ -54,17 +54,14 @@ export function useElevenLabsCalls({
         
         console.log(`Calling Supabase function: ${url}`);
         
-        const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[], error?: string }>(
-          url,
-          {
-            method: 'GET'
-          }
-        );
+        const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[], error?: string }>(url);
         
         if (error) {
           console.error('Supabase function error:', error);
           throw error;
         }
+        
+        console.log('Response from Supabase function:', data);
         
         if (!data) {
           console.warn('No data returned from ElevenLabs calls function');
@@ -76,7 +73,6 @@ export function useElevenLabsCalls({
           throw new Error(data.error);
         }
         
-        // Always expect data.data to be an array
         if (!Array.isArray(data.data)) {
           console.warn('Expected data.data to be an array but got:', typeof data.data);
           return [];
@@ -91,7 +87,7 @@ export function useElevenLabsCalls({
           description: 'Impossible de récupérer les appels depuis ElevenLabs',
           variant: 'destructive'
         });
-        return []; // Return empty array instead of throwing to avoid React Query error state
+        return []; // Return empty array instead of throwing
       } finally {
         setIsLoading(false);
       }

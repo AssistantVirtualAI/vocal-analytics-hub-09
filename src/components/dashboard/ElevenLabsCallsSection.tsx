@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import { SyncCallsButton } from './SyncCallsButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ElevenLabsCallsSectionProps {
@@ -20,7 +20,7 @@ export function ElevenLabsCallsSection({ agentId, fromDate, toDate }: ElevenLabs
     agentId,
     fromDate,
     toDate,
-    enabled: !!agentId
+    enabled: true // Always enable to test the connection
   });
   
   const handleSyncSuccess = () => {
@@ -49,6 +49,9 @@ export function ElevenLabsCallsSection({ agentId, fromDate, toDate }: ElevenLabs
             <AlertTitle>Erreur</AlertTitle>
             <AlertDescription>
               Une erreur est survenue lors de la récupération des appels.
+              <div className="mt-2 text-xs overflow-auto max-h-20 bg-gray-100 dark:bg-gray-800 p-2 rounded">
+                {error.toString()}
+              </div>
             </AlertDescription>
           </Alert>
         ) : isLoading ? (
@@ -58,9 +61,13 @@ export function ElevenLabsCallsSection({ agentId, fromDate, toDate }: ElevenLabs
             ))}
           </div>
         ) : calls.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">
-            Aucun appel trouvé pour cette période.
-          </p>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Information</AlertTitle>
+            <AlertDescription>
+              Aucun appel trouvé pour cette période. Assurez-vous que votre clé API ElevenLabs est valide et que vous avez des appels disponibles.
+            </AlertDescription>
+          </Alert>
         ) : (
           <div className="rounded-md border">
             <Table>

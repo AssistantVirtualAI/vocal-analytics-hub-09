@@ -1,6 +1,9 @@
 
 import type { Agent } from './index';
 
+// Default organization ID to use when none is selected
+export const DEFAULT_ORGANIZATION_ID = "default";
+
 export interface Organization {
   id: string;
   name: string;

@@ -1,104 +1,94 @@
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { reportApiMetrics, handleApiError } from "@/utils/api-metrics";
+import { toast } from "@/hooks/use-toast";
 
-interface ElevenLabsStatistics {
-  // Duration statistics
-  total_duration_seconds?: number;
-  agent_talk_duration_seconds?: number;
-  customer_talk_duration_seconds?: number;
-  silence_duration_seconds?: number;
-  
-  // Percentage statistics
-  agent_talk_percentage?: number;
-  customer_talk_percentage?: number;
-  silence_percentage?: number;
-  
-  // Sentiment analysis
-  sentiment?: {
-    label?: string;
-    score?: number;
-  };
-  
-  // Any additional properties
-  [key: string]: any;
-}
-
-interface FunctionError {
-  code: string;
-  message: string;
-}
-
-interface CallAudioResponse {
+interface ElevenLabsCallAudio {
   audioUrl: string;
-  transcript: string;
-  summary: string;
-  statistics?: ElevenLabsStatistics;
-  error?: FunctionError;
+  transcript?: string;
+  summary?: string;
+  statistics?: {
+    totalWords?: number;
+    totalCharacters?: number;
+    durationMs?: number;
+    averageWordLength?: number;
+    wordsPerMinute?: number;
+    speakingTime?: number;
+    silenceTime?: number;
+  };
+  error?: string;
 }
 
 export const useCallAudio = (callId: string | undefined) => {
-  const queryClient = useQueryClient();
-
-  const queryResult = useQuery<CallAudioResponse, Error>({
-    queryKey: ["callAudio", callId],
-    queryFn: async () => {
+  return useQuery({
+    queryKey: ["elevenlabs-audio", callId],
+    queryFn: async (): Promise<ElevenLabsCallAudio> => {
       if (!callId) throw new Error("Call ID is required");
 
-      console.log(`Invoking Supabase function 'elevenlabs-call-audio' for call ID: ${callId}`);
-      const { data, error } = await supabase.functions.invoke<CallAudioResponse>("elevenlabs-call-audio", {
-        body: { callId },
-      });
+      const startTime = Date.now();
 
-      // Handle Supabase function invocation errors (network, permissions etc.)
-      if (error) {
-        console.error("Supabase function invocation error:", error);
-        throw new Error(`Failed to invoke Supabase function: ${error.message}`); 
-      }
+      try {
+        // Appel à notre fonction edge pour récupérer les données audio
+        const { data, error } = await supabase.functions.invoke(
+          "elevenlabs-call-audio",
+          {
+            body: { callId, useConversationalApi: true }
+          }
+        );
 
-      // Handle errors returned *within* the function's response payload
-      if (data?.error) {
-        console.error("Error returned from Supabase function:", data.error);
-        const functionError = new Error(data.error.message || "An error occurred in the backend function.") as any;
-        functionError.code = data.error.code; // Attach the code for frontend handling
-        throw functionError;
-      }
-      
-      // Handle cases where data is unexpectedly null/undefined without an error
-      if (!data) {
-        console.error("No data returned from Supabase function, but no error reported.");
-        throw new Error("Received unexpected empty response from the backend.");
-      }
+        if (error) {
+          await reportApiMetrics("elevenlabs-call-audio", startTime, 500, error.message);
+          throw error;
+        }
 
-      console.log(`Successfully received data from 'elevenlabs-call-audio' for call ID: ${callId}`);
-      return {
-        audioUrl: data.audioUrl,
-        transcript: data.transcript,
-        summary: data.summary,
-        statistics: data.statistics
-      };
+        if (!data) {
+          const errorMsg = "No data returned from ElevenLabs API";
+          await reportApiMetrics("elevenlabs-call-audio", startTime, 404, errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        // Signaler l'appel API réussi
+        await reportApiMetrics("elevenlabs-call-audio", startTime, 200);
+
+        return {
+          audioUrl: data.audioUrl,
+          transcript: data.transcript,
+          summary: data.summary,
+          statistics: data.statistics
+        };
+      } catch (error: any) {
+        // Traiter différents types d'erreurs pour l'UI
+        let errorCode: string | undefined = undefined;
+
+        if (error.message && typeof error.message === 'string') {
+          if (error.message.includes('Authentication failed') || error.message.includes('API Key')) {
+            errorCode = 'ELEVENLABS_AUTH_ERROR';
+          } else if (error.message.includes('not found')) {
+            errorCode = 'ELEVENLABS_NOT_FOUND';
+          } else if (error.message.includes('rate limit') || error.message.includes('quota')) {
+            errorCode = 'ELEVENLABS_QUOTA_EXCEEDED';
+          }
+        }
+
+        // Custom error object with code for easier UI handling
+        const enhancedError = new Error(error.message || "Failed to load audio from ElevenLabs");
+        (enhancedError as any).code = errorCode;
+
+        handleApiError(error, (props) => {
+          toast(props.title, {
+            description: props.description,
+            variant: props.variant as "default" | "destructive" | undefined
+          });
+        }, "Impossible de charger l'audio depuis ElevenLabs");
+        
+        throw enhancedError;
+      }
     },
+    // Only fetch when callId is available
     enabled: !!callId,
-    retry: (failureCount, error) => {
-      // Don't retry on 4xx client errors, but retry on other errors
-      const message = error.message || "";
-      const is4xxError = message.includes("404") || 
-                         message.includes("NOT_FOUND") || 
-                         message.includes("BAD_REQUEST") ||
-                         message.includes("ELEVENLABS_AUTH_ERROR");
-      
-      return !is4xxError && failureCount < 2;
-    },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    // Cache for 1 hour
+    staleTime: 60 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000 // Formerly cacheTime
   });
-
-  // Function to manually trigger a refetch
-  const refetchCallAudio = () => {
-    if (callId) {
-      console.log(`Manually refetching call audio for ID: ${callId}`);
-      return queryClient.invalidateQueries({ queryKey: ["callAudio", callId] });
-    }
-  };
-
-  return { ...queryResult, refetchCallAudio };
 };

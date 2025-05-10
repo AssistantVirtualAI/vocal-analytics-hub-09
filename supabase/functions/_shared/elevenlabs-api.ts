@@ -30,14 +30,47 @@ export function createErrorResponse(message: string, status: number = 500, code:
 
 /**
  * Fetch conversations from the ElevenLabs Conversational AI API
+ * with support for filtering by agent, date range, and pagination
+ * 
  * @param apiKey - ElevenLabs API key
+ * @param options - Optional parameters for filtering
  * @returns List of conversations
  */
-export async function fetchElevenLabsConversations(apiKey: string) {
-  console.log("Fetching conversations from ElevenLabs API");
+export async function fetchElevenLabsConversations(apiKey: string, options: {
+  agentId?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  console.log("Fetching conversations from ElevenLabs API with filters:", options);
   
   try {
-    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations`, {
+    const params = new URLSearchParams();
+    
+    if (options.agentId) {
+      params.append('agent_id', options.agentId);
+    }
+    
+    if (options.fromDate) {
+      params.append('call_start_after_unix', Math.floor(options.fromDate.getTime() / 1000).toString());
+    }
+    
+    if (options.toDate) {
+      params.append('call_start_before_unix', Math.floor(options.toDate.getTime() / 1000).toString());
+    }
+    
+    // Set default limit if not provided
+    params.append('limit', options.limit?.toString() || '100');
+    
+    if (options.offset) {
+      params.append('offset', options.offset.toString());
+    }
+    
+    const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
+    console.log(`Calling ElevenLabs API: ${url}`);
+    
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -192,6 +225,58 @@ export async function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: 
     console.error(`Network error fetching from ElevenLabs: ${error.message || error}`);
     throw createErrorResponse(
       `Network error fetching from ElevenLabs: ${error.message || error}`,
+      500,
+      ErrorCode.ELEVENLABS_API_ERROR
+    );
+  }
+}
+
+/**
+ * Get audio URL for a conversation
+ * @param conversationId - ID of the conversation
+ * @param messageId - Optional ID of the specific message
+ * @returns Audio URL string
+ */
+export function getElevenLabsConversationAudioUrl(conversationId: string, messageId?: string) {
+  if (messageId) {
+    return `${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/messages/${messageId}/audio`;
+  }
+  return `${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/audio`;
+}
+
+/**
+ * Fetch conversation transcript
+ * @param conversationId - ID of the conversation
+ * @param apiKey - ElevenLabs API key
+ * @returns Transcript data
+ */
+export async function fetchElevenLabsConversationTranscript(conversationId: string, apiKey: string) {
+  console.log(`Fetching transcript for conversation ID ${conversationId}`);
+  
+  try {
+    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "xi-api-key": apiKey,
+      }
+    });
+
+    if (!response.ok) {
+      handleElevenLabsApiError(response, `Error fetching transcript for conversation ${conversationId}`);
+    }
+
+    const transcriptData = await response.json();
+    console.log(`Successfully retrieved transcript for conversation ${conversationId}`);
+    
+    return transcriptData;
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+    console.error(`Network error fetching transcript from ElevenLabs: ${error.message || error}`);
+    throw createErrorResponse(
+      `Network error fetching transcript from ElevenLabs: ${error.message || error}`,
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );

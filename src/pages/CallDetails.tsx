@@ -1,3 +1,4 @@
+
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -27,7 +28,7 @@ export default function CallDetails() {
     isLoading: isLoadingAudio, 
     isFetching: isFetchingAudio,
     error: audioError,
-    refetchCallAudio 
+    refetch: refetchCallAudio 
   } = useCallAudio(id);
 
   const handleRefresh = () => {

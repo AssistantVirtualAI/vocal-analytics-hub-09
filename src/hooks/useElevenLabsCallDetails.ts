@@ -40,7 +40,10 @@ export function useElevenLabsCallDetails(conversationId: string | undefined) {
         const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCallDetails, error?: string }>(
           'get-elevenlabs-call-details',
           {
-            body: { conversation_id: conversationId }
+            body: { 
+              conversation_id: conversationId,
+              agent_id: 'QNdB45Jpgh06Hr67TzFO'  // Always include the specified agent ID
+            }
           }
         );
         

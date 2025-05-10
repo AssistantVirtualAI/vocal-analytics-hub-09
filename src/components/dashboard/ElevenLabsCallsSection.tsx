@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AGENT_ID } from '@/config/agent';
 
 interface ElevenLabsCallsSectionProps {
   agentId?: string;
@@ -15,7 +16,7 @@ interface ElevenLabsCallsSectionProps {
   toDate?: Date;
 }
 
-export function ElevenLabsCallsSection({ agentId, fromDate, toDate }: ElevenLabsCallsSectionProps) {
+export function ElevenLabsCallsSection({ agentId = AGENT_ID, fromDate, toDate }: ElevenLabsCallsSectionProps) {
   const { calls, isLoading, error, refetch } = useElevenLabsCalls({
     agentId,
     fromDate,

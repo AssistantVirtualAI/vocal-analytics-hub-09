@@ -25,7 +25,7 @@ export const useCallStats = (enabled = true, overrideAgentId?: string) => {
       
       try {
         const { data, error } = await supabase.functions.invoke("get-stats", {
-          body: { agentId }
+          body: { agentId: agentId || 'QNdB45Jpgh06Hr67TzFO' } // Always include the specified agent ID
         });
 
         if (error) {

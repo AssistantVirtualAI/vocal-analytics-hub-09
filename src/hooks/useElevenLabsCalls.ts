@@ -23,7 +23,7 @@ interface UseElevenLabsCallsOptions {
 }
 
 export function useElevenLabsCalls({
-  agentId,
+  agentId = 'QNdB45Jpgh06Hr67TzFO',  // Default to this specific agent ID
   fromDate,
   toDate,
   enabled = true
@@ -38,9 +38,8 @@ export function useElevenLabsCalls({
         // Build query parameters
         const params: Record<string, string> = {};
         
-        if (agentId) {
-          params.agent_id = agentId;
-        }
+        // Always set the agent_id to our default if not otherwise specified
+        params.agent_id = agentId || 'QNdB45Jpgh06Hr67TzFO';
         
         if (fromDate) {
           params.from_date = fromDate.toISOString();
@@ -55,7 +54,9 @@ export function useElevenLabsCalls({
         // Call Supabase function with query parameters
         const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[], error?: string }>(
           'get-elevenlabs-calls',
-          { query: params }
+          { 
+            body: params  // Use body instead of query to fix the TS error
+          }
         );
         
         if (error) {

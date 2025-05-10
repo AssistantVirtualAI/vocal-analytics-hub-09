@@ -14,7 +14,9 @@ serve(async (req: Request) => {
   
   try {
     // Variable to store our parameters
-    let agentId: string | undefined = undefined;
+    // Default agent ID to always use if none is provided
+    const defaultAgentId = 'QNdB45Jpgh06Hr67TzFO';
+    let agentId: string = defaultAgentId;
     let fromDateStr: string | undefined = undefined;
     let toDateStr: string | undefined = undefined;
     
@@ -26,7 +28,7 @@ serve(async (req: Request) => {
         console.log("Request body:", requestData);
         
         // Extract parameters from request body
-        agentId = requestData.agent_id;
+        agentId = requestData.agent_id || defaultAgentId;
         fromDateStr = requestData.from_date;
         toDateStr = requestData.to_date;
       } catch (parseError) {
@@ -36,7 +38,7 @@ serve(async (req: Request) => {
       // Default to GET method
       console.log("Processing GET request");
       const url = new URL(req.url);
-      agentId = url.searchParams.get('agent_id') || undefined;
+      agentId = url.searchParams.get('agent_id') || defaultAgentId;
       fromDateStr = url.searchParams.get('from_date') || undefined;
       toDateStr = url.searchParams.get('to_date') || undefined;
     }
@@ -65,9 +67,8 @@ serve(async (req: Request) => {
     // Build query parameters for the ElevenLabs API call
     const params = new URLSearchParams();
     
-    if (agentId) {
-      params.append('agent_id', agentId);
-    }
+    // Always set the agent_id to our specified ID
+    params.append('agent_id', agentId);
     
     if (fromDateStr) {
       const fromDate = new Date(fromDateStr);
@@ -83,7 +84,7 @@ serve(async (req: Request) => {
     params.append('limit', '100');
     
     // Call ElevenLabs API directly
-    const apiUrl = `https://api.elevenlabs.io/v1/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
+    const apiUrl = `https://api.elevenlabs.io/v1/convai/conversations?${params.toString()}`;
     console.log(`Calling ElevenLabs API: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
@@ -132,7 +133,7 @@ serve(async (req: Request) => {
       customer_name: call.caller_name || 'Unknown Caller',
       duration: calculateDuration(call.start_time_unix, call.end_time_unix),
       date: new Date(call.start_time_unix * 1000).toISOString(),
-      agent_id: call.agent_id,
+      agent_id: call.agent_id || defaultAgentId, // Use our default if none provided
       status: call.status || 'completed',
       source: 'elevenlabs'
     }));

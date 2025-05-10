@@ -23,7 +23,7 @@ export const useCustomerStats = (enabled = true) => {
       
       try {
         const { data, error } = await supabase.functions.invoke("get-customer-stats", {
-          body: { agentId }
+          body: { agentId: agentId || AGENT_ID } // Always use the specified agent ID
         });
 
         if (error) {

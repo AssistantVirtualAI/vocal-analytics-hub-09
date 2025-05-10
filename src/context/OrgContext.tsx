@@ -6,13 +6,16 @@ import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 import { toast } from 'sonner';
 
-// Create the context with a concrete type definition
-const OrgContext = createContext<{
+// Define the context value type explicitly to avoid deep type instantiation issues
+interface OrgContextValue {
   currentOrg: Organization | null;
   loading: boolean;
   error: Error | null;
   refetchOrg: () => Promise<void>;
-}>({
+}
+
+// Create the context with the explicit interface
+const OrgContext = createContext<OrgContextValue>({
   currentOrg: null,
   loading: true,
   error: null,
@@ -99,13 +102,16 @@ export const OrgProvider: React.FC<OrgProviderProps> = ({ children }) => {
     await fetchOrgBySlug();
   };
 
+  // Create the context value object outside of the JSX to avoid deep instantiation
+  const contextValue: OrgContextValue = {
+    currentOrg, 
+    loading, 
+    error, 
+    refetchOrg
+  };
+
   return (
-    <OrgContext.Provider value={{ 
-      currentOrg, 
-      loading, 
-      error, 
-      refetchOrg 
-    }}>
+    <OrgContext.Provider value={contextValue}>
       {children}
     </OrgContext.Provider>
   );

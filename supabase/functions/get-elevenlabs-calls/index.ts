@@ -4,12 +4,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { fetchAllElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
 import { getElevenLabsEnvVars } from "../_shared/env.ts";
 
-interface RequestParams {
-  agent_id?: string;
-  from_date?: string;
-  to_date?: string;
-}
-
 // Main handler for the function
 serve(async (req: Request) => {
   console.log("get-elevenlabs-calls function called");
@@ -36,7 +30,16 @@ serve(async (req: Request) => {
     
     if (!elevenlabsApiKey) {
       console.error("ElevenLabs API key is not configured");
-      throw new Error("ElevenLabs API key is not configured");
+      return new Response(
+        JSON.stringify({ 
+          error: "ElevenLabs API key is not configured",
+          data: [] // Return empty array for more resilient frontend handling
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
     }
     
     console.log("Using ElevenLabs API key (first 5 chars):", elevenlabsApiKey.substring(0, 5) + "...");
@@ -76,6 +79,7 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in get-elevenlabs-calls function:', error);
     
+    // Return a structured error response with an empty data array
     return new Response(
       JSON.stringify({ 
         error: error.message || "An unexpected error occurred",

@@ -79,7 +79,19 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
     });
 
     if (!response.ok) {
-      handleElevenLabsApiError(response, "Error fetching conversations");
+      // Handle error response without consuming body twice
+      const errorStatus = response.status;
+      let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+      } catch (parseError) {
+        // If JSON parsing fails, just use the default error message
+        console.error("Failed to parse error response", parseError);
+      }
+      
+      handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching conversations");
     }
 
     const conversationsData = await response.json();
@@ -159,27 +171,35 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
  * @param apiKey - ElevenLabs API key
  * @returns Conversation data
  */
-export async function fetchElevenLabsConversation(conversationId: string, apiKey: string) {
+export function fetchElevenLabsConversation(conversationId: string, apiKey: string) {
   console.log(`Fetching conversation with ID ${conversationId} from ElevenLabs API`);
   
-  try {
-    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    });
-
-    if (!response.ok) {
-      handleElevenLabsApiError(response, `Error fetching conversation ${conversationId}`);
+  return fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "xi-api-key": apiKey,
     }
-
-    const conversationData = await response.json();
-    console.log(`Successfully retrieved conversation ${conversationId} from ElevenLabs`);
+  }).then(async response => {
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = `Error fetching conversation ${conversationId}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Ignore JSON parsing error
+      }
+      
+      handleElevenLabsApiError(status, errorMessage, `Error fetching conversation ${conversationId}`);
+    }
     
-    return conversationData;
-  } catch (error) {
+    return response.json();
+  }).then(data => {
+    console.log(`Successfully retrieved conversation ${conversationId} from ElevenLabs`);
+    return data;
+  }).catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -189,7 +209,7 @@ export async function fetchElevenLabsConversation(conversationId: string, apiKey
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );
-  }
+  });
 }
 
 /**
@@ -197,33 +217,39 @@ export async function fetchElevenLabsConversation(conversationId: string, apiKey
  * This function is kept for compatibility with existing code, but new code should
  * use the conversation endpoints.
  */
-export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
+export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
   console.log(`Fetching history for agent ID: ${agentId || 'all'}`);
   
-  try {
-    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/history`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`Error fetching history. Status: ${response.status}`);
-      const errorText = await response.text();
-      console.error(`Error response: ${errorText}`);
-      handleElevenLabsApiError(response, "Error fetching history items");
+  return fetch(`${ELEVENLABS_API_BASE_URL}/history`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "xi-api-key": apiKey,
     }
-
-    const historyData = await response.json();
-    console.log(`Received history data with ${historyData.history?.length || 0} items`);
+  }).then(async response => {
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = "Error fetching history items";
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Ignore JSON parsing error if body is empty
+      }
+      
+      handleElevenLabsApiError(status, errorMessage, errorMessage);
+    }
+    
+    return response.json();
+  }).then(data => {
+    console.log(`Received history data with ${data.history?.length || 0} items`);
     
     // Filter by agent ID if provided
-    let filteredItems = historyData.history;
+    let filteredItems = data.history;
     if (agentId) {
       console.log(`Filtering history items by agent ID: ${agentId}`);
-      filteredItems = historyData.history.filter((item: any) => 
+      filteredItems = data.history.filter((item: any) => 
         item.voice_id === agentId || 
         item.model_id === agentId
       );
@@ -232,7 +258,7 @@ export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
     console.log(`Found ${filteredItems.length} history items${agentId ? ` for agent ID: ${agentId}` : ''}`);
     
     return filteredItems;
-  } catch (error) {
+  }).catch(error => {
     console.error(`Error in fetchElevenLabsHistory:`, error);
     if (error instanceof Response) {
       throw error;
@@ -243,7 +269,7 @@ export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );
-  }
+  });
 }
 
 /**
@@ -252,33 +278,40 @@ export async function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
  * @param apiKey - ElevenLabs API key
  * @returns History item data
  */
-export async function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string) {
+export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string) {
   console.log(`Fetching history item from ElevenLabs API for ID ${historyItemId}`);
 
-  try {
-    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    });
-
-    if (!response.ok) {
-      handleElevenLabsApiError(response, `Error fetching history item ${historyItemId}`);
+  return fetch(`${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "xi-api-key": apiKey,
     }
-
-    const historyData = await response.json();
+  }).then(async response => {
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = `Error fetching history item ${historyItemId}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Ignore JSON parsing error
+      }
+      
+      handleElevenLabsApiError(status, errorMessage, errorMessage);
+    }
     
+    return response.json();
+  }).then(historyData => {
     // Construct the direct URL to fetch the audio for this history item
     const audioUrl = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}/audio`;
 
     return {
-        ...historyData,
-        audio_url: audioUrl,
+      ...historyData,
+      audio_url: audioUrl,
     };
-
-  } catch (error) {
+  }).catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -288,7 +321,7 @@ export async function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: 
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );
-  }
+  });
 }
 
 /**
@@ -310,27 +343,35 @@ export function getElevenLabsConversationAudioUrl(conversationId: string, messag
  * @param apiKey - ElevenLabs API key
  * @returns Transcript data
  */
-export async function fetchElevenLabsConversationTranscript(conversationId: string, apiKey: string) {
+export function fetchElevenLabsConversationTranscript(conversationId: string, apiKey: string) {
   console.log(`Fetching transcript for conversation ID ${conversationId}`);
   
-  try {
-    const response = await fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    });
-
-    if (!response.ok) {
-      handleElevenLabsApiError(response, `Error fetching transcript for conversation ${conversationId}`);
+  return fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "xi-api-key": apiKey,
     }
-
-    const transcriptData = await response.json();
-    console.log(`Successfully retrieved transcript for conversation ${conversationId}`);
+  }).then(async response => {
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = `Error fetching transcript for conversation ${conversationId}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Ignore JSON parsing error
+      }
+      
+      handleElevenLabsApiError(status, errorMessage, errorMessage);
+    }
     
-    return transcriptData;
-  } catch (error) {
+    return response.json();
+  }).then(data => {
+    console.log(`Successfully retrieved transcript for conversation ${conversationId}`);
+    return data;
+  }).catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -340,27 +381,17 @@ export async function fetchElevenLabsConversationTranscript(conversationId: stri
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );
-  }
+  });
 }
 
 /**
  * Helper function to handle errors from the ElevenLabs API
+ * Modified to not consume response body multiple times
  */
-function handleElevenLabsApiError(response: Response, baseErrorMessage: string) {
-  let errorData: any = {};
-  try {
-    errorData = response.json();
-  } catch {
-    // Ignore JSON parsing error if body is empty or not JSON
-  }
+function handleElevenLabsApiError(status: number, errorMessage: string, baseErrorMessage: string) {
+  console.error("ElevenLabs API error:", status, errorMessage);
 
-  const errorMessage = errorData.detail?.message ||
-                      errorData.detail ||
-                      `ElevenLabs API returned status ${response.status}`;
-
-  console.error("ElevenLabs API error:", response.status, errorMessage, errorData);
-
-  switch (response.status) {
+  switch (status) {
     case 401:
       throw createErrorResponse(
         "Authentication failed with ElevenLabs API. Check API Key.",
@@ -382,7 +413,7 @@ function handleElevenLabsApiError(response: Response, baseErrorMessage: string) 
     default:
       throw createErrorResponse(
         `${baseErrorMessage}: ${errorMessage}`,
-        response.status,
+        status,
         ErrorCode.ELEVENLABS_API_ERROR
       );
   }

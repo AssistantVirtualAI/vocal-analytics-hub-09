@@ -9,7 +9,7 @@ declare module '@/hooks/use-toast' {
     action?: React.ReactNode;
   }
   
-  export function toast(
+  export function showToast(
     titleOrProps: string | ToastProps,
     props?: Omit<ToastProps, 'title'>
   ): void;

@@ -3,6 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SyncRequest, SyncResponse } from "./models.ts";
 import { fetchElevenLabsHistory, syncHistoryItems } from "./service.ts";
 import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
+import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
 
 /**
  * Gère la requête de synchronisation de l'historique ElevenLabs
@@ -21,44 +22,46 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
       });
     }
 
-    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    
-    if (!elevenlabsApiKey) {
-      return createErrorResponse({
-        status: 500,
-        message: "ELEVENLABS_API_KEY environment variable is not set",
-        code: "MISSING_API_KEY"
-      });
-    }
-
-    // Étape 1: Récupérer tous les éléments d'historique de l'agent depuis ElevenLabs
-    const historyItems = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
-    
-    // Étape 2: Synchroniser avec Supabase
-    const syncResults = await syncHistoryItems(
-      supabaseUrl,
-      supabaseServiceKey,
-      historyItems,
-      agentId
-    );
-    
-    // Calculer les statistiques de synchronisation
-    const successCount = syncResults.filter(r => r.success).length;
-    const errorCount = syncResults.filter(r => !r.success).length;
-    
-    const response: SyncResponse = {
-      success: errorCount === 0,
-      results: syncResults,
-      summary: {
-        total: historyItems.length,
-        success: successCount,
-        error: errorCount
+    try {
+      const { elevenlabsApiKey } = getElevenLabsEnvVars();
+      const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
+      
+      // Étape 1: Récupérer tous les éléments d'historique de l'agent depuis ElevenLabs
+      const historyItems = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
+      
+      // Étape 2: Synchroniser avec Supabase
+      const syncResults = await syncHistoryItems(
+        supabaseUrl,
+        supabaseServiceKey,
+        historyItems,
+        agentId
+      );
+      
+      // Calculer les statistiques de synchronisation
+      const successCount = syncResults.filter(r => r.success).length;
+      const errorCount = syncResults.filter(r => !r.success).length;
+      
+      const response: SyncResponse = {
+        success: errorCount === 0,
+        results: syncResults,
+        summary: {
+          total: historyItems.length,
+          success: successCount,
+          error: errorCount
+        }
+      };
+      
+      return createSuccessResponse(response);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('environment variable')) {
+        return createErrorResponse({
+          status: 500,
+          message: error.message,
+          code: "MISSING_ENV_VAR"
+        });
       }
-    };
-    
-    return createSuccessResponse(response);
+      throw error;
+    }
   } catch (error) {
     console.error("Error in sync-elevenlabs-history function:", error);
     return createErrorResponse({

@@ -1,16 +1,14 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { getSupabaseEnvVars } from "../_shared/env.ts";
+import { createErrorResponse, createSuccessResponse, handleCorsOptions } from "../_shared/api-utils.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   console.log("Edge function get_calls_per_day called");
@@ -26,11 +24,14 @@ serve(async (req) => {
     console.log(`Request parameters: agentId=${agentId}, startDate=${startDate}, endDate=${endDate}`);
 
     if (!agentId) {
-      throw new Error("agentId is required");
+      return createErrorResponse({
+        status: 400,
+        message: "agentId is required",
+        code: "MISSING_PARAMETER"
+      });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Prepare the query to get calls per day
@@ -51,16 +52,17 @@ serve(async (req) => {
 
     if (queryError) {
       console.error("Database query error:", queryError);
-      throw queryError;
+      return createErrorResponse({
+        status: 500,
+        message: queryError.message || "Database query error",
+        code: "DATABASE_ERROR" 
+      });
     }
 
     console.log(`Retrieved ${calls?.length || 0} calls from database`);
     
     if (!calls || calls.length === 0) {
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return createSuccessResponse([]);
     }
 
     // Group calls by day and count them
@@ -82,18 +84,13 @@ serve(async (req) => {
       count
     })).sort((a, b) => a.date.localeCompare(b.date));
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return createSuccessResponse(result);
   } catch (error) {
     console.error("Error in get_calls_per_day function:", error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      data: []
-    }), {
+    return createErrorResponse({
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      message: error.message || "An unexpected error occurred",
+      code: "SERVER_ERROR" 
     });
   }
 });

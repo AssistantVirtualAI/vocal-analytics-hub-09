@@ -1,5 +1,5 @@
 
-import { toast } from '@/hooks/use-toast';
+import { showToast } from '@/hooks/use-toast';
 
 /**
  * Hook to manage toast notifications for dashboard operations
@@ -7,13 +7,13 @@ import { toast } from '@/hooks/use-toast';
 export function useToastNotification() {
   
   const showSuccessToast = () => {
-    toast("Succès", {
+    showToast("Succès", {
       description: "Les données ont été mises à jour.",
     });
   };
 
   const showErrorToast = () => {
-    toast("Erreur", {
+    showToast("Erreur", {
       description: "Impossible de mettre à jour les données.",
     });
   };
@@ -27,7 +27,7 @@ export function useToastNotification() {
       message = error;
     }
     
-    toast("Erreur d'invitation", {
+    showToast("Erreur d'invitation", {
       description: message
     });
   };

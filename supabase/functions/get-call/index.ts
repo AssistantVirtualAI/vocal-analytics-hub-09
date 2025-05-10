@@ -13,23 +13,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Get call ID from the URL
-  const url = new URL(req.url);
-  const pathParts = url.pathname.split('/');
-  const callId = pathParts[pathParts.length - 1];
-
-  if (!callId) {
-    return new Response(JSON.stringify({ error: 'Call ID is required' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
   try {
+    // Get call ID from the request body
+    const { callId } = await req.json();
+
+    if (!callId) {
+      return new Response(JSON.stringify({ error: 'Call ID is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Fetch call details by ID
     const { data: call, error } = await supabase
       .from("calls_view")

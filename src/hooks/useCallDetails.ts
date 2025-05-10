@@ -10,7 +10,7 @@ export const useCallDetails = (callId: string | undefined) => {
       if (!callId) throw new Error("Call ID is required");
 
       const { data, error } = await supabase.functions.invoke("get-call", {
-        body: JSON.stringify({ callId }),
+        body: { callId },
       });
 
       if (error) throw error;

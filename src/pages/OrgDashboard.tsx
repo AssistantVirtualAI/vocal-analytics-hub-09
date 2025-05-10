@@ -11,9 +11,12 @@ import { useOrgDashboardStats } from '@/hooks/useOrgDashboardStats';
 import { useOrgCallsSorting } from '@/hooks/dashboard/useOrgCallsSorting';
 import { OrgFiltersSection } from '@/components/dashboard/org/OrgFiltersSection';
 import { OrgCallsSection } from '@/components/dashboard/org/OrgCallsSection';
+import { SyncCallsButton } from '@/components/dashboard/SyncCallsButton';
+import { useOrg } from '@/context/OrgContext';
 
 export default function OrgDashboard() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const { currentOrg } = useOrg();
   const [showFilters, setShowFilters] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -74,11 +77,22 @@ export default function OrgDashboard() {
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
-        <DashboardHeader
-          lastUpdated={lastUpdated}
-          isLoading={isLoading}
-          onRefresh={handleRefresh}
-        />
+        <div className="flex justify-between items-center mb-4">
+          <DashboardHeader
+            lastUpdated={lastUpdated}
+            isLoading={isLoading}
+            onRefresh={handleRefresh}
+          />
+          
+          {currentOrg?.agentId && (
+            <SyncCallsButton
+              agentId={currentOrg.agentId}
+              onSuccess={handleRefresh}
+              className="ml-2"
+              variant="secondary"
+            />
+          )}
+        </div>
 
         <OrgFiltersSection
           showFilters={showFilters}

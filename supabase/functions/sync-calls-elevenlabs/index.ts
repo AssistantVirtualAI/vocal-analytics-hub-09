@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -105,50 +104,67 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase credentials in environment variables");
+      return new Response(JSON.stringify({ 
+        error: "Server configuration error: missing credentials",
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // First, check if the agent exists or create it
     let agentUUID;
     
-    // Look up agent by name
-    const { data: existingAgent, error: agentError } = await supabase
-      .from("agents")
-      .select("id")
-      .eq("name", agentId)
-      .maybeSingle();
-    
-    if (agentError) {
-      console.error("Error checking for existing agent:", agentError);
-    }
-    
-    if (existingAgent && existingAgent.id) {
-      agentUUID = existingAgent.id;
-      console.log(`Found existing agent with UUID: ${agentUUID}`);
-    } else {
-      // Create a new agent
-      const { data: newAgent, error: createError } = await supabase
+    try {
+      // Look up agent by name
+      const { data: existingAgent, error: agentError } = await supabase
         .from("agents")
-        .insert({
-          name: agentId,
-          role: "assistant"
-        })
         .select("id")
-        .single();
+        .eq("name", agentId)
+        .maybeSingle();
       
-      if (createError) {
-        console.error("Error creating agent:", createError);
-        return new Response(JSON.stringify({ 
-          error: "Failed to create agent",
-          details: createError.message,
-          success: false
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      if (agentError) {
+        console.error("Error checking for existing agent:", agentError);
+        throw new Error(`Database error: ${agentError.message}`);
       }
       
-      agentUUID = newAgent.id;
-      console.log(`Created new agent with UUID: ${agentUUID}`);
+      if (existingAgent && existingAgent.id) {
+        agentUUID = existingAgent.id;
+        console.log(`Found existing agent with UUID: ${agentUUID}`);
+      } else {
+        // Create a new agent
+        const { data: newAgent, error: createError } = await supabase
+          .from("agents")
+          .insert({
+            name: agentId,
+            role: "assistant"
+          })
+          .select("id")
+          .single();
+        
+        if (createError) {
+          console.error("Error creating agent:", createError);
+          throw new Error(`Failed to create agent: ${createError.message}`);
+        }
+        
+        agentUUID = newAgent.id;
+        console.log(`Created new agent with UUID: ${agentUUID}`);
+      }
+    } catch (agentError) {
+      console.error("Agent processing error:", agentError);
+      return new Response(JSON.stringify({ 
+        error: agentError.message || "Failed to process agent information",
+        success: false
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
     // Process each call
@@ -287,7 +303,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in sync-calls-elevenlabs function:", error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error.message || "An unexpected error occurred",
       success: false 
     }), {
       status: 500,

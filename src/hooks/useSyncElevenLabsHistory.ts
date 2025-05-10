@@ -39,6 +39,8 @@ export function useSyncElevenLabsHistory() {
     setIsSyncing(true);
     
     try {
+      console.log("Calling sync-elevenlabs-history function with agentId:", agentId);
+      
       const { data, error } = await supabase.functions.invoke<SyncResult>(
         'sync-elevenlabs-history', 
         {
@@ -46,8 +48,15 @@ export function useSyncElevenLabsHistory() {
         }
       );
       
-      if (error || !data) {
-        throw new Error(error?.message || "Erreur lors de la synchronisation");
+      console.log("Function response:", { data, error });
+      
+      if (error) {
+        console.error("Function invocation error:", error);
+        throw new Error(error.message || "Erreur lors de la synchronisation");
+      }
+      
+      if (!data) {
+        throw new Error("Aucune données reçues de la fonction");
       }
       
       if (data.success) {
@@ -65,6 +74,7 @@ export function useSyncElevenLabsHistory() {
       
       return data;
     } catch (error: any) {
+      console.error("Sync history error:", error);
       toast({
         title: "Erreur",
         description: error.message || "Une erreur inattendue s'est produite",

@@ -1,6 +1,6 @@
 
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSyncElevenLabsHistory } from '@/hooks/useSyncElevenLabsHistory';
 
@@ -36,8 +36,10 @@ export function SyncElevenLabsHistoryButton({
     >
       {isSyncing ? (
         <Loader2 className="h-4 w-4 animate-spin" />
-      ) : null}
-      Sync ElevenLabs History
+      ) : (
+        <RefreshCw className="h-4 w-4" />
+      )}
+      {isSyncing ? 'Synchronisation...' : 'Sync ElevenLabs History'}
     </Button>
   );
 }

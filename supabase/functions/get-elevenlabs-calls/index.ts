@@ -1,8 +1,8 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { fetchAllElevenLabsConversations } from '../_shared/elevenlabs-api.ts';
-import { getElevenLabsEnvVars } from '../_shared/env.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { fetchAllElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
+import { getElevenLabsEnvVars } from "../_shared/env.ts";
 
 interface RequestParams {
   agent_id?: string;
@@ -10,9 +10,13 @@ interface RequestParams {
   to_date?: string;
 }
 
+// Main handler for the function
 serve(async (req: Request) => {
-  // Gestion CORS pour les requêtes OPTIONS
+  console.log("get-elevenlabs-calls function called");
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log("Handling OPTIONS request with CORS headers");
     return new Response('ok', { headers: corsHeaders });
   }
   
@@ -27,12 +31,17 @@ serve(async (req: Request) => {
     
     console.log(`Fetching ElevenLabs calls with agent_id: ${agentId}, from_date: ${fromDateStr}, to_date: ${toDateStr}`);
     
+    // Get the API key from environment variables
     const { elevenlabsApiKey } = getElevenLabsEnvVars();
     
     if (!elevenlabsApiKey) {
+      console.error("ElevenLabs API key is not configured");
       throw new Error("ElevenLabs API key is not configured");
     }
     
+    console.log("Using ElevenLabs API key (first 5 chars):", elevenlabsApiKey.substring(0, 5) + "...");
+    
+    // Use the shared fetchAllElevenLabsConversations function to get the conversations
     const calls = await fetchAllElevenLabsConversations(elevenlabsApiKey, {
       agentId,
       fromDate,
@@ -42,7 +51,7 @@ serve(async (req: Request) => {
     
     console.log(`Retrieved ${calls.length} conversations from ElevenLabs API`);
     
-    // Transformer les données pour correspondre à votre modèle d'appel
+    // Transform the data for the frontend
     const transformedCalls = calls.map(call => ({
       id: call.id,
       customer_id: call.caller_id || 'unknown',
@@ -54,6 +63,9 @@ serve(async (req: Request) => {
       source: 'elevenlabs'
     }));
     
+    console.log(`Transformed ${transformedCalls.length} calls for response`);
+    
+    // Return the response
     return new Response(
       JSON.stringify({ data: transformedCalls }),
       {
@@ -63,18 +75,23 @@ serve(async (req: Request) => {
     );
   } catch (error) {
     console.error('Error in get-elevenlabs-calls function:', error);
+    
     return new Response(
-      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
+      JSON.stringify({ 
+        error: error.message || "An unexpected error occurred",
+        data: [] // Always include an empty data array for more resilient frontend handling
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: error.status || 500,
       }
     );
   }
 });
 
-// Fonction utilitaire pour calculer la durée à partir des timestamps
+// Helper function to calculate call duration in minutes
 function calculateDuration(startTime?: number, endTime?: number): number {
   if (!startTime || !endTime) return 0;
-  return Math.floor((endTime - startTime) / 60); // Durée en minutes
+  const durationInSeconds = endTime - startTime;
+  return Math.max(1, Math.floor(durationInSeconds / 60)); // Ensure at least 1 minute
 }

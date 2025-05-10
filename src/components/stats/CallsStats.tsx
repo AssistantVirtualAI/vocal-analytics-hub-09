@@ -16,10 +16,15 @@ export function CallsStats() {
 
   // Format data correctly for the chart
   const formatChartData = (data: any) => {
+    // Check if data exists and is valid
     if (!data) return [];
-    if (Array.isArray(data)) return data;
-
-    // If it's an object with date keys, convert to array format
+    
+    // If data is already an array in correct format, return it
+    if (Array.isArray(data) && data.length > 0 && 'date' in data[0] && 'appels' in data[0]) {
+      return data;
+    }
+    
+    // If data is an object with date keys, convert to array format
     if (typeof data === 'object' && !Array.isArray(data)) {
       return Object.entries(data).map(([date, count]) => ({
         date: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
@@ -27,6 +32,8 @@ export function CallsStats() {
       }));
     }
     
+    // Default to empty array if data format is unrecognized
+    console.warn("Unrecognized data format for chart:", data);
     return [];
   };
 
@@ -48,7 +55,10 @@ export function CallsStats() {
         </CardContent>
       </Card>
       
-      <CallsLast30DaysChart data={formatted30DaysData || []} />
+      <CallsLast30DaysChart 
+        data={formatted30DaysData || []} 
+        isLoading={is30DaysLoading}
+      />
     </div>
   );
 }

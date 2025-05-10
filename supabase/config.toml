@@ -37,3 +37,8 @@ verify_jwt = true
 [functions.get-elevenlabs-calls]
 verify_jwt = true
 
+[functions.elevenlabs-call-audio]
+verify_jwt = true
+
+[functions.elevenlabs-tts]
+verify_jwt = true

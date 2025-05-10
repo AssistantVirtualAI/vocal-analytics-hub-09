@@ -28,10 +28,8 @@ export function useSyncElevenLabsHistory() {
   
   const syncHistory = async (agentId = AGENT_ID) => {
     if (!agentId) {
-      toast({
-        title: "Erreur",
+      toast("Erreur", {
         description: "Aucun ID d'agent ElevenLabs n'est configuré",
-        variant: "destructive",
       });
       return { success: false };
     }
@@ -60,25 +58,20 @@ export function useSyncElevenLabsHistory() {
       }
       
       if (data.success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: `${data.summary.success} appels importés sur ${data.summary.total}.`,
+        toast("Synchronisation réussie", {
+          description: `${data.summary.success} appels importés sur ${data.summary.total}.`
         });
       } else if (data.error) {
-        toast({
-          title: "Erreur de synchronisation",
+        toast("Erreur de synchronisation", {
           description: data.error.message || "Une erreur s'est produite",
-          variant: "destructive",
         });
       }
       
       return data;
     } catch (error: any) {
       console.error("Sync history error:", error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur inattendue s'est produite",
-        variant: "destructive",
+      toast("Erreur", {
+        description: error.message || "Une erreur inattendue s'est produite"
       });
       return { success: false };
     } finally {

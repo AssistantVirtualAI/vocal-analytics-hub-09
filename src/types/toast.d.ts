@@ -2,10 +2,11 @@
 import '@/hooks/use-toast';
 
 declare module '@/hooks/use-toast' {
-  interface ToastProps {
+  export interface ToastProps {
     title?: string;
     description?: string;
     variant?: 'default' | 'destructive';
+    action?: React.ReactNode;
   }
   
   export function toast(

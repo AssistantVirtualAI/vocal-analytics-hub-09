@@ -25,7 +25,7 @@ function App() {
         <OrganizationProvider>
           <OrgProvider>
             <AppRoutes />
-            <Toaster />
+            <Toaster richColors />
           </OrgProvider>
         </OrganizationProvider>
       </AuthProvider>

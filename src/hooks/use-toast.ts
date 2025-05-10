@@ -22,7 +22,7 @@ export const useToast = () => {
   };
 };
 
-// Direct toast function for simpler usage - renamed to avoid redeclaration
+// Direct toast function for simpler usage - renamed to showToast to avoid conflicts
 export const showToast = (titleOrProps: string | ToastProps, props?: Omit<ToastProps, 'title'>) => {
   if (typeof titleOrProps === 'string') {
     sonnerToast(titleOrProps, props);

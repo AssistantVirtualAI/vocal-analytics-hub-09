@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { showToast } from '@/hooks/use-toast';
 import { AGENT_ID } from '@/config/agent';
+import { handleApiError } from '@/utils/api-metrics';
 
 interface SyncResult {
   success: boolean;
@@ -30,6 +31,7 @@ export function useSyncElevenLabsHistory() {
     if (!agentId) {
       showToast("Erreur", {
         description: "Aucun ID d'agent ElevenLabs n'est configuré",
+        variant: "destructive"
       });
       return { success: false };
     }
@@ -49,8 +51,7 @@ export function useSyncElevenLabsHistory() {
       console.log("Function response:", { data, error });
       
       if (error) {
-        console.error("Function invocation error:", error);
-        throw new Error(error.message || "Erreur lors de la synchronisation");
+        throw error;
       }
       
       if (!data) {
@@ -64,15 +65,18 @@ export function useSyncElevenLabsHistory() {
       } else if (data.error) {
         showToast("Erreur de synchronisation", {
           description: data.error.message || "Une erreur s'est produite",
+          variant: "destructive"
         });
       }
       
       return data;
-    } catch (error: any) {
-      console.error("Sync history error:", error);
-      showToast("Erreur", {
-        description: error.message || "Une erreur inattendue s'est produite"
-      });
+    } catch (error) {
+      handleApiError(error, (props) => {
+        showToast(props.title, { 
+          description: props.description,
+          variant: props.variant as "default" | "destructive" | undefined
+        });
+      }, "Une erreur est survenue lors de la synchronisation");
       return { success: false };
     } finally {
       setIsSyncing(false);

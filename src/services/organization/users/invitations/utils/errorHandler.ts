@@ -1,10 +1,14 @@
 
 import { toast } from 'sonner';
+import { handleApiError } from '@/utils/api-metrics';
 
 /**
  * Displays appropriate toast messages based on error type
+ * @param error Error object 
+ * @param operation Operation description for the error message
  */
 export const handleInvitationError = (error: any, operation: string = "opération"): void => {
+  // Log the error for debugging
   console.error(`Error in invitation ${operation}:`, error);
 
   // Skip showing toast if it's already handled specifically
@@ -55,13 +59,8 @@ export const handleInvitationError = (error: any, operation: string = "opératio
     return;
   }
 
-  // Handle other errors
-  let errorMsg;
-  if (typeof error === 'object' && error !== null) {
-    errorMsg = error.message || (typeof error.toString === 'function' ? error.toString() : 'Erreur inconnue');
-  } else {
-    errorMsg = String(error);
-  }
-  
-  toast.error(`Erreur lors de ${operation}: ${errorMsg}`);
+  // Handle other errors using the standard error handler
+  handleApiError(error, (props) => {
+    toast.error(props.description);
+  }, `Erreur lors de ${operation}`);
 };

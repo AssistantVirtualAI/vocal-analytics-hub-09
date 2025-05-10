@@ -1,5 +1,6 @@
 
 import { showToast } from '@/hooks/use-toast';
+import { handleApiError } from '@/utils/api-metrics';
 
 /**
  * Hook to manage toast notifications for dashboard operations
@@ -15,21 +16,17 @@ export function useToastNotification() {
   const showErrorToast = () => {
     showToast("Erreur", {
       description: "Impossible de mettre à jour les données.",
+      variant: "destructive"
     });
   };
 
   const showInvitationErrorToast = (error: any) => {
-    let message = "Erreur lors de l'envoi de l'invitation. Vérifiez les informations fournies.";
-    
-    if (error?.message) {
-      message = error.message;
-    } else if (typeof error === 'string') {
-      message = error;
-    }
-    
-    showToast("Erreur d'invitation", {
-      description: message
-    });
+    handleApiError(error, (props) => {
+      showToast(props.title, {
+        description: props.description,
+        variant: props.variant as "default" | "destructive" | undefined
+      });
+    }, "Erreur lors de l'envoi de l'invitation. Vérifiez les informations fournies.");
   };
 
   return {

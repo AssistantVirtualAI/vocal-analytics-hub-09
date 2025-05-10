@@ -2,7 +2,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
-import { reportApiMetrics } from "@/utils/api-metrics";
+import { reportApiMetrics, handleApiError } from "@/utils/api-metrics";
+import { showToast } from "@/hooks/use-toast";
 
 export const useCallDetails = (callId: string | undefined) => {
   const queryClient = useQueryClient();
@@ -51,7 +52,12 @@ export const useCallDetails = (callId: string | undefined) => {
 
         return formattedCall;
       } catch (error: any) {
-        console.error("Error fetching call details:", error);
+        handleApiError(error, (props) => {
+          showToast(props.title, { 
+            description: props.description,
+            variant: props.variant as "default" | "destructive" | undefined
+          });
+        }, "Impossible de charger les détails de l'appel");
         throw error;
       }
     },

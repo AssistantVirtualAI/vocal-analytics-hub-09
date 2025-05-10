@@ -1,6 +1,6 @@
 
 import { createErrorResponse, createSuccessResponse, reportApiMetrics } from "../_shared/api-utils.ts";
-import { createServiceClient } from "../_shared/database.ts";
+import { createServiceClient } from "../_shared/agent-resolver.ts";
 import { CallRequest, CallResponse } from "./models.ts";
 import { retrieveCall } from "./service.ts";
 

@@ -1,11 +1,13 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
-import { getSupabaseEnvVars } from "../_shared/env.ts";
-import { createErrorResponse, createSuccessResponse, handleCorsOptions } from "../_shared/api-utils.ts";
+import { getAgentUUIDByExternalId, createServiceClient } from "../_shared/agent-resolver.ts";
+import { createErrorResponse, createSuccessResponse, handleCorsOptions, handleApiError } from "../_shared/api-utils.ts";
 
 serve(async (req) => {
+  const startTime = Date.now();
+  const functionName = "get_calls_per_day";
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return handleCorsOptions();
@@ -31,13 +33,26 @@ serve(async (req) => {
       });
     }
 
-    const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createServiceClient();
+    
+    // Résoudre l'ID de l'agent externe en UUID
+    const resolvedAgentId = await getAgentUUIDByExternalId(supabase, agentId);
+    
+    if (!resolvedAgentId) {
+      console.warn(`No agent found with ID or name matching: ${agentId}`);
+      return createSuccessResponse([]);
+    }
 
     // Prepare the query to get calls per day
-    let query = supabase.from("calls")
-      .select("date")
-      .eq("agent_id", agentId);
+    let query = supabase.from("calls").select("date");
+    
+    // Filter by agent ID if we have a valid UUID
+    if (resolvedAgentId !== "USE_NO_FILTER") {
+      query = query.eq("agent_id", resolvedAgentId);
+    } else {
+      console.log(`Using no agent filter as ${agentId} is an organization's agent ID`);
+      // For organizations, we might add additional filtering if needed
+    }
     
     // Apply date filters if provided
     if (startDate) {
@@ -86,11 +101,6 @@ serve(async (req) => {
 
     return createSuccessResponse(result);
   } catch (error) {
-    console.error("Error in get_calls_per_day function:", error);
-    return createErrorResponse({
-      status: 500,
-      message: error.message || "An unexpected error occurred",
-      code: "SERVER_ERROR" 
-    });
+    return await handleApiError(error, functionName, startTime);
   }
 });

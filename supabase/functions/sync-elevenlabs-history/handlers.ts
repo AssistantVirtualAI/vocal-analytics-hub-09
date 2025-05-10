@@ -66,7 +66,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
     console.error("Error in sync-elevenlabs-history function:", error);
     return createErrorResponse({
       status: 500,
-      message: error.message || "An unexpected error occurred",
+      message: error instanceof Error ? error.message : "An unexpected error occurred",
       code: "INTERNAL_SERVER_ERROR"
     });
   }

@@ -1,5 +1,5 @@
 
-import { BarChart3, Building, Home, LogOut, Phone, Settings, Shield, Users, Database, CircuitBoard } from 'lucide-react';
+import { BarChart3, Building, Home, LogOut, Phone, Settings, Shield, Users, Database, CircuitBoard, UserRound } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,13 @@ import { useOrganization } from '@/context/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function DashboardSidebar() {
   const location = useLocation();
@@ -118,24 +125,48 @@ export function DashboardSidebar() {
       <SidebarFooter>
         <div className="p-4 border-t border-blue-700/30 bg-blue-900/30 backdrop-blur-sm">
           {user && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Avatar className="h-8 w-8 mr-2 ring-2 ring-blue-500/30">
-                  <AvatarFallback className="bg-gradient-to-br from-blue-700 to-indigo-800 text-white">
-                    {user.email?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-sm text-blue-100">{user.email}</div>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-blue-200 hover:text-white hover:bg-blue-700/30 rounded-full"
-                onClick={signOut}
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-between p-2 hover:bg-blue-800/30 rounded-md text-blue-100">
+                  <div className="flex items-center">
+                    <Avatar className="h-10 w-10 mr-3 ring-2 ring-blue-500/30">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-700 to-indigo-800 text-white text-lg">
+                        {user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium truncate max-w-[120px]">
+                      {user.email?.split('@')[0]}
+                    </span>
+                  </div>
+                  <div className="opacity-70">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6 8.5L10.5 4L9.5 3L6 6.5L2.5 3L1.5 4L6 8.5Z" fill="currentColor" />
+                    </svg>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5 text-sm font-medium">{user.email}</div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center">
+                    <UserRound className="mr-2 h-4 w-4" />
+                    <span>Profil</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Paramètres</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="text-red-500 flex items-center">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Déconnexion</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </SidebarFooter>

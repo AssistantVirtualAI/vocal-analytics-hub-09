@@ -15,6 +15,8 @@ import AuthPage from '@/pages/AuthPage';
 import UsersManagement from '@/pages/UsersManagement';
 import OrganizationLanding from '@/pages/OrganizationLanding';
 import OrgDashboard from '@/pages/OrgDashboard';
+import UserProfile from '@/pages/UserProfile';
+import UserSettings from '@/pages/UserSettings';
 
 // Route configuration
 export interface RouteConfig {
@@ -59,6 +61,14 @@ export const routes: RouteConfig[] = [
   {
     path: "/users",
     element: <RequireAdmin><UsersManagement /></RequireAdmin>
+  },
+  {
+    path: "/profile",
+    element: <RequireAuth><UserProfile /></RequireAuth>
+  },
+  {
+    path: "/settings",
+    element: <RequireAuth><UserSettings /></RequireAuth>
   },
   // New organization-specific routes
   {

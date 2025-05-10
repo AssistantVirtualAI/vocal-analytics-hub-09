@@ -264,7 +264,6 @@ export type Database = {
       calls_view: {
         Row: {
           agent_id: string | null
-          agent_name: string | null
           audio_url: string | null
           created_at: string | null
           customer_id: string | null
@@ -275,6 +274,32 @@ export type Database = {
           summary: string | null
           tags: string[] | null
           transcript: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          audio_url?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          date?: string | null
+          duration?: number | null
+          id?: string | null
+          satisfaction_score?: number | null
+          summary?: string | null
+          tags?: string[] | null
+          transcript?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          audio_url?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          date?: string | null
+          duration?: number | null
+          id?: string | null
+          satisfaction_score?: number | null
+          summary?: string | null
+          tags?: string[] | null
+          transcript?: string | null
         }
         Relationships: [
           {

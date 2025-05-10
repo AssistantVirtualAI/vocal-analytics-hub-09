@@ -1,163 +1,111 @@
 
 import { useState } from 'react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDashboardStats } from '@/hooks/useDashboardStats';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DashboardStats } from '@/components/dashboard/DashboardStats';
-import { DashboardCallsChart } from '@/components/dashboard/DashboardCallsChart';
-import { RecentCallsList } from '@/components/dashboard/RecentCallsList';
-import { Link } from 'react-router-dom';
-import { Skeleton } from '@/components/ui/skeleton';
-import { StatsError } from '@/components/stats/StatsError';
-import { EmptyDataState } from '@/components/stats/EmptyDataState';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Star } from 'lucide-react';
-
-const formatDuration = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
+import { StatsOverview } from '@/components/dashboard/StatsOverview';
+import { DashboardCallsChart } from '@/components/dashboard/DashboardCallsChart';
+import { CallsListSection } from '@/components/dashboard/CallsListSection';
+import { DateRangeSelector } from '@/components/dashboard/DateRangeSelector';
+import { DateRange } from 'react-day-picker';
+import { formatDuration } from '@/components/dashboard/utils/formatters';
+import { useDashboardFetch } from '@/hooks/dashboard/useDashboardFetch';
+import { SyncCallsButton } from '@/components/dashboard/SyncCallsButton';
+import { useAuth } from '@/context/AuthContext';
+import { useConfig } from '@/hooks/useConfig';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
-  
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { user } = useAuth();
+  const { agentId } = useConfig();
+
+  // Get dashboard data
   const {
     callStats,
-    customerStats,
-    recentCalls,
-    chartData,
-    lastUpdated,
+    callsData,
     isLoading,
     hasError,
     handleRefresh
-  } = useDashboardStats();
+  } = useDashboardFetch();
 
-  // Check if we have no data after loading
-  const hasNoData = !isLoading && !hasError && (
-    (!callStats || Object.keys(callStats).length === 0) && 
-    (!customerStats || customerStats.length === 0) &&
-    (!recentCalls || recentCalls.length === 0)
-  );
-  
+  // Format duration in minutes:seconds
+  const formatDurationMinutes = (seconds: number): string => {
+    return formatDuration(seconds);
+  };
+
+  // Handle date range change
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+  };
+
+  // Handle filter toggle
+  const handleToggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
+
+  // Handle filter change
+  const handleFilterChange = (filters: any) => {
+    // Apply filters logic
+    console.log("Filters applied:", filters);
+  };
+
+  // Handle refresh data
+  const handleRefreshData = async () => {
+    try {
+      await handleRefresh();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    }
+  };
+
   return (
     <DashboardLayout>
-      <div className="container p-4 sm:p-6 space-y-6">
-        <DashboardHeader 
-          lastUpdated={lastUpdated} 
-          isLoading={isLoading} 
-          onRefresh={handleRefresh} 
+      <div className="container p-4 sm:p-6 space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <DashboardHeader />
+          
+          <div className="flex gap-2">
+            <SyncCallsButton 
+              agentId={agentId} 
+              onSuccess={handleRefreshData} 
+            />
+            <DateRangeSelector 
+              dateRange={dateRange} 
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </div>
+        </div>
+
+        <StatsOverview 
+          stats={callStats} 
+          isLoading={isLoading}
+          hasError={hasError}
+          onRetry={handleRefreshData}
         />
 
-        {hasError && (
-          <StatsError onRetry={handleRefresh} />
-        )}
+        <DashboardCallsChart 
+          stats={callStats}
+          isLoading={isLoading}
+        />
 
-        {hasNoData && (
-          <EmptyDataState
-            title="Aucune donnée disponible"
-            description="Aucune donnée d'appel n'a été trouvée. Veuillez vérifier votre configuration ou ajouter des données d'appel."
-            onAction={handleRefresh}
-            actionLabel="Actualiser"
-          />
-        )}
-
-        {!hasError && !hasNoData && (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-              <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-              <TabsTrigger value="calls">Appels récents</TabsTrigger>
-              <TabsTrigger value="customers">Clients</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="space-y-4">
-              <DashboardStats 
-                callStats={callStats} 
-                isLoading={isLoading} 
-                formatDuration={formatDuration} 
-              />
-              <DashboardCallsChart 
-                data={chartData} 
-                isLoading={isLoading} 
-              />
-            </TabsContent>
-            
-            <TabsContent value="calls" className="space-y-4">
-              <RecentCallsList 
-                calls={recentCalls} 
-                isLoading={isLoading} 
-                formatDuration={formatDuration} 
-              />
-            </TabsContent>
-            
-            <TabsContent value="customers" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Statistiques clients</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="space-y-4">
-                      {Array(5).fill(0).map((_, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 border rounded-md">
-                          <div className="space-y-1">
-                            <Skeleton className="h-5 w-32" />
-                            <Skeleton className="h-4 w-40" />
-                          </div>
-                          <div>
-                            <Skeleton className="h-4 w-24" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : !customerStats || customerStats.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground">
-                      Aucune statistique client trouvée.
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {customerStats.map(stats => (
-                        <div 
-                          key={stats.customerId} 
-                          className="flex items-center justify-between p-4 border rounded-md hover:bg-accent cursor-pointer transition-colors duration-200"
-                        >
-                          <div className="space-y-1">
-                            <div className="font-medium">{stats.customerName}</div>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <span>{stats.totalCalls} appels</span>
-                              <span className="mx-2">•</span>
-                              <span>Durée moy. {formatDuration(Math.round(stats.avgDuration))}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="flex">
-                              {Array(5)
-                                .fill(0)
-                                .map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    size={16}
-                                    className={i < Math.round(stats.avgSatisfaction) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
-                                  />
-                                ))}
-                            </div>
-                            <Link 
-                              to={`/customers/${stats.customerId}`} 
-                              className="text-primary hover:underline text-sm"
-                            >
-                              Voir détails
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        )}
+        <CallsListSection
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showFilters={showFilters}
+          onToggleFilters={handleToggleFilters}
+          onFilterChange={handleFilterChange}
+          callsData={callsData}
+          isCallsLoading={isLoading}
+          callsError={hasError ? new Error("Failed to load calls") : null}
+          formatDurationMinutes={formatDurationMinutes}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          onRetry={handleRefreshData}
+        />
       </div>
     </DashboardLayout>
   );

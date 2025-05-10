@@ -32,7 +32,8 @@ async function getAgentUUIDByExternalId(supabase, externalAgentId) {
     // This is expected if the ID is not a UUID, continue to next approach
   }
   
-  // If direct lookup failed, try looking up by name field
+  // If direct lookup failed, look for an agent where this ID is stored in any identifying field
+  // First try the name field
   const { data: nameData, error: nameError } = await supabase
     .from("agents")
     .select("id")
@@ -44,13 +45,11 @@ async function getAgentUUIDByExternalId(supabase, externalAgentId) {
     return nameData.id;
   }
   
-  if (nameError && nameError.code !== 'PGRST116') {
-    console.error(`[get-calls] Error fetching agent by name: ${nameError}`);
-  } else {
-    console.log(`[get-calls] No agent found by name: ${externalAgentId}`);
+  if (nameError) {
+    console.log(`[get-calls HELPER] Error fetching agent by name ${externalAgentId}: ${JSON.stringify(nameError)}`);
   }
   
-  // Finally, check if there's an agent with this ID in the "agent_id" field of organizations
+  // Next, check if there's an organization with this agent_id 
   const { data: orgData, error: orgError } = await supabase
     .from("organizations")
     .select("id")
@@ -64,7 +63,7 @@ async function getAgentUUIDByExternalId(supabase, externalAgentId) {
     return "USE_NO_FILTER";
   }
   
-  console.warn(`[get-calls] No agent found with ID, name, or in organizations matching: ${externalAgentId}`);
+  console.warn(`[get-calls MAIN] No agent UUID mapped for stringAgentId '${externalAgentId}'. Returning 200 with empty call list.`);
   return null;
 }
 

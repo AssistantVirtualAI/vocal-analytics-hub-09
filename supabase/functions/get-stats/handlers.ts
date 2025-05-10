@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./utils.ts";
 import { calculateStats } from "./statsCalculator.ts";
@@ -28,7 +27,8 @@ async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentI
     // This is expected if the ID is not a UUID, continue to next approach
   }
   
-  // If direct lookup failed, try looking up by name field
+  // If direct lookup failed, look for an agent where this ID is stored in any identifying field
+  // First try the name field
   const { data: nameData, error: nameError } = await supabase
     .from("agents")
     .select("id")
@@ -40,13 +40,11 @@ async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentI
     return nameData.id;
   }
   
-  if (nameError && nameError.code !== 'PGRST116') {
-    console.error(`[get-stats] Error fetching agent by name: ${nameError}`);
-  } else {
-    console.log(`[get-stats] No agent found by name: ${externalAgentId}`);
+  if (nameError) {
+    console.log(`[get-stats] Error fetching agent by name: ${nameError.message || nameError}`);
   }
   
-  // Finally, check if there's an agent with this ID in the "agent_id" field of organizations
+  // Next, check if there's an organization with this agent_id 
   const { data: orgData, error: orgError } = await supabase
     .from("organizations")
     .select("id")
@@ -60,7 +58,7 @@ async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentI
     return "USE_NO_FILTER";
   }
   
-  console.warn(`[get-stats] No agent found with ID, name, or in organizations matching: ${externalAgentId}`);
+  console.warn(`[get-stats] No agent found with ID or name matching: ${externalAgentId}`);
   return null;
 }
 

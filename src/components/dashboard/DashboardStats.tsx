@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart2, Clock, Phone, Star, Info } from "lucide-react";
-import type { CallStats } from "@/types"; // Assurez-vous que ce type est correctement défini et exporté depuis @/types
+import type { CallStats } from "@/types"; 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Interface pour les props du composant DashboardStats

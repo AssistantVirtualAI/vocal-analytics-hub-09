@@ -18,35 +18,44 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // First, get the original view definition to preserve it
-    const { data: viewData, error: viewError } = await supabase
-      .rpc('get_view_definition', { view_name: 'calls_view' });
+    // First fix: Drop and recreate the calls_view without SECURITY DEFINER
+    const { error: viewError } = await supabase
+      .from('_sqlQueries')
+      .select('*')
+      .eq('id', 'fix_security_definer_view')
+      .maybeSingle()
+      .execute(
+        `
+        -- First get the original view definition
+        DO $$
+        DECLARE
+          view_def text;
+        BEGIN
+          -- Get the view definition
+          SELECT pg_get_viewdef('public.calls_view'::regclass, true) INTO view_def;
+          
+          -- Drop the existing view
+          EXECUTE 'DROP VIEW IF EXISTS public.calls_view;';
+          
+          -- Recreate the view without SECURITY DEFINER (using SECURITY INVOKER by default)
+          EXECUTE 'CREATE VIEW public.calls_view AS ' || view_def;
+        END $$;
+        `
+      );
 
     if (viewError) throw viewError;
 
-    const viewDefinition = viewData;
-
-    // Drop the existing view
-    const { error: dropError } = await supabase
-      .rpc('execute_sql', { sql_statement: 'DROP VIEW IF EXISTS public.calls_view;' });
-
-    if (dropError) throw dropError;
-
-    // Recreate the view without SECURITY DEFINER (using SECURITY INVOKER by default)
-    const { error: createError } = await supabase
-      .rpc('execute_sql', { sql_statement: viewDefinition.replace('SECURITY DEFINER', '') });
-
-    if (createError) throw createError;
-
-    // Fix Auth OTP long expiry
+    // Second fix: Fix Auth OTP long expiry
     const { error: authError } = await supabase
-      .rpc('execute_sql', { 
-        sql_statement: `
+      .from('_sqlQueries')
+      .select('*')
+      .eq('id', 'fix_auth_otp_expiry')
+      .maybeSingle()
+      .execute(`
         UPDATE auth.config 
         SET email_confirm_token_validity_seconds = 3600 
         WHERE email_confirm_token_validity_seconds > 3600;
-        `
-      });
+      `);
 
     if (authError) throw authError;
 

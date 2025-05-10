@@ -1,6 +1,7 @@
 
 import { RefreshCw, CircuitBoard, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SyncElevenLabsHistoryButton } from "./SyncElevenLabsHistoryButton";
 
 interface DashboardHeaderProps {
   lastUpdated: string;
@@ -30,6 +31,7 @@ export function DashboardHeader({ lastUpdated, isLoading, onRefresh }: Dashboard
           <RefreshCw className={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${isLoading ? 'animate-spin' : ''}`} />
           {isLoading ? 'Loading...' : 'Refresh'}
         </Button>
+        <SyncElevenLabsHistoryButton onSuccess={onRefresh} />
       </div>
     </div>
   );

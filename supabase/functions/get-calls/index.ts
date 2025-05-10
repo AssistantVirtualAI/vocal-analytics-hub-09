@@ -7,6 +7,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Helper function to get Agent UUID by matching with ID or name
+ */
+async function getAgentUUIDByExternalId(supabase, externalAgentId) {
+  if (!externalAgentId) return null;
+  
+  console.log(`[get-calls] Looking up agent with ID matching: ${externalAgentId}`);
+  
+  // First try looking up by the ID directly (in case it's already a UUID)
+  try {
+    const { data: directData, error: directError } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("id", externalAgentId)
+      .maybeSingle();
+      
+    if (!directError && directData) {
+      console.log(`[get-calls] Found agent directly with ID: ${directData.id}`);
+      return directData.id;
+    }
+  } catch (err) {
+    console.log(`[get-calls] Direct ID lookup failed, will try name lookup: ${err}`);
+    // This is expected if the ID is not a UUID, continue to next approach
+  }
+  
+  // If direct lookup failed, try looking up by name field
+  const { data: agentData, error: agentError } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("name", externalAgentId)
+    .maybeSingle();
+
+  if (agentError && agentError.code !== 'PGRST116') {
+    console.error(`[get-calls] Error fetching agent by name ${externalAgentId}:`, agentError);
+    return null;
+  }
+  
+  if (agentData) {
+    console.log(`[get-calls] Found agent by name: ${agentData.id}`);
+    return agentData.id;
+  }
+  
+  console.warn(`[get-calls] No agent found with ID or name matching: ${externalAgentId}`);
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -58,7 +104,20 @@ serve(async (req) => {
 
     // Apply agent filter
     if (agentId) {
-      query = query.eq('agent_id', agentId);
+      const agentUUID = await getAgentUUIDByExternalId(supabase, agentId);
+      if (agentUUID) {
+        console.log(`[get-calls] Using resolved agent UUID: ${agentUUID}`);
+        query = query.eq('agent_id', agentUUID);
+      } else {
+        console.warn(`[get-calls] No agent UUID found for agentId ${agentId}. Returning empty call list.`);
+        return new Response(JSON.stringify({
+          calls: [],
+          count: 0
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Apply search filter

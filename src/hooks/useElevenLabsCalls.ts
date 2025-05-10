@@ -49,11 +49,13 @@ export function useElevenLabsCalls({
           params.append('to_date', toDate.toISOString());
         }
         
+        const queryParams = params.toString();
+        const url = queryParams ? `get-elevenlabs-calls?${queryParams}` : 'get-elevenlabs-calls';
+        
         const { data, error } = await supabase.functions.invoke<{ data: ElevenLabsCall[] }>(
-          'get-elevenlabs-calls',
+          url,
           {
-            method: 'GET',
-            query: params
+            method: 'GET'
           }
         );
         

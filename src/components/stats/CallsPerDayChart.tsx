@@ -29,8 +29,11 @@ type CallsPerDayChartProps = {
 };
 
 export const CallsPerDayChart = ({ data, isLoading = false, onRefresh }: CallsPerDayChartProps) => {
-  // Count total calls in the data
-  const totalCalls = data.reduce((sum, item) => sum + (item.appels || 0), 0);
+  // Check if data is an array and has items
+  const isDataValid = Array.isArray(data);
+  
+  // Count total calls in the data (safely)
+  const totalCalls = isDataValid ? data.reduce((sum, item) => sum + (item.appels || 0), 0) : 0;
 
   return (
     <Card>
@@ -43,6 +46,12 @@ export const CallsPerDayChart = ({ data, isLoading = false, onRefresh }: CallsPe
           <div className="flex items-center justify-center h-[300px]">
             <Skeleton className="h-[250px] w-full" />
           </div>
+        ) : !isDataValid ? (
+          <EmptyDataState 
+            title="Données invalides" 
+            description="Le format des données est incorrect."
+            onAction={onRefresh}
+          />
         ) : totalCalls === 0 ? (
           <EmptyDataState 
             title="Aucun appel trouvé" 

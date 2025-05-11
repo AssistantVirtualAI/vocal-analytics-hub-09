@@ -3,8 +3,12 @@ import { useCallback } from 'react';
 import { useOrganizationUsersFetching } from './useOrganizationUsersFetching';
 import { useAllUsersFetching } from './useAllUsersFetching';
 import { useUserOrganizationManagement } from './useUserOrganizationManagement';
+import { useAuth } from '@/context/AuthContext';
+import { checkSuperAdminStatus, checkOrganizationAdminStatus } from '@/services/organization/users/adminRoles';
 
 export const useUsersManagement = (selectedOrg: string | null) => {
+  const { user } = useAuth();
+  
   const { 
     users: orgUsers, 
     loading: orgUsersLoading, 
@@ -44,6 +48,21 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     await fetchAllUsers();
   }, [selectedOrg, fetchUsers, fetchAllUsers]);
 
+  // Check if the current user has permission to manage this organization
+  const checkCurrentUserPermissions = useCallback(async () => {
+    if (!user?.id || !selectedOrg) return { isSuperAdmin: false, isOrgAdmin: false };
+    
+    try {
+      const isSuperAdmin = await checkSuperAdminStatus(user.id);
+      const isOrgAdmin = isSuperAdmin || await checkOrganizationAdminStatus(user.id, selectedOrg);
+      
+      return { isSuperAdmin, isOrgAdmin };
+    } catch (error) {
+      console.error('Error checking user permissions:', error);
+      return { isSuperAdmin: false, isOrgAdmin: false };
+    }
+  }, [user?.id, selectedOrg]);
+
   return {
     orgUsers,
     allUsers,
@@ -54,6 +73,7 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     fetchAllUsers,
     loadAllUsers,
     addUserToOrg: addUser,
-    refreshAllData
+    refreshAllData,
+    checkCurrentUserPermissions
   };
 };

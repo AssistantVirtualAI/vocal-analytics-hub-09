@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Organization } from '@/types/organization';
 import { useAuth } from '../AuthContext';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
@@ -7,10 +7,13 @@ import { useOrganizationLoading } from '@/hooks/useOrganizationLoading';
 import { useCurrentOrganization } from '@/hooks/useCurrentOrganization';
 import { useOrganizationOperations } from '@/hooks/useOrganizationOperations';
 import { useOrganizationUserManagement } from '@/hooks/useOrganizationUserManagement';
+import { checkOrganizationAdminStatus } from '@/services/organization/users/adminRoles';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useOrganizationState = () => {
   const { users, setUsers } = useOrganizationUsers();
   const { user, isAdmin } = useAuth();
+  const [userHasAdminAccessToCurrentOrg, setUserHasAdminAccessToCurrentOrg] = useState<boolean>(false);
   
   const { 
     organizations, 
@@ -68,6 +71,31 @@ export const useOrganizationState = () => {
     }
   }, [organizations, currentOrganizationId]);
 
+  // Check if current user has admin access to current organization
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      if (!user?.id || !currentOrganization?.id) {
+        setUserHasAdminAccessToCurrentOrg(false);
+        return;
+      }
+
+      if (isAdmin) {
+        setUserHasAdminAccessToCurrentOrg(true);
+        return;
+      }
+
+      try {
+        const isOrgAdmin = await checkOrganizationAdminStatus(user.id, currentOrganization.id);
+        setUserHasAdminAccessToCurrentOrg(isOrgAdmin);
+      } catch (error) {
+        console.error('Error checking organization admin status:', error);
+        setUserHasAdminAccessToCurrentOrg(false);
+      }
+    };
+
+    checkAdminAccess();
+  }, [currentOrganization?.id, user?.id, isAdmin]);
+
   return {
     currentOrganization,
     organizations,
@@ -81,5 +109,6 @@ export const useOrganizationState = () => {
     setUserRole,
     fetchOrganizationUsers,
     isLoading,
+    userHasAdminAccessToCurrentOrg
   };
 };

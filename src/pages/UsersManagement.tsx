@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -33,22 +34,26 @@ export default function UsersManagement() {
     fetchUsers,
     loadAllUsers,
     addUserToOrg,
-    refreshAllData
+    refreshAllData,
+    checkCurrentUserPermissions
   } = useUsersManagement(selectedOrg);
   
-  // Get admin roles status
-  const {
-    checkCurrentUserPermissions,
-    currentUserIsOrgAdmin,
-    currentUserIsSuperAdmin
-  } = useAdminRoles(selectedOrg, user?.id, fetchUsers);
+  // User permission states
+  const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
+  const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
 
   // Check admin permissions on mount and when organization changes
   useEffect(() => {
-    if (user?.id && selectedOrg) {
-      console.log("Checking admin permissions for user:", user.id);
-      checkCurrentUserPermissions();
-    }
+    const checkPermissions = async () => {
+      if (user?.id && selectedOrg) {
+        console.log("Checking admin permissions for user:", user.id);
+        const { isSuperAdmin, isOrgAdmin } = await checkCurrentUserPermissions();
+        setCurrentUserIsOrgAdmin(isOrgAdmin);
+        setCurrentUserIsSuperAdmin(isSuperAdmin);
+      }
+    };
+    
+    checkPermissions();
   }, [user?.id, selectedOrg, checkCurrentUserPermissions]);
 
   // Debug logging
@@ -58,20 +63,16 @@ export default function UsersManagement() {
   console.log('UsersManagement - Loading states:', { loading, orgUsersLoading, allUsersLoading });
   console.log('UsersManagement - Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
 
-  // Add a more visible log for troubleshooting
-  useEffect(() => {
-    if (!orgUsersLoading && orgUsers.length === 0 && selectedOrg) {
-      console.log('⚠️ No users found for organization:', selectedOrg);
-    } else if (!orgUsersLoading && orgUsers.length > 0) {
-      console.log('✅ Found', orgUsers.length, 'users for organization:', selectedOrg);
-    }
-  }, [orgUsers, orgUsersLoading, selectedOrg]);
-
   const handleRefresh = async () => {
     try {
       toast.info("Actualisation des données utilisateurs...");
       await refreshAllData();
-      await checkCurrentUserPermissions();
+      
+      // Update permissions after refresh
+      const { isSuperAdmin, isOrgAdmin } = await checkCurrentUserPermissions();
+      setCurrentUserIsOrgAdmin(isOrgAdmin);
+      setCurrentUserIsSuperAdmin(isSuperAdmin);
+      
       toast.success("Données utilisateurs actualisées");
     } catch (error) {
       console.error("Error refreshing data:", error);
@@ -100,12 +101,14 @@ export default function UsersManagement() {
             </Button>
           </div>
 
-          <AllUsersSection 
-            users={allUsers} 
-            fetchUsers={fetchUsers}  
-            loading={allUsersLoading}
-            loadAllUsers={loadAllUsers}
-          />
+          {currentUserIsSuperAdmin && (
+            <AllUsersSection 
+              users={allUsers} 
+              fetchUsers={fetchUsers}  
+              loading={allUsersLoading}
+              loadAllUsers={loadAllUsers}
+            />
+          )}
 
           <OrganizationUsersSection
             organizations={organizations}

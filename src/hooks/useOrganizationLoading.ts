@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Organization } from '@/types/organization';
 import { fetchAllOrganizations, fetchUserOrganizations } from '@/services/organization/fetchOrganizations';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -13,14 +14,18 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     try {
       console.log("[useOrganizationLoading] Loading organizations for user:", userId, "isAdmin:", isAdmin);
       
-      // Utiliser fetchAllOrganizations pour les admins, et fetchUserOrganizations pour les utilisateurs normaux
-      const orgs = isAdmin
-        ? await fetchAllOrganizations()
-        : userId 
-          ? await fetchUserOrganizations(userId) 
-          : [];
+      let orgs: Organization[] = [];
+      
+      if (isAdmin) {
+        // Super admins can see all organizations
+        orgs = await fetchAllOrganizations();
+        console.log('[useOrganizationLoading] Admin user - fetched all organizations:', orgs);
+      } else if (userId) {
+        // Regular users can only see their organizations
+        orgs = await fetchUserOrganizations(userId);
+        console.log('[useOrganizationLoading] Regular user - fetched user organizations:', orgs);
+      }
           
-      console.log('[useOrganizationLoading] Fetched organizations:', orgs);
       setOrganizations(orgs);
       return orgs;
     } catch (error: any) {

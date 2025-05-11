@@ -53,7 +53,9 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
             onSelectOrg={onSelectOrg}
           />
           
-          <AddUserDialog onAddUser={onAddUser} loading={loading} />
+          {(currentUserIsOrgAdmin || currentUserIsSuperAdmin) && (
+            <AddUserDialog onAddUser={onAddUser} loading={loading} />
+          )}
         </div>
       </CardHeader>
       <CardContent>

@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getAgentUUIDByExternalId } from "../_shared/agent-resolver-improved.ts";
+import { getAgentUUIDByExternalId, checkUserOrganizationAccess } from "../_shared/agent-resolver-improved.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,10 +26,11 @@ serve(async (req: Request) => {
       customerId = '', 
       agentId: externalAgentIdFromRequest = '', // This is the string ID like 'QNdB45Jpgh06Hr67TzFO'
       startDate = '', 
-      endDate = '' 
+      endDate = '',
+      orgId = '' // Optional organization ID filter
     } = body;
 
-    console.log(`[get-calls MAIN] Request parameters: limit=${limit}, offset=${offset}, sort=${sort}, order=${order}, search='${search}', customerId='${customerId}', externalAgentIdFromRequest='${externalAgentIdFromRequest}', startDate='${startDate}', endDate='${endDate}'`);
+    console.log(`[get-calls MAIN] Request parameters: limit=${limit}, offset=${offset}, sort=${sort}, order=${order}, search='${search}', customerId='${customerId}', externalAgentIdFromRequest='${externalAgentIdFromRequest}', startDate='${startDate}', endDate='${endDate}', orgId='${orgId}'`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -44,6 +45,44 @@ serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     let agentUUIDForQuery: string | null = null;
+    
+    // Extract JWT token and get user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[get-calls MAIN] No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: { message: "Authentication required", code: "UNAUTHORIZED" } }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error("[get-calls MAIN] Invalid authentication:", userError);
+      return new Response(
+        JSON.stringify({ error: { message: "Invalid authentication", code: "UNAUTHORIZED" } }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Check user role - whether they're a super admin
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+      
+    const isSuperAdmin = !!roleData;
+    console.log(`[get-calls MAIN] User ${user.id} is ${isSuperAdmin ? 'a super admin' : 'not a super admin'}`);
 
     if (externalAgentIdFromRequest) {
       console.log(`[get-calls MAIN] externalAgentIdFromRequest is '${externalAgentIdFromRequest}', attempting to get internal UUID.`);
@@ -52,15 +91,35 @@ serve(async (req: Request) => {
 
       if (!agentUUIDForQuery) {
         console.warn(`[get-calls MAIN] No agent UUID mapped for externalAgentIdFromRequest '${externalAgentIdFromRequest}'. Returning 200 with empty call list as per design for non-critical missing agent.`);
-        // If an agent filter was specified but the agent doesn't exist, it means no calls for *that* agent.
-        // Returning empty list is appropriate, not an error, unless the business logic dictates otherwise.
         return new Response(JSON.stringify({ calls: [], count: 0, message: `No agent found for identifier: ${externalAgentIdFromRequest}` }), {
-          status: 200, // Changed from 404 to 200 as it's a valid query with no results for that filter
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-    } else {
-      console.log("[get-calls MAIN] externalAgentIdFromRequest is empty. Proceeding without agent-specific UUID filter (will fetch calls for all agents unless other filters apply).");
+      
+      // Verify user has access to this agent
+      if (!isSuperAdmin) {
+        const hasAccess = await checkUserOrganizationAccess(supabase, user.id, undefined, agentUUIDForQuery);
+        if (!hasAccess) {
+          console.error(`[get-calls MAIN] User ${user.id} does not have access to agent ${agentUUIDForQuery}`);
+          return new Response(JSON.stringify({ error: { message: "You do not have access to this agent", code: "FORBIDDEN" } }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+    
+    // If an organization ID is provided, verify user has access to it
+    if (orgId && !isSuperAdmin) {
+      const hasOrgAccess = await checkUserOrganizationAccess(supabase, user.id, orgId);
+      if (!hasOrgAccess) {
+        console.error(`[get-calls MAIN] User ${user.id} does not have access to organization ${orgId}`);
+        return new Response(JSON.stringify({ error: { message: "You do not have access to this organization", code: "FORBIDDEN" } }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     let query = supabase.from("calls_view").select("*", { count: "exact" });
@@ -69,13 +128,64 @@ serve(async (req: Request) => {
     if (endDate) query = query.lte('date', endDate);
     if (customerId) query = query.eq('customer_id', customerId);
     
+    // Apply agent filter if provided
     if (agentUUIDForQuery) {
       console.log(`[get-calls MAIN] Applying filter: query.eq("agent_id", "${agentUUIDForQuery}")`);
-      query = query.eq('agent_id', agentUUIDForQuery); // Filter by the resolved agent's UUID
-    } else {
-      // If externalAgentIdFromRequest was provided but no agentUUIDForQuery was found, we've already returned an empty list.
-      // If externalAgentIdFromRequest was NOT provided, we don't filter by agent.
-      console.log("[get-calls MAIN] No agentUUIDForQuery, so not applying agent_id filter.");
+      query = query.eq('agent_id', agentUUIDForQuery);
+    }
+    
+    // For non-super admins, restrict to organizations they belong to
+    if (!isSuperAdmin) {
+      // Get list of organizations the user belongs to
+      const { data: userOrgs } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id);
+        
+      if (userOrgs && userOrgs.length > 0) {
+        const orgIds = userOrgs.map(org => org.organization_id);
+        
+        // Get list of agent IDs belonging to these organizations
+        const { data: orgAgents } = await supabase
+          .from('organizations')
+          .select('agent_id')
+          .in('id', orgIds);
+          
+        if (orgAgents && orgAgents.length > 0) {
+          const agentIds = orgAgents
+            .map(org => org.agent_id)
+            .filter(Boolean); // Remove any null/undefined values
+            
+          if (agentIds.length > 0) {
+            // If we already have an agent filter, no need to apply this
+            if (!agentUUIDForQuery) {
+              console.log(`[get-calls MAIN] Restricting to user's organization agents:`, agentIds);
+              query = query.in('agent_id', agentIds);
+            }
+          } else {
+            // User has organization access but no agents are set
+            console.log(`[get-calls MAIN] User's organizations have no agents configured`);
+            return new Response(JSON.stringify({ calls: [], count: 0 }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          // User has no organizations with agents
+          console.log(`[get-calls MAIN] User's organizations not found or have no agents`);
+          return new Response(JSON.stringify({ calls: [], count: 0 }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        // User doesn't belong to any organizations
+        console.log(`[get-calls MAIN] User doesn't belong to any organizations`);
+        return new Response(JSON.stringify({ calls: [], count: 0 }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     if (search) query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%`);
@@ -88,10 +198,6 @@ serve(async (req: Request) => {
 
     if (queryError) {
       console.error("[get-calls MAIN] Database query error occurred on calls_view:", queryError);
-      // This is where the original 22P02 error would have happened if agentUUIDForQuery was a non-UUID string.
-      // Now, if agentUUIDForQuery is null (agent not found), this query runs without agent filter (if externalAgentIdFromRequest was empty)
-      // or we already returned an empty list (if externalAgentIdFromRequest was given but agent not found).
-      // If agentUUIDForQuery is a valid UUID, the query should work.
       throw queryError;
     }
 

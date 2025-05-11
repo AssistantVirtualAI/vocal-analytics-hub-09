@@ -1,142 +1,246 @@
 
-import { corsHeaders } from "../_shared/cors.ts";
-import { SyncRequest, SyncResponse } from "./models.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { syncHistoryItems } from "./service.ts";
-import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
 import { fetchElevenLabsHistory } from "../_shared/elevenlabs/history.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { checkUserOrganizationAccess } from "../_shared/agent-resolver-improved.ts";
 
-/**
- * Gère la requête de synchronisation de l'historique ElevenLabs
- */
+// Handle the history sync request
 export async function handleHistorySyncRequest(req: Request): Promise<Response> {
   try {
-    // Parse request body
-    console.log("Analyse de la requête...");
-    let requestData: SyncRequest;
-    try {
-      requestData = await req.json() as SyncRequest;
-      console.log("Données de requête reçues:", JSON.stringify(requestData));
-    } catch (error) {
-      console.error("Erreur lors de l'analyse du JSON de la requête:", error);
-      return createErrorResponse({
-        status: 400,
-        message: "Format de requête invalide",
-        code: "INVALID_REQUEST"
-      });
-    }
+    // Check environment variables first
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY") || Deno.env.get("ELEVEN_LABS_API_KEY");
     
-    const { agentId } = requestData;
-    
-    if (!agentId) {
-      console.error("Missing agentId in request body");
-      return createErrorResponse({
-        status: 400,
-        message: "Agent ID is required",
-        code: "MISSING_AGENT_ID"
-      });
+    if (!supabaseUrl || !supabaseServiceKey || !elevenLabsApiKey) {
+      const missingVars = [];
+      if (!supabaseUrl) missingVars.push('SUPABASE_URL');
+      if (!supabaseServiceKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+      if (!elevenLabsApiKey) missingVars.push('ELEVENLABS_API_KEY/ELEVEN_LABS_API_KEY');
+      
+      const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+      console.error(`[handleHistorySyncRequest] ${errorMsg}`);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: { 
+            message: errorMsg,
+            code: "MISSING_ENV_VARIABLES"
+          } 
+        }),
+        { 
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
     }
 
-    try {
-      console.log("Getting environment variables...");
-      
-      // Get required environment variables
-      const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      
-      console.log("Environment variables status:");
-      console.log(`- ELEVENLABS_API_KEY: ${elevenlabsApiKey ? 'Available' : 'Missing'}`);
-      console.log(`- SUPABASE_URL: ${supabaseUrl ? 'Available' : 'Missing'}`);
-      console.log(`- SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'Available' : 'Missing'}`);
-      
-      if (!elevenlabsApiKey) {
-        return createErrorResponse({
-          status: 500,
-          message: "ELEVENLABS_API_KEY not configured",
-          code: "MISSING_ENV_VAR"
-        });
-      }
-      
-      if (!supabaseUrl) {
-        return createErrorResponse({
-          status: 500,
-          message: "SUPABASE_URL not configured",
-          code: "MISSING_ENV_VAR"
-        });
-      }
-      
-      if (!supabaseServiceKey) {
-        return createErrorResponse({
-          status: 500,
-          message: "SUPABASE_SERVICE_ROLE_KEY not configured",
-          code: "MISSING_ENV_VAR"
-        });
-      }
-      
-      console.log(`Environment variables obtained. Using API key: ***${elevenlabsApiKey.slice(-4)}`);
-      
-      // Récupérer l'historique depuis ElevenLabs
-      console.log(`Fetching history from ElevenLabs for agent ${agentId}...`);
-      const historyItems = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
-      
-      console.log(`Retrieved ${historyItems.length} history items for agent ${agentId}`);
-      
-      if (!Array.isArray(historyItems)) {
-        console.error("Invalid response from ElevenLabs API - not an array:", historyItems);
-        return createErrorResponse({
-          status: 500,
-          message: "Invalid response from ElevenLabs API",
-          code: "INVALID_RESPONSE"
-        });
-      }
-      
-      // Synchroniser avec Supabase
-      console.log(`Syncing ${historyItems.length} history items with Supabase...`);
-      const syncResults = await syncHistoryItems(
-        supabaseUrl,
-        supabaseServiceKey,
-        historyItems,
-        agentId
+    // Parse the body to get the agentId
+    const body = await req.json();
+    const { agentId } = body || {};
+    
+    // Create Supabase admin client for user verification
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Get user from auth header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[handleHistorySyncRequest] No authorization header provided");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            message: "Authorization required",
+            code: "UNAUTHORIZED"
+          }
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
       );
-      
-      // Calculer les statistiques de synchronisation
-      const successCount = syncResults.filter(r => r.success).length;
-      const errorCount = syncResults.filter(r => !r.success).length;
-      
-      console.log(`Sync complete. Success: ${successCount}, Error: ${errorCount}`);
-      
-      const response: SyncResponse = {
-        success: errorCount === 0,
-        results: syncResults,
-        summary: {
-          total: historyItems.length,
-          success: successCount,
-          error: errorCount
+    }
+    
+    // Extract JWT token and get user
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error("[handleHistorySyncRequest] Invalid authentication:", userError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            message: "Invalid authentication",
+            code: "UNAUTHORIZED"
+          }
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
         }
-      };
-      
-      return createSuccessResponse(response);
-    } catch (error) {
-      console.error("Error accessing environment variables or API:", error);
-      
-      if (error instanceof Error) {
-        const message = error.message;
-        if (message.includes('environment variable') || message.includes('env') || message.includes('required')) {
-          return createErrorResponse({
-            status: 500,
-            message: message,
-            code: "MISSING_ENV_VAR"
-          });
+      );
+    }
+    
+    // Check agent ID
+    if (!agentId) {
+      console.error("[handleHistorySyncRequest] No agentId provided");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            message: "agentId is required",
+            code: "MISSING_AGENT_ID"
+          }
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Verify user has access to agent/organization
+    const hasAccess = await checkUserOrganizationAccess(
+      supabaseAdmin, 
+      user.id, 
+      undefined, // We'll check based on agent instead of org
+      agentId
+    );
+
+    if (!hasAccess) {
+      console.error(`[handleHistorySyncRequest] User ${user.id} does not have access to agent ${agentId}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            message: "You do not have access to this agent",
+            code: "FORBIDDEN"
+          }
+        }),
+        {
+          status: 403,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    console.log(`[handleHistorySyncRequest] Fetching ElevenLabs history for agent ${agentId}`);
+    
+    // Fetch the history from ElevenLabs
+    const historyResult = await fetchElevenLabsHistory();
+    
+    if (!historyResult.success) {
+      console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${historyResult.error}`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: { 
+            message: historyResult.error || "Failed to fetch ElevenLabs history",
+            code: "ELEVENLABS_FETCH_ERROR" 
+          }
+        }),
+        { 
+          status: 502,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
+    }
+    
+    // Check if we have any history items
+    if (!historyResult.data || historyResult.data.length === 0) {
+      console.log("[handleHistorySyncRequest] No history items found to sync");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          results: [],
+          summary: {
+            total: 0,
+            success: 0,
+            error: 0
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Process the history items
+    console.log(`[handleHistorySyncRequest] Syncing ${historyResult.data.length} history items`);
+    
+    const results = await syncHistoryItems(
+      supabaseUrl,
+      supabaseServiceKey,
+      historyResult.data,
+      agentId
+    );
+    
+    // Generate summary statistics
+    const summary = {
+      total: results.length,
+      success: results.filter(r => r.success).length,
+      error: results.filter(r => !r.success).length
+    };
+    
+    console.log(`[handleHistorySyncRequest] Sync completed: ${summary.success}/${summary.total} successful, ${summary.error} errors`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        results,
+        summary
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
         }
       }
-      throw error;
-    }
+    );
   } catch (error) {
-    console.error("Error in sync-elevenlabs-history function:", error);
-    return createErrorResponse({
-      status: 500,
-      message: error instanceof Error ? error.message : "An unexpected error occurred",
-      code: "INTERNAL_SERVER_ERROR"
-    });
+    console.error(`[handleHistorySyncRequest] Error processing request:`, error);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+          code: "INTERNAL_SERVER_ERROR"
+        }
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      }
+    );
   }
 }

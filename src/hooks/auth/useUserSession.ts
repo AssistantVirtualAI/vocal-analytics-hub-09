@@ -12,11 +12,11 @@ export interface UserSession {
 }
 
 export const useUserSession = (): UserSession => {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   
   return {
     session: user ? { user } : null,
     userDetails: user,
-    isLoading
+    isLoading: loading
   };
 };

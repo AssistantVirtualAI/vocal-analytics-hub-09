@@ -10,13 +10,15 @@ interface OrganizationUsersTableProps {
   pendingInvitations: OrganizationInvitation[];
   onRemoveUser: (userId: string) => Promise<void>;
   onCancelInvitation: (invitationId: string) => Promise<void>;
+  onUpdateRole?: (userId: string, role: string) => Promise<void>;
 }
 
 export const OrganizationUsersTable = ({
   users,
   pendingInvitations,
   onRemoveUser,
-  onCancelInvitation
+  onCancelInvitation,
+  onUpdateRole
 }: OrganizationUsersTableProps) => {
   return (
     <Table>

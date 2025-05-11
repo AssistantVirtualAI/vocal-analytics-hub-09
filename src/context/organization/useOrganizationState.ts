@@ -79,7 +79,8 @@ export function useOrganizationState() {
       const newOrgData: Omit<Organization, "id" | "createdAt"> = {
         name,
         description,
-        agentId
+        agentId,
+        slug: name.toLowerCase().replace(/\s+/g, '-')
       };
       
       // Use direct Supabase call instead of createOrg
@@ -88,7 +89,8 @@ export function useOrganizationState() {
         .insert([{
           name: newOrgData.name,
           description: newOrgData.description,
-          agent_id: newOrgData.agentId
+          agent_id: newOrgData.agentId,
+          slug: newOrgData.slug
         }])
         .select('id')
         .single();
@@ -137,7 +139,8 @@ export function useOrganizationState() {
         .update({
           name: organization.name,
           description: organization.description,
-          agent_id: organization.agentId
+          agent_id: organization.agentId,
+          slug: organization.slug
         })
         .eq('id', organization.id);
 
@@ -382,7 +385,7 @@ export function useOrganizationState() {
       
       // Update local state
       setUsers(users => users.map(user => 
-        user.id === userId ? { ...user, role } : user
+        user.id === userId ? { ...user, role: role as 'admin' | 'user' } : user
       ));
       
       toast({

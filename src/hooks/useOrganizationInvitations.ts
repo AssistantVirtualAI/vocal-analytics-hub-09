@@ -27,7 +27,17 @@ export const useOrganizationInvitations = (organizationId: string | null) => {
         
       if (error) throw error;
       
-      setInvitations(data || []);
+      const formattedInvitations: OrganizationInvitation[] = (data || []).map(item => ({
+        id: item.id,
+        email: item.email,
+        token: item.token,
+        status: item.status as 'pending' | 'accepted' | 'expired',
+        expiresAt: item.expires_at,
+        createdAt: item.created_at,
+        organizationId: item.organization_id
+      }));
+      
+      setInvitations(formattedInvitations);
     } catch (error: any) {
       console.error('Error fetching invitations:', error);
       toast({

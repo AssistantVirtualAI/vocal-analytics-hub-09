@@ -1,11 +1,12 @@
 
-import { useState } from 'react';
-import { useUserAddition } from './useUserAddition';
-import { useUserRemoval } from './useUserRemoval';
-import { usePasswordReset } from './usePasswordReset';
-import { useInvitationManagement } from './useInvitationManagement';
-import { useAdminRoles } from './useAdminRoles';
 import { useAuth } from '@/context/AuthContext';
+import { 
+  useUserAddition,
+  useUserRemoval,
+  usePasswordReset,
+  useInvitationManagement,
+  useAdminRoles
+} from './organization';
 
 export const useUserOrganizationManagement = (
   selectedOrg: string | null, 
@@ -22,7 +23,8 @@ export const useUserOrganizationManagement = (
   const { 
     loading: managingInvitations, 
     cancelInvitation,
-    resendInvitation
+    resendInvitation,
+    resendingFor
   } = useInvitationManagement(selectedOrg, refreshUsers);
   const {
     loading: managingRoles,
@@ -43,6 +45,7 @@ export const useUserOrganizationManagement = (
     resetPassword,
     cancelInvitation,
     resendInvitation,
+    resendingFor,
     toggleOrganizationAdmin,
     toggleSuperAdmin,
     checkCurrentUserPermissions,

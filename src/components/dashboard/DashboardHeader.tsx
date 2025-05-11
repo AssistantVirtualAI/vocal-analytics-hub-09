@@ -1,7 +1,8 @@
 
-import { RefreshCw, CircuitBoard, Database } from "lucide-react";
+import { RefreshCw, CircuitBoard, Database, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SyncElevenLabsHistoryButton } from "./SyncElevenLabsHistoryButton";
+import { GlassCard } from "@/components/ui/glass-card";
 
 interface DashboardHeaderProps {
   lastUpdated: string;
@@ -11,15 +12,25 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ lastUpdated, isLoading, onRefresh }: DashboardHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0 pb-4 border-b border-blue-200/30 dark:border-blue-800/30">
+    <GlassCard 
+      variant="default"
+      withBorder={true}
+      glowEffect={true}
+      className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0 mb-6"
+    >
       <div className="flex items-center">
-        <CircuitBoard className="h-6 w-6 mr-2 text-blue-500 dark:text-blue-400" />
-        <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">Dashboard</h1>
+        <div className="mr-3 p-2 rounded-full bg-primary/10 backdrop-blur-sm border border-primary/20">
+          <Brain className="h-6 w-6 text-primary dark:text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Insights et analyses de vos agents AI</p>
+        </div>
       </div>
       <div className="flex items-center space-x-3">
-        <div className="flex items-center text-sm text-muted-foreground bg-white/50 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+        <div className="flex items-center text-sm text-muted-foreground bg-white/50 dark:bg-slate-900/50 px-3 py-1.5 rounded-full border border-blue-100/50 dark:border-blue-800/30 shadow-sm backdrop-blur-sm">
           <Database className="h-3.5 w-3.5 mr-1.5 text-blue-500/70 dark:text-blue-400/70" />
-          <span>Last sync: {lastUpdated}</span>
+          <span>Dernière synchro: {lastUpdated}</span>
         </div>
         <Button
           variant="outline"
@@ -29,10 +40,10 @@ export function DashboardHeader({ lastUpdated, isLoading, onRefresh }: Dashboard
           disabled={isLoading}
         >
           <RefreshCw className={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${isLoading ? 'animate-spin' : ''}`} />
-          {isLoading ? 'Loading...' : 'Refresh'}
+          {isLoading ? 'Chargement...' : 'Actualiser'}
         </Button>
         <SyncElevenLabsHistoryButton onSuccess={onRefresh} />
       </div>
-    </div>
+    </GlassCard>
   );
 }

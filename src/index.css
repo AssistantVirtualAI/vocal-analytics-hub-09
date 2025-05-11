@@ -94,3 +94,143 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* AI-themed animations and effects */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 10px rgba(126, 105, 171, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(126, 105, 171, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(126, 105, 171, 0.3);
+  }
+}
+
+@keyframes pulse-border {
+  0% {
+    border-color: rgba(126, 105, 171, 0.3);
+  }
+  50% {
+    border-color: rgba(126, 105, 171, 0.6);
+  }
+  100% {
+    border-color: rgba(126, 105, 171, 0.3);
+  }
+}
+
+@keyframes scanning {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.ai-glow {
+  animation: glow 3s infinite;
+}
+
+.ai-pulse-border {
+  animation: pulse-border 3s infinite;
+}
+
+.ai-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.ai-gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300;
+}
+
+.ai-scanner {
+  background: linear-gradient(90deg, transparent, rgba(126, 105, 171, 0.15), transparent);
+  background-size: 200% 200%;
+  animation: scanning 1.5s linear infinite;
+}
+
+.card-gradient {
+  @apply bg-gradient-to-br from-white/50 to-white/20 dark:from-slate-800/50 dark:to-slate-800/20 backdrop-blur-md;
+}
+
+.glass-panel {
+  @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl;
+}
+
+.futuristic-glow {
+  @apply ai-glow;
+}
+
+/* Add animations from tailwindcss-animate */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Original root styles */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}

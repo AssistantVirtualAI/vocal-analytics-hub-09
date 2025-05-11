@@ -8,6 +8,9 @@ import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { NotificationsSettings } from '@/components/settings/NotificationsSettings';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Building, User, Shield, Bell } from 'lucide-react';
+import { AIHeader } from '@/components/dashboard/AIHeader';
+import { GlassCard } from '@/components/ui/glass-card';
+import { AIDecoration } from '@/components/ui/ai-decoration';
 
 export default function UserSettings() {
   const navigate = useNavigate();
@@ -26,51 +29,70 @@ export default function UserSettings() {
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6 relative z-10">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-1/4 w-72 h-72 bg-blue-400/5 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
-        <div className="absolute bottom-1/3 left-0 w-80 h-80 bg-indigo-400/5 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-purple-400/5 dark:bg-purple-600/10 rounded-full blur-3xl -z-10"></div>
+        {/* Futuristic AI-themed decorative elements */}
+        <AIDecoration 
+          variant="circuit" 
+          color="primary" 
+          size="lg" 
+          className="absolute top-0 right-1/4" 
+        />
+        <AIDecoration 
+          variant="nodes" 
+          color="indigo" 
+          size="lg" 
+          className="absolute bottom-1/3 left-0" 
+        />
+        <AIDecoration 
+          variant="waves" 
+          color="blue" 
+          size="md" 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2" 
+        />
+        
+        <AIHeader 
+          title="Paramètres" 
+          description="Personnalisez votre espace et gérez vos organisations" 
+          className="mb-6"
+        />
 
-        <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">
-          Paramètres
-        </h1>
+        <GlassCard variant="default" withBorder={true} className="p-6">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="grid grid-cols-4 w-full max-w-xl mb-6 bg-white/20 backdrop-blur-md border border-slate-200/30 dark:border-slate-700/30 dark:bg-slate-900/20">
+              <TabsTrigger value="organization" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:backdrop-blur-md data-[state=active]:text-primary">
+                <Building className="h-4 w-4" />
+                <span className="hidden sm:inline">Organisation</span>
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:backdrop-blur-md data-[state=active]:text-primary">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Profil</span>
+              </TabsTrigger>
+              <TabsTrigger value="security" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:backdrop-blur-md data-[state=active]:text-primary">
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Sécurité</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center gap-2 data-[state=active]:bg-primary/10 data-[state=active]:backdrop-blur-md data-[state=active]:text-primary">
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Notifications</span>
+              </TabsTrigger>
+            </TabsList>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full max-w-xl mb-4">
-            <TabsTrigger value="organization" className="flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              <span className="hidden sm:inline">Organisation</span>
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Profil</span>
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Sécurité</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Notifications</span>
-            </TabsTrigger>
-          </TabsList>
+            <TabsContent value="organization" className="border-none p-0 animate-fade-in">
+              <OrganizationSettings />
+            </TabsContent>
 
-          <TabsContent value="organization">
-            <OrganizationSettings />
-          </TabsContent>
+            <TabsContent value="profile" className="border-none p-0 animate-fade-in">
+              <ProfileSettings />
+            </TabsContent>
 
-          <TabsContent value="profile">
-            <ProfileSettings />
-          </TabsContent>
+            <TabsContent value="security" className="border-none p-0 animate-fade-in">
+              <SecuritySettings />
+            </TabsContent>
 
-          <TabsContent value="security">
-            <SecuritySettings />
-          </TabsContent>
-
-          <TabsContent value="notifications">
-            <NotificationsSettings />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="notifications" className="border-none p-0 animate-fade-in">
+              <NotificationsSettings />
+            </TabsContent>
+          </Tabs>
+        </GlassCard>
       </div>
     </DashboardLayout>
   );

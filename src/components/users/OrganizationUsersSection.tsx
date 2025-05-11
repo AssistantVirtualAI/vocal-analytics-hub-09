@@ -1,10 +1,13 @@
 
-import React, { useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { OrganizationSelector } from '@/components/users/OrganizationSelector';
 import { AddUserDialog } from '@/components/users/AddUserDialog';
 import { OrganizationUsersList } from '@/components/users/OrganizationUsersList';
 import { Organization, OrganizationUser } from '@/types/organization';
+import { Brain, Users } from 'lucide-react';
+import { AIHeader } from '@/components/dashboard/AIHeader';
+import { GlassCard } from '@/components/ui/glass-card';
 
 interface OrganizationUsersSectionProps {
   organizations: Organization[];
@@ -40,13 +43,20 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
   }, [currentUserIsOrgAdmin, currentUserIsSuperAdmin]);
   
   return (
-    <Card>
-      <CardHeader className="flex flex-col sm:flex-row items-start justify-between">
-        <div>
-          <CardTitle>Utilisateurs par organisation</CardTitle>
-          <CardDescription>Gérez les utilisateurs pour chaque organisation</CardDescription>
+    <GlassCard 
+      variant="default"
+      glowEffect={true}
+      className="overflow-hidden"
+    >
+      <CardHeader className="flex flex-col sm:flex-row items-start justify-between relative">
+        <div className="relative z-10">
+          <AIHeader 
+            title="Utilisateurs par organisation" 
+            description="Gérez les utilisateurs pour chaque organisation" 
+            showDecorations={false}
+          />
         </div>
-        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+        <div className="flex items-center gap-2 mt-4 sm:mt-0 z-10">
           <OrganizationSelector 
             organizations={organizations}
             selectedOrg={selectedOrg}
@@ -57,6 +67,10 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
             <AddUserDialog onAddUser={onAddUser} loading={loading} />
           )}
         </div>
+        
+        {/* Decorative elements */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/5 rounded-full blur-xl" />
+        <div className="absolute -left-4 -bottom-12 w-24 h-24 bg-blue-500/5 rounded-full blur-lg" />
       </CardHeader>
       <CardContent>
         <OrganizationUsersList
@@ -68,6 +82,6 @@ export const OrganizationUsersSection: React.FC<OrganizationUsersSectionProps> =
           currentUserIsSuperAdmin={currentUserIsSuperAdmin}
         />
       </CardContent>
-    </Card>
+    </GlassCard>
   );
 };

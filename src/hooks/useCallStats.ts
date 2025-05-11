@@ -11,7 +11,7 @@ export const useCallStats = (enabled = true, overrideAgentId?: string) => {
   const { user } = useAuth();
   
   // Use provided agent ID, organization's agent ID, or fallback to default
-  const agentId = overrideAgentId || currentOrganization?.agentId || AGENT_ID;
+  const agentId = overrideAgentId || (currentOrganization?.agentId || AGENT_ID);
   
   return useQuery({
     queryKey: ["callStats", agentId],
@@ -25,7 +25,7 @@ export const useCallStats = (enabled = true, overrideAgentId?: string) => {
       
       try {
         const { data, error } = await supabase.functions.invoke("get-stats", {
-          body: { agentId: agentId } // Always include the specified agent ID
+          body: { agentId } // Always include the specified agent ID
         });
 
         if (error) {

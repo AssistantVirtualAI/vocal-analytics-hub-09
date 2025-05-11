@@ -11,10 +11,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Organization } from '@/types/organization';
+import { ElevenLabsDiagnosticsButton } from '@/components/dashboard/ElevenLabsDiagnosticsButton';
 
 const organizationSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
@@ -127,10 +129,14 @@ export function OrganizationForm({
           name="agentId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>ID de l'agent</FormLabel>
+              <FormLabel>ID de l'agent ElevenLabs</FormLabel>
               <FormControl>
-                <Input placeholder="ID de l'agent" {...field} />
+                <Input placeholder="ID de l'agent ElevenLabs" {...field} />
               </FormControl>
+              <FormDescription className="flex items-center gap-2">
+                <span>Identifiant de l'agent ElevenLabs utilisé pour les appels</span>
+                {field.value && <ElevenLabsDiagnosticsButton agentId={field.value} size="sm" variant="outline" />}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

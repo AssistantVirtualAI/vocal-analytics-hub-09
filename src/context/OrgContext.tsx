@@ -32,7 +32,8 @@ const NON_ORG_ROUTES = [
   'customers',
   'auth',
   'users',
-  'organizations'
+  'organizations',
+  'settings' // Added 'settings' to fix the error
 ];
 
 // Define the provider component props

@@ -4,7 +4,7 @@
 // In production, this would typically come from environment variables or user settings
 
 // The UUID of the agent in the Supabase database
-export const AGENT_ID = "QNdB45Jpgh06Hr67TzFO";
+export const AGENT_ID = "2df8e9d7-0939-4bd8-9da1-c99ac86eb2f8";
 
 // Default display name for the agent
 export const AGENT_NAME = "Default Agent";

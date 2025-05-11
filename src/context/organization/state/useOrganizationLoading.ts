@@ -11,6 +11,7 @@ export const useOrganizationLoading = (session: any) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const STORAGE_KEY = 'current_organization_id';
   
@@ -64,6 +65,8 @@ export const useOrganizationLoading = (session: any) => {
         console.log("[useOrganizationLoading] No organizations found");
       }
       
+      setIsInitialized(true);
+      setRetryCount(0); // Reset retry count on success
       return orgs; // Return the array of orgs directly to match the expected return type
     } catch (error: any) {
       console.error("Failed to load organizations:", error);
@@ -100,20 +103,33 @@ export const useOrganizationLoading = (session: any) => {
     return null;
   }, [organizations]);
   
-  // Load organizations on session change
+  // Load organizations on session change or retry
   useEffect(() => {
-    if (session?.user) {
-      console.log("[useOrganizationLoading] Session changed, loading organizations");
-      loadOrganizations();
+    if ((session?.user && !isInitialized) || (session?.user && retryCount > 0)) {
+      console.log("[useOrganizationLoading] Session changed or retrying, loading organizations");
+      
+      // Add a slight delay for retries to prevent flooding
+      const delayMs = retryCount > 0 ? 1000 : 0;
+      
+      const timer = setTimeout(() => {
+        loadOrganizations();
+      }, delayMs);
+      
+      return () => clearTimeout(timer);
     } else {
-      console.log("[useOrganizationLoading] No session, not loading organizations");
-      setIsLoading(false);
+      console.log("[useOrganizationLoading] No session or already initialized, not loading organizations");
+      if (!session?.user) {
+        setIsLoading(false);
+      }
     }
-  }, [session, loadOrganizations]);
+  }, [session, loadOrganizations, retryCount, isInitialized]);
   
-  // Reset retry count when session changes
+  // Reset when session changes
   useEffect(() => {
-    setRetryCount(0);
+    if (session?.user?.id) {
+      setIsInitialized(false);
+      setRetryCount(0);
+    }
   }, [session?.user?.id]);
   
   return {

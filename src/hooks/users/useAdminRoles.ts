@@ -10,9 +10,10 @@ export const useAdminRoles = (
 ) => {
   const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
   const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);  // Set initial loading to true
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [checkCount, setCheckCount] = useState(0);
 
   // Check if the current user is a super admin or an organization admin
   const checkCurrentUserPermissions = useCallback(async () => {
@@ -27,6 +28,7 @@ export const useAdminRoles = (
     
     setLoading(true);
     setError(null);
+    
     try {
       console.log(`[useAdminRoles] Checking permissions for user ${userId} in org ${selectedOrg || 'none'}`);
       
@@ -49,36 +51,56 @@ export const useAdminRoles = (
       setCurrentUserIsSuperAdmin(isSuperAdmin);
       setCurrentUserIsOrgAdmin(isOrgAdmin);
       setIsInitialized(true);
+      setError(null);
+      
+      // Reset check count on success
+      setCheckCount(0);
       
       return { isSuperAdmin, isOrgAdmin };
     } catch (error: any) {
       console.error("[useAdminRoles] Error checking admin permissions:", error);
       setError(error);
-      toast.error("Erreur lors de la vérification des permissions: " + error.message);
-      setCurrentUserIsSuperAdmin(false);
-      setCurrentUserIsOrgAdmin(false);
-      setIsInitialized(true);
+      
+      // Only show toast after multiple failures to avoid spamming
+      if (checkCount >= 2) {
+        toast.error("Erreur lors de la vérification des permissions: " + error.message);
+      }
+      
+      // Increment check count for retry logic
+      setCheckCount(prev => prev + 1);
+      
       return { isSuperAdmin: false, isOrgAdmin: false };
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedOrg]);
+  }, [userId, selectedOrg, checkCount]);
 
   // Reset initialization when dependencies change
   useEffect(() => {
-    setIsInitialized(false);
-  }, [userId, selectedOrg]);
+    if (isInitialized && (userId || selectedOrg)) {
+      setIsInitialized(false);
+      setCheckCount(0);
+    }
+  }, [userId, selectedOrg, isInitialized]);
 
   // Check permissions when component mounts or dependencies change
   useEffect(() => {
     if (!isInitialized && (userId || selectedOrg)) {
       console.log("[useAdminRoles] Dependencies changed, checking permissions");
-      checkCurrentUserPermissions();
+      
+      // Add a slight delay for retries to prevent flooding
+      const delayMs = checkCount > 0 ? 1000 * checkCount : 0;
+      
+      const timer = setTimeout(() => {
+        checkCurrentUserPermissions();
+      }, delayMs);
+      
+      return () => clearTimeout(timer);
     } else if (!userId && !selectedOrg) {
       console.log("[useAdminRoles] Missing userId and selectedOrg, skipping permission check");
       setLoading(false);
     }
-  }, [userId, selectedOrg, checkCurrentUserPermissions, isInitialized]);
+  }, [userId, selectedOrg, checkCurrentUserPermissions, isInitialized, checkCount]);
 
   return {
     loading,

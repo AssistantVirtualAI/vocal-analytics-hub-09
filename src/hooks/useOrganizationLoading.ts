@@ -3,7 +3,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { Organization } from '@/types/organization';
 import { fetchAllOrganizations, fetchUserOrganizations } from '@/services/organization/fetchOrganizations';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -13,8 +12,14 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [initialized, setInitialized] = useState(false);
 
   const loadOrganizations = useCallback(async (): Promise<Organization[]> => {
+    if (isLoading && retryCount > 0) {
+      // Don't start a new request if we're already loading and have retried
+      return organizations;
+    }
+    
     setIsLoading(true);
     setError(null);
+    
     try {
       console.log("[useOrganizationLoading] Loading organizations for user:", userId, "isAdmin:", isAdmin);
       
@@ -39,43 +44,58 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
       // Don't treat empty organizations as an error condition
       setOrganizations(orgs || []);
       setInitialized(true);
+      setRetryCount(0); // Reset retry count on success
       return orgs || [];
     } catch (error: any) {
       console.error('[useOrganizationLoading] Error fetching organizations:', error);
       setError(error);
-      // Only show toast error once
-      toast.error("Erreur lors de la récupération des organisations: " + error.message);
-      return [];
+      
+      // Only show toast error on the first attempt or after several retries
+      if (retryCount === 0 || retryCount > 2) {
+        toast.error("Erreur lors de la récupération des organisations: " + error.message);
+      }
+      return organizations; // Return current state on error
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, userId]);
+  }, [isAdmin, userId, organizations, isLoading, retryCount]);
 
   // Add an effect to load organizations when the component mounts or when retrying
   useEffect(() => {
-    if (!initialized && (userId || isAdmin)) {
+    // Only load if not initialized or if we're retrying
+    if ((!initialized || retryCount > 0) && (userId || isAdmin)) {
       console.log("[useOrganizationLoading] Initial load or retry triggered for user:", userId, "retry count:", retryCount);
-      loadOrganizations().then(orgs => {
-        if (orgs.length === 0 && retryCount < 3) {
-          // If no organizations found, retry a few times (could be timing issues)
-          const timer = setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-          }, 2000); // Wait 2 seconds before retrying
-          return () => clearTimeout(timer);
-        }
-      });
+      
+      // Use a debounce for retries to prevent too many requests
+      const loadTimer = setTimeout(() => {
+        loadOrganizations().then(orgs => {
+          if (orgs.length === 0 && retryCount < 3 && !error) {
+            // If no organizations found and no error occurred, retry a few times (could be timing issues)
+            const retryTimer = setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+            }, 2000); // Wait 2 seconds before retrying
+            return () => clearTimeout(retryTimer);
+          }
+        });
+      }, retryCount > 0 ? 1000 : 0); // No delay for first load, delay for retries
+      
+      return () => clearTimeout(loadTimer);
     } else {
       console.log("[useOrganizationLoading] Initialized or missing user info, skipping load");
       if (!userId && !isAdmin) {
         setIsLoading(false);
       }
     }
-  }, [userId, isAdmin, loadOrganizations, retryCount, initialized]);
+  }, [userId, isAdmin, loadOrganizations, retryCount, initialized, error]);
   
   // Reset initialized state when dependencies change
   useEffect(() => {
-    setInitialized(false);
-  }, [userId, isAdmin]);
+    // Only reset if the dependencies actually changed and we had been initialized
+    if ((initialized) && (userId || isAdmin)) {
+      setInitialized(false);
+      setRetryCount(0);
+    }
+  }, [userId, isAdmin, initialized]);
 
   return {
     organizations,

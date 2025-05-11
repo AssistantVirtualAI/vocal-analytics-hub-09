@@ -102,13 +102,11 @@ export const OrganizationManagementSection = ({
         )}
       </CardContent>
       
-      {showAddDialog && (
-        <AddOrganizationDialog
-          isOpen={showAddDialog}
-          onOpenChange={setShowAddDialog}
-          onAddOrganization={handleAddOrganization}
-        />
-      )}
+      <AddOrganizationDialog
+        isOpen={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAddOrganization={handleAddOrganization}
+      />
     </Card>
   );
 };

@@ -7,8 +7,8 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
   try {
     console.log(`Fetching organizations for user ${userId} (isAdmin: ${isAdmin})`);
     
-    // First check if the user is a super admin
-    if (userId) {
+    // If we're not explicitly told this is an admin user, check super admin status
+    if (!isAdmin && userId) {
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
@@ -27,10 +27,30 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
       }
     }
     
-    let query = supabase.from('organizations').select('*');
+    // For admin users, fetch all organizations
+    if (isAdmin) {
+      console.log('Fetching all organizations for admin user');
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*');
+      
+      if (error) {
+        console.error("Error fetching all organizations:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("No organizations found for admin user");
+        return [];
+      }
+      
+      console.log(`Successfully fetched ${data.length} organizations for admin:`, data);
+      
+      return data.map(mapToOrganization);
+    }
     
-    // If not an admin, fetch only the organizations the user is a member of
-    if (!isAdmin && userId) {
+    // For non-admin users, fetch only the organizations they belong to
+    if (userId) {
       console.log('Non-admin user - fetching organizations via user_organizations join');
       const { data: userOrganizations, error: userOrgError } = await supabase
         .from('user_organizations')
@@ -42,50 +62,55 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
         throw userOrgError;
       }
       
-      if (userOrganizations && userOrganizations.length > 0) {
-        const orgIds = userOrganizations.map(userOrg => userOrg.organization_id);
-        console.log(`User belongs to ${orgIds.length} organizations:`, orgIds);
-        query = query.in('id', orgIds);
-      } else {
+      if (!userOrganizations || userOrganizations.length === 0) {
         console.log('User does not belong to any organizations');
-        // Returning empty array immediately to avoid unnecessary query
         return [];
       }
+      
+      const orgIds = userOrganizations.map(userOrg => userOrg.organization_id);
+      console.log(`User belongs to ${orgIds.length} organizations:`, orgIds);
+      
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .in('id', orgIds);
+      
+      if (error) {
+        console.error("Error fetching organizations by IDs:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("No organizations found with the given IDs");
+        return [];
+      }
+      
+      console.log(`Successfully fetched ${data.length} organizations for user:`, data);
+      
+      return data.map(mapToOrganization);
     }
     
-    const { data, error } = await query;
+    console.log("No user ID provided and not admin, returning empty array");
+    return [];
     
-    if (error) {
-      console.error("Error fetching organizations:", error);
-      throw error;
-    }
-    
-    if (!data || data.length === 0) {
-      console.log("No organizations found");
-      return [];
-    }
-    
-    console.log(`Successfully fetched ${data.length} organizations:`, data);
-    
-    // Transform the data to match our Organization type
-    return data.map(org => {
-      // Create a properly typed organization object
-      const organization: Organization = {
-        id: org.id,
-        name: org.name,
-        agentId: org.agent_id,
-        description: org.description || undefined,
-        createdAt: org.created_at,
-        // Generate slug from name if not present in the database
-        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      };
-      return organization;
-    });
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
     toast.error(`Erreur lors de la récupération des organisations: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     throw error;
   }
+};
+
+// Helper function to map database organization to Organization type
+const mapToOrganization = (org: any): Organization => {
+  return {
+    id: org.id,
+    name: org.name,
+    agentId: org.agent_id,
+    description: org.description || undefined,
+    createdAt: org.created_at,
+    // Generate slug from name if not present in the database
+    slug: org.slug || org.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  };
 };
 
 /**

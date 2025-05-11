@@ -9,14 +9,19 @@ export const useAdminRoles = (
 ) => {
   const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
   const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Check if the current user is a super admin or an organization admin
   const checkCurrentUserPermissions = useCallback(async () => {
-    if (!userId) return { isSuperAdmin: false, isOrgAdmin: false };
+    if (!userId) {
+      setLoading(false);
+      return { isSuperAdmin: false, isOrgAdmin: false };
+    }
     
     try {
       setLoading(true);
+      console.log(`Checking permissions for user ${userId} in org ${selectedOrg || 'none'}`);
+      
       // First check if user is a super admin (this applies to all orgs)
       const isSuperAdmin = await checkSuperAdminStatus(userId);
       console.log(`User ${userId} super admin status:`, isSuperAdmin);
@@ -47,9 +52,7 @@ export const useAdminRoles = (
 
   // Check permissions when component mounts or dependencies change
   useEffect(() => {
-    if (userId) {
-      checkCurrentUserPermissions();
-    }
+    checkCurrentUserPermissions();
   }, [userId, selectedOrg, checkCurrentUserPermissions]);
 
   return {

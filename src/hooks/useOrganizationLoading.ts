@@ -30,7 +30,9 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
 
       if (orgs.length === 0) {
         console.log('[useOrganizationLoading] No organizations found for user');
-        toast.info("Vous n'appartenez à aucune organisation. Contactez un administrateur pour être ajouté.");
+        if (!isAdmin) {
+          toast.info("Vous n'appartenez à aucune organisation. Contactez un administrateur pour être ajouté.");
+        }
       }
           
       setOrganizations(orgs);
@@ -47,14 +49,14 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
 
   // Add an effect to load organizations when the component mounts
   useEffect(() => {
-    if (userId) {
+    if (userId || isAdmin) {
       console.log("[useOrganizationLoading] Initial load triggered for user:", userId);
       loadOrganizations();
     } else {
       console.log("[useOrganizationLoading] No user ID available, skipping initial load");
       setIsLoading(false);
     }
-  }, [userId, loadOrganizations]);
+  }, [userId, isAdmin, loadOrganizations]);
 
   return {
     organizations,

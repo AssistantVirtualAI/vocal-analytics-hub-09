@@ -5,6 +5,7 @@ import { Stethoscope } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { AGENT_ID } from '@/config/agent';
 
 interface ElevenLabsDiagnosticsButtonProps {
   agentId?: string;
@@ -15,7 +16,7 @@ interface ElevenLabsDiagnosticsButtonProps {
 }
 
 export function ElevenLabsDiagnosticsButton({
-  agentId,
+  agentId = AGENT_ID,
   variant = "outline",
   size = "sm",
   className,

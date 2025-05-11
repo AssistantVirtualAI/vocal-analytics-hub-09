@@ -46,7 +46,7 @@ export function useConfig() {
         }
         
         // Fallback to default configuration
-        const defaultAgentId = "38e75a58-a1fa-460d-b2fd-00d1e2477ec8"; // Updated to new agent ID
+        const defaultAgentId = "QNdB45Jpgh06Hr67TzFO"; // Using the specified agent ID
         setAgentId(defaultAgentId);
       } catch (err) {
         console.error("Error in useConfig:", err);

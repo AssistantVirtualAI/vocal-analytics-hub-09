@@ -50,7 +50,7 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Cast to specific type after ensuring it's not null
+          // Make TypeScript happy by casting properly after checking for null
           const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null };
           
           return {

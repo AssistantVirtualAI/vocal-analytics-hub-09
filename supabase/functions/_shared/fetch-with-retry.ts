@@ -27,10 +27,10 @@ export async function fetchWithRetry(
           // Try to parse response as JSON for better error details
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
+            const errorData = await response.clone().json();
             console.error('Error response details:', errorData);
           } else {
-            const errorText = await response.text();
+            const errorText = await response.clone().text();
             console.error('Error response text:', errorText.substring(0, 500)); // Limit text size
           }
         } catch (parseError) {

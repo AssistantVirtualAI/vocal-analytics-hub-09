@@ -62,40 +62,60 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
 
     console.log(`[handleHistorySyncRequest] Fetching ElevenLabs history for agent ${agentId}`);
     
-    // Fetch the history from ElevenLabs
-    const historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
-    
-    if (!historyResult.success) {
-      console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${historyResult.error}`);
-      return createElevenLabsErrorResponse(historyResult.error || "");
+    // Check if we have a valid API key
+    if (!elevenLabsApiKey) {
+      console.error("[handleHistorySyncRequest] Missing ElevenLabs API key");
+      return createErrorResponse(
+        "ElevenLabs API key not configured",
+        "MISSING_API_KEY",
+        500
+      );
     }
     
-    // Check if we have any history items
-    if (!historyResult.data || historyResult.data.length === 0) {
-      console.log("[handleHistorySyncRequest] No history items found to sync");
-      return createEmptyResultResponse();
+    // Try to fetch history with enhanced error handling
+    try {
+      // Fetch the history from ElevenLabs
+      const historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
+      
+      if (!historyResult.success) {
+        console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${historyResult.error}`);
+        return createElevenLabsErrorResponse(historyResult.error || "");
+      }
+      
+      // Check if we have any history items
+      if (!historyResult.data || historyResult.data.length === 0) {
+        console.log("[handleHistorySyncRequest] No history items found to sync");
+        return createEmptyResultResponse();
+      }
+
+      // Process the history items
+      console.log(`[handleHistorySyncRequest] Syncing ${historyResult.data.length} history items`);
+      
+      const results = await syncHistoryItems(
+        supabaseUrl,
+        supabaseServiceKey,
+        historyResult.data,
+        agentId
+      );
+      
+      // Generate summary statistics
+      const summary = {
+        total: results.length,
+        success: results.filter(r => r.success).length,
+        error: results.filter(r => !r.success).length
+      };
+      
+      console.log(`[handleHistorySyncRequest] Sync completed: ${summary.success}/${summary.total} successful, ${summary.error} errors`);
+
+      return createSuccessResponse(results, summary);
+    } catch (elevenLabsError) {
+      console.error("[handleHistorySyncRequest] Error fetching history from ElevenLabs:", elevenLabsError);
+      return createErrorResponse(
+        `Error fetching history from ElevenLabs: ${elevenLabsError instanceof Error ? elevenLabsError.message : String(elevenLabsError)}`,
+        "ELEVENLABS_FETCH_ERROR",
+        500
+      );
     }
-
-    // Process the history items
-    console.log(`[handleHistorySyncRequest] Syncing ${historyResult.data.length} history items`);
-    
-    const results = await syncHistoryItems(
-      supabaseUrl,
-      supabaseServiceKey,
-      historyResult.data,
-      agentId
-    );
-    
-    // Generate summary statistics
-    const summary = {
-      total: results.length,
-      success: results.filter(r => r.success).length,
-      error: results.filter(r => !r.success).length
-    };
-    
-    console.log(`[handleHistorySyncRequest] Sync completed: ${summary.success}/${summary.total} successful, ${summary.error} errors`);
-
-    return createSuccessResponse(results, summary);
   } catch (error) {
     console.error(`[handleHistorySyncRequest] Error processing request:`, error);
     return createGenericErrorResponse(error);

@@ -34,7 +34,7 @@ export async function fetchElevenLabsHistory(
   maxItems = 1000
 ): Promise<{success: boolean; data?: HistoryItem[]; error?: string}> {
   try {
-    // Validate API key
+    // Double-check API key value - log masked version for debugging
     if (!apiKey) {
       console.error("Missing ElevenLabs API key");
       return { 
@@ -43,7 +43,9 @@ export async function fetchElevenLabsHistory(
       };
     }
     
-    console.log(`Fetching ElevenLabs history. Voice ID filter: ${voiceId}, Page Size: ${pageSize}, Max Items: ${maxItems}`);
+    // Log a masked version of the API key for debugging
+    const maskedKey = apiKey ? `${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}` : 'undefined';
+    console.log(`Fetching ElevenLabs history with API key: ${maskedKey}, Voice ID: ${voiceId || 'all'}, Page Size: ${pageSize}`);
 
     // URL for the history API
     let url = `${ELEVENLABS_API_BASE_URL}/history?page_size=${pageSize}`;

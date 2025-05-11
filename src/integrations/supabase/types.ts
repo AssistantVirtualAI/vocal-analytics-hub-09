@@ -13,23 +13,32 @@ export type Database = {
         Row: {
           avatar: string | null
           created_at: string | null
+          external_id: string | null
           id: string
           name: string
+          provider: string | null
           role: string
+          status: string | null
         }
         Insert: {
           avatar?: string | null
           created_at?: string | null
+          external_id?: string | null
           id?: string
           name: string
+          provider?: string | null
           role: string
+          status?: string | null
         }
         Update: {
           avatar?: string | null
           created_at?: string | null
+          external_id?: string | null
           id?: string
           name?: string
+          provider?: string | null
           role?: string
+          status?: string | null
         }
         Relationships: []
       }
@@ -42,6 +51,7 @@ export type Database = {
           date: string
           duration: number
           id: string
+          raw_data: Json | null
           satisfaction_score: number | null
           summary: string | null
           tags: string[] | null
@@ -55,6 +65,7 @@ export type Database = {
           date?: string
           duration: number
           id?: string
+          raw_data?: Json | null
           satisfaction_score?: number | null
           summary?: string | null
           tags?: string[] | null
@@ -68,6 +79,7 @@ export type Database = {
           date?: string
           duration?: number
           id?: string
+          raw_data?: Json | null
           satisfaction_score?: number | null
           summary?: string | null
           tags?: string[] | null
@@ -203,6 +215,33 @@ export type Database = {
           display_name?: string | null
           email?: string
           id?: string
+        }
+        Relationships: []
+      }
+      sync_status: {
+        Row: {
+          created_at: string
+          id: string
+          last_sync_date: string
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_sync_date?: string
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_sync_date?: string
+          provider?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }

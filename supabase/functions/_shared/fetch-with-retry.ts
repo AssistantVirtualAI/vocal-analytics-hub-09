@@ -44,4 +44,3 @@ export async function fetchWithRetry(
   // This should never be reached since the loop above will either return or throw
   throw new Error(`Failed after ${maxRetries} attempts`);
 }
-

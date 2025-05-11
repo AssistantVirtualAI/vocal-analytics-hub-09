@@ -31,15 +31,9 @@ export const useOrganizationUsersLoading = () => {
       
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
-          // First check if profiles is null, undefined, or an error object
-          const isProfilesValid = 
-            item.profiles !== null && 
-            item.profiles !== undefined && 
-            typeof item.profiles === 'object' && 
-            !('error' in item.profiles);
-          
-          // If it's not valid, use empty values
-          if (!isProfilesValid) {
+          // Use type guard to check if profiles is null, undefined, or has error
+          if (!item.profiles || typeof item.profiles !== 'object' || 'error' in item.profiles) {
+            // If profiles is not valid, use empty values
             return {
               id: item.user_id,
               email: '',
@@ -53,7 +47,6 @@ export const useOrganizationUsersLoading = () => {
           }
           
           // Now TypeScript knows item.profiles is a valid object at this point
-          // We can safely cast it to the expected type
           const profile = item.profiles as {
             id: string; 
             email: string; 

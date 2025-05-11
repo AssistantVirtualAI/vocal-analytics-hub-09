@@ -1,67 +1,59 @@
 
-import { useState, useCallback } from 'react';
-import { 
-  setOrganizationAdminStatus,
-  setSuperAdminStatus,
-  checkOrganizationAdminStatus,
-  checkSuperAdminStatus
-} from '@/services/organization/users/adminRoles';
+import { useState, useEffect, useCallback } from 'react';
+import { checkSuperAdminStatus, checkOrganizationAdminStatus } from '@/services/organization/users/adminRoles';
 
 export const useAdminRoles = (
-  selectedOrg: string | null,
-  currentUserId: string | undefined,
-  refreshUsers?: () => Promise<void>
+  selectedOrg: string | null, 
+  userId: string | undefined, 
+  refreshCallback?: () => Promise<void>
 ) => {
-  const [loading, setLoading] = useState(false);
   const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
   const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const toggleOrganizationAdmin = useCallback(async (userId: string, makeAdmin: boolean) => {
-    if (!selectedOrg) return;
-    
-    setLoading(true);
-    try {
-      await setOrganizationAdminStatus(userId, selectedOrg, makeAdmin);
-      if (refreshUsers) await refreshUsers();
-    } catch (error) {
-      console.error('Error toggling organization admin:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedOrg, refreshUsers]);
-
-  const toggleSuperAdmin = useCallback(async (userId: string, makeAdmin: boolean) => {
-    setLoading(true);
-    try {
-      await setSuperAdminStatus(userId, makeAdmin);
-      if (refreshUsers) await refreshUsers();
-    } catch (error) {
-      console.error('Error toggling super admin:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshUsers]);
-
+  // Check if the current user is a super admin or an organization admin
   const checkCurrentUserPermissions = useCallback(async () => {
-    if (!currentUserId) return;
-
-    // Check if current user is a super admin
-    const isSuperAdmin = await checkSuperAdminStatus(currentUserId);
-    setCurrentUserIsSuperAdmin(isSuperAdmin);
-
-    // Check if current user is an organization admin (if org is selected)
-    if (selectedOrg) {
-      const isOrgAdmin = await checkOrganizationAdminStatus(currentUserId, selectedOrg);
-      setCurrentUserIsOrgAdmin(isOrgAdmin || isSuperAdmin); // Super admins are also considered org admins
+    if (!userId) return { isSuperAdmin: false, isOrgAdmin: false };
+    
+    try {
+      setLoading(true);
+      // First check if user is a super admin (this applies to all orgs)
+      const isSuperAdmin = await checkSuperAdminStatus(userId);
+      
+      // Then check if user is an admin of the current org
+      let isOrgAdmin = isSuperAdmin; // Super admins are implicitly org admins
+      
+      if (!isOrgAdmin && selectedOrg) {
+        // Only check org admin status if not already a super admin and an org is selected
+        isOrgAdmin = await checkOrganizationAdminStatus(userId, selectedOrg);
+      }
+      
+      console.log(`User ${userId} permissions - Super Admin: ${isSuperAdmin}, Org Admin: ${isOrgAdmin}`);
+      
+      // Update state
+      setCurrentUserIsSuperAdmin(isSuperAdmin);
+      setCurrentUserIsOrgAdmin(isOrgAdmin);
+      
+      return { isSuperAdmin, isOrgAdmin };
+    } catch (error) {
+      console.error("Error checking admin permissions:", error);
+      return { isSuperAdmin: false, isOrgAdmin: false };
+    } finally {
+      setLoading(false);
     }
-  }, [currentUserId, selectedOrg]);
+  }, [userId, selectedOrg]);
+
+  // Check permissions when component mounts or dependencies change
+  useEffect(() => {
+    if (userId && selectedOrg) {
+      checkCurrentUserPermissions();
+    }
+  }, [userId, selectedOrg, checkCurrentUserPermissions]);
 
   return {
     loading,
-    toggleOrganizationAdmin,
-    toggleSuperAdmin,
-    checkCurrentUserPermissions,
     currentUserIsOrgAdmin,
-    currentUserIsSuperAdmin
+    currentUserIsSuperAdmin,
+    checkCurrentUserPermissions
   };
 };

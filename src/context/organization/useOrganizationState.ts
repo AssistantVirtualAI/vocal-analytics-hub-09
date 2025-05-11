@@ -25,6 +25,7 @@ export function useOrganizationState() {
     const loadOrganizations = async () => {
       try {
         setIsLoading(true);
+        // Pass no argument as fetchOrganizations() should get all orgs for the current user
         const orgs = await fetchOrganizations();
         
         if (orgs && orgs.length > 0) {
@@ -100,7 +101,7 @@ export function useOrganizationState() {
 
       const newOrgId = data.id;
 
-      // Refresh organizations list
+      // Refresh organizations list - no arguments needed here
       const orgs = await fetchOrganizations();
       setOrganizations(orgs);
       

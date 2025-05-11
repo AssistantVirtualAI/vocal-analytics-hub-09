@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserSession } from '@/hooks/auth/useUserSession'; 
@@ -258,7 +259,7 @@ export function useOrganizationState() {
                                   'error' in item.profiles;
                                   
           // If it's an error or null/undefined, use empty values
-          if (isProfilesError || !item.profiles) {
+          if (isProfilesError || item.profiles === null || item.profiles === undefined) {
             return {
               id: item.user_id,
               email: '',
@@ -270,8 +271,12 @@ export function useOrganizationState() {
             };
           }
           
-          // Otherwise, safely access the profile properties
-          const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null };
+          // Type guard to ensure profiles is the expected object type
+          type ProfileData = { id: string; email: string; display_name: string | null; avatar_url: string | null };
+          
+          // Use a type assertion with a type guard to safely handle the profiles data
+          // First cast to unknown then to ProfileData to avoid direct type assertion errors
+          const profile = (item.profiles as unknown) as ProfileData;
           
           return {
             id: item.user_id,

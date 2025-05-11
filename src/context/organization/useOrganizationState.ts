@@ -1,228 +1,351 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUserSession } from '@/hooks/auth/useUserSession'; 
 import { Organization, OrganizationUser } from '@/types/organization';
-import { useAuth } from '@/context/AuthContext';
 import { 
-  fetchOrganizations, 
-  updateOrganization as updateOrg,
-  createOrganization as createOrg,
-  deleteOrganization as deleteOrg
+  fetchOrganizations,
+  fetchOrganization
 } from '@/services/organization';
+import { 
+  createOrg, 
+  updateOrg, 
+  deleteOrg 
+} from '@/services/organization/crudOperations';
 import { 
   fetchOrganizationUsers, 
   addUserToOrganization, 
-  removeUserFromOrganization,
-  updateUserRole
+  removeUserFromOrganization
 } from '@/services/organization/users';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-export const useOrganizationState = () => {
+const STORAGE_KEY = 'current_organization_id';
+
+export function useOrganizationState() {
+  const { session, userDetails, isLoading: sessionLoading } = useUserSession();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [users, setUsers] = useState<OrganizationUser[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [userHasAdminAccessToCurrentOrg, setUserHasAdminAccessToCurrentOrg] = useState<boolean>(false);
-  const { user, isAdmin } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [userHasAdminAccessToCurrentOrg, setUserHasAdminAccessToCurrentOrg] = useState(false);
   const navigate = useNavigate();
 
-  const loadOrganizations = async () => {
-    if (!user) return;
+  // Load organizations
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const loadOrganizations = async () => {
+      try {
+        setIsLoading(true);
+        const orgs = await fetchOrganizations();
+        
+        if (orgs && orgs.length > 0) {
+          setOrganizations(orgs);
+          
+          // Attempt to load a previously selected organization
+          const storedOrgId = localStorage.getItem(STORAGE_KEY);
+          if (storedOrgId) {
+            const foundOrg = orgs.find(org => org.id === storedOrgId);
+            if (foundOrg) {
+              setCurrentOrganization(foundOrg);
+              loadOrganizationUsers(foundOrg.id);
+              checkUserAccess(session.user.id, foundOrg.id);
+            } else if (orgs.length > 0) {
+              // If stored org wasn't found, select first available org
+              setCurrentOrganization(orgs[0]);
+              localStorage.setItem(STORAGE_KEY, orgs[0].id);
+              loadOrganizationUsers(orgs[0].id);
+              checkUserAccess(session.user.id, orgs[0].id);
+            }
+          } else if (orgs.length > 0) {
+            // No stored org, select first available
+            setCurrentOrganization(orgs[0]);
+            localStorage.setItem(STORAGE_KEY, orgs[0].id);
+            loadOrganizationUsers(orgs[0].id);
+            checkUserAccess(session.user.id, orgs[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load organizations:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load organizations",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
+    loadOrganizations();
+  }, [session, sessionLoading]);
+
+  // Create a new organization
+  const createOrganization = async (name: string, description?: string, agentId?: string): Promise<string> => {
     try {
-      setIsLoading(true);
+      if (!session?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      // Create organization with provided fields
+      const newOrgData: Omit<Organization, "id" | "createdAt"> = {
+        name,
+        description,
+        agentId,
+        ownerId: session.user.id
+      };
+      
+      const newOrgId = await createOrg(newOrgData);
+
+      // Refresh organizations list
       const orgs = await fetchOrganizations();
       setOrganizations(orgs);
       
-      // If we have organizations but no current one selected, select the first one
-      if (orgs.length > 0 && !currentOrganization) {
-        setCurrentOrganization(orgs[0]);
-        loadOrganizationUsers(orgs[0].id);
-      } else if (currentOrganization) {
-        // If we already have a selected org, refresh its data
-        const updatedOrg = orgs.find(org => org.id === currentOrganization.id);
-        if (updatedOrg) {
-          setCurrentOrganization(updatedOrg);
-        } else if (orgs.length > 0) {
-          // If the current org no longer exists, select the first available one
-          setCurrentOrganization(orgs[0]);
-          loadOrganizationUsers(orgs[0].id);
-        }
+      // Select the newly created organization
+      const newOrg = orgs.find(org => org.id === newOrgId);
+      if (newOrg) {
+        setCurrentOrganization(newOrg);
+        localStorage.setItem(STORAGE_KEY, newOrgId);
+        loadOrganizationUsers(newOrgId);
+        checkUserAccess(session.user.id, newOrgId);
       }
-    } catch (error) {
-      console.error("Error loading organizations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load organizations",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadOrganizationUsers = async (organizationId: string) => {
-    if (!organizationId) return;
-    
-    try {
-      const orgUsers = await fetchOrganizationUsers(organizationId);
-      setUsers(orgUsers);
-    } catch (error) {
-      console.error("Error loading organization users:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load organization users",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const changeOrganization = (organizationId: string) => {
-    const org = organizations.find(o => o.id === organizationId);
-    if (org) {
-      setCurrentOrganization(org);
-      loadOrganizationUsers(org.id);
       
-      // Update URL to reflect the selected organization
-      navigate(`/org/${org.slug || org.id}/dashboard`);
-    }
-  };
-
-  const createOrganization = async (name: string, description?: string, agentId?: string): Promise<string> => {
-    try {
-      const orgId = await createOrg(name, description, agentId);
-      await loadOrganizations();
-      return orgId;
+      toast({
+        title: "Success", 
+        description: "Organization created successfully"
+      });
+      
+      return newOrgId;
     } catch (error) {
       console.error("Error creating organization:", error);
       toast({
         title: "Error",
-        description: "Failed to create organization",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "Failed to create organization",
+        variant: "destructive"
       });
-      return '';
+      throw error;
     }
   };
 
+  // Update an organization
   const updateOrganization = async (organization: Organization): Promise<void> => {
     try {
-      await updateOrg(organization.id, organization.name, organization.description, organization.agentId);
-      await loadOrganizations();
+      await updateOrg(organization);
+      
+      // Update local state
+      setOrganizations(orgs => 
+        orgs.map(org => org.id === organization.id ? organization : org)
+      );
+      
+      if (currentOrganization?.id === organization.id) {
+        setCurrentOrganization(organization);
+      }
+      
+      toast({
+        title: "Success", 
+        description: "Organization updated successfully"
+      });
     } catch (error) {
       console.error("Error updating organization:", error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to update organization",
-        variant: "destructive",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
+  // Delete an organization
   const deleteOrganization = async (organizationId: string): Promise<void> => {
     try {
       await deleteOrg(organizationId);
       
-      // If we deleted the current organization, select another one
-      if (currentOrganization && currentOrganization.id === organizationId) {
-        setCurrentOrganization(null);
+      // Update local state
+      setOrganizations(orgs => orgs.filter(org => org.id !== organizationId));
+      
+      // If deleted org was current, select another
+      if (currentOrganization?.id === organizationId) {
+        const remainingOrgs = organizations.filter(org => org.id !== organizationId);
+        if (remainingOrgs.length > 0) {
+          setCurrentOrganization(remainingOrgs[0]);
+          localStorage.setItem(STORAGE_KEY, remainingOrgs[0].id);
+          loadOrganizationUsers(remainingOrgs[0].id);
+          checkUserAccess(session?.user?.id || "", remainingOrgs[0].id);
+        } else {
+          setCurrentOrganization(null);
+          localStorage.removeItem(STORAGE_KEY);
+          setUsers([]);
+          setUserHasAdminAccessToCurrentOrg(false);
+        }
       }
       
-      await loadOrganizations();
+      toast({
+        title: "Success", 
+        description: "Organization deleted successfully"
+      });
+      
+      // Redirect to main dashboard
+      navigate('/dashboard');
     } catch (error) {
       console.error("Error deleting organization:", error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to delete organization",
-        variant: "destructive",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  // Change current organization
+  const changeOrganization = (organizationId: string) => {
+    const org = organizations.find(o => o.id === organizationId);
+    if (org) {
+      setCurrentOrganization(org);
+      localStorage.setItem(STORAGE_KEY, organizationId);
+      loadOrganizationUsers(organizationId);
+      checkUserAccess(session?.user?.id || "", organizationId);
+    }
+  };
+
+  // Load organization users
+  const loadOrganizationUsers = async (orgId: string) => {
+    try {
+      if (!orgId) return;
+      
+      const fetchedUsers = await fetchOrganizationUsers(orgId);
+      setUsers(fetchedUsers);
+    } catch (error) {
+      console.error(`Error loading users for organization ${orgId}:`, error);
+      toast({
+        title: "Error", 
+        description: "Failed to load organization users",
+        variant: "destructive"
       });
     }
   };
 
-  const addUser = async (email: string, role: string = 'user'): Promise<void> => {
-    if (!currentOrganization) return;
-    
+  // Add a user to organization
+  const addUser = async (email: string, role?: string): Promise<void> => {
     try {
+      if (!currentOrganization?.id) {
+        throw new Error("No organization selected");
+      }
+      
       await addUserToOrganization(currentOrganization.id, email, role);
       await loadOrganizationUsers(currentOrganization.id);
+      
       toast({
-        title: "Success",
-        description: `User ${email} has been invited to the organization`,
+        title: "Success", 
+        description: "User added successfully"
       });
     } catch (error) {
-      console.error("Error adding user to organization:", error);
+      console.error("Error adding user:", error);
       toast({
-        title: "Error",
-        description: "Failed to add user to organization",
-        variant: "destructive",
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to add user",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
+  // Remove a user from organization
   const removeUser = async (userId: string): Promise<void> => {
-    if (!currentOrganization) return;
-    
     try {
+      if (!currentOrganization?.id) {
+        throw new Error("No organization selected");
+      }
+      
       await removeUserFromOrganization(currentOrganization.id, userId);
-      await loadOrganizationUsers(currentOrganization.id);
+      
+      // Update local state
+      setUsers(users => users.filter(user => user.id !== userId));
+      
       toast({
-        title: "Success",
-        description: "User has been removed from the organization",
+        title: "Success", 
+        description: "User removed successfully"
       });
     } catch (error) {
-      console.error("Error removing user from organization:", error);
+      console.error("Error removing user:", error);
       toast({
-        title: "Error",
-        description: "Failed to remove user from organization",
-        variant: "destructive",
+        title: "Error", 
+        description: "Failed to remove user",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
+  // Update a user's role
   const updateUser = async (userId: string, role: string): Promise<void> => {
-    if (!currentOrganization) return;
-    
     try {
-      await updateUserRole(currentOrganization.id, userId, role);
-      await loadOrganizationUsers(currentOrganization.id);
+      if (!currentOrganization?.id) {
+        throw new Error("No organization selected");
+      }
+      
+      // Note: Using supabase directly as there's no updateUserRole function
+      const { error } = await supabase
+        .from('organization_users')
+        .update({ role })
+        .eq('organization_id', currentOrganization.id)
+        .eq('user_id', userId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setUsers(users => users.map(user => 
+        user.id === userId ? { ...user, role } : user
+      ));
+      
       toast({
-        title: "Success",
-        description: "User role has been updated",
+        title: "Success", 
+        description: "User role updated successfully"
       });
     } catch (error) {
       console.error("Error updating user role:", error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to update user role",
-        variant: "destructive",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
-  useEffect(() => {
-    if (user || isAdmin) {
-      loadOrganizations();
-    } else {
-      setOrganizations([]);
-      setCurrentOrganization(null);
-      setUsers([]);
-    }
-  }, [user, isAdmin]);
-
-  useEffect(() => {
-    // Check if the user has admin access to the current organization
-    if (currentOrganization && user) {
-      // Global admin always has access
-      if (isAdmin) {
+  // Check if user has admin access to the current organization
+  const checkUserAccess = async (userId: string, orgId: string) => {
+    try {
+      // Check if user is a super admin
+      const { data: adminData } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      if (adminData) {
         setUserHasAdminAccessToCurrentOrg(true);
         return;
       }
       
-      // Check if user is an admin in this specific organization
-      const userInOrg = users.find(u => u.user_id === user.id);
-      setUserHasAdminAccessToCurrentOrg(userInOrg?.role === 'admin');
-    } else {
+      // Check if user is an admin of this organization
+      const { data } = await supabase
+        .from('organization_users')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('organization_id', orgId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      setUserHasAdminAccessToCurrentOrg(!!data);
+    } catch (error) {
+      console.error("Error checking user access:", error);
       setUserHasAdminAccessToCurrentOrg(false);
     }
-  }, [currentOrganization, user, isAdmin, users]);
+  };
 
   return {
     currentOrganization,
@@ -238,4 +361,4 @@ export const useOrganizationState = () => {
     isLoading,
     userHasAdminAccessToCurrentOrg
   };
-};
+}

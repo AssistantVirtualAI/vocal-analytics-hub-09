@@ -20,7 +20,7 @@ serve(async (req) => {
     console.error(`[${functionName}] Error checking environment variables:`, error);
   }
   
-  // Gestion des requêtes CORS preflight
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log(`[${functionName}] Handling OPTIONS request`);
     return handleCorsOptions();

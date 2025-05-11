@@ -16,7 +16,11 @@ export function OrganizationSettings() {
   const { 
     currentOrganization, 
     updateOrganization,
-    userHasAdminAccessToCurrentOrg
+    userHasAdminAccessToCurrentOrg,
+    users,
+    addUser,
+    removeUser,
+    updateUser
   } = useOrganization();
 
   const [name, setName] = useState(currentOrganization?.name || '');
@@ -91,7 +95,6 @@ export function OrganizationSettings() {
                       disabled={!userHasAdminAccessToCurrentOrg}
                       className="bg-white/60 dark:bg-slate-800/60"
                     />
-                    {/* Agent ID help information could be added here */}
                   </div>
                 </div>
               </CardContent>
@@ -108,7 +111,13 @@ export function OrganizationSettings() {
             </form>
           </Card>
 
-          <OrganizationUserManagementSection />
+          <OrganizationUserManagementSection 
+            currentOrganization={currentOrganization}
+            users={users}
+            addUserToOrganization={addUser}
+            removeUserFromOrganization={removeUser}
+            updateUserRole={updateUser}
+          />
         </>
       )}
     </div>

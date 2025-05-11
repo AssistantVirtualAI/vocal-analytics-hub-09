@@ -35,7 +35,9 @@ export const useAllUsersFetching = () => {
             avatarUrl: profile.avatar_url || '', 
             role: (role as 'admin' | 'user'),
             createdAt: profile.created_at || new Date().toISOString(),
-            isPending: false
+            isPending: false,
+            isOrgAdmin: false, // Adding missing property
+            isSuperAdmin: false // Adding missing property
           };
         });
 

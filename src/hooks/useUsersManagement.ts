@@ -57,7 +57,9 @@ export const useUsersManagement = (selectedOrg: string | null) => {
             avatarUrl: profile.avatar_url || '', 
             role: (role as 'admin' | 'user'),
             createdAt: profile.created_at || new Date().toISOString(),
-            isPending: false
+            isPending: false,
+            isOrgAdmin: false, // Adding the missing property
+            isSuperAdmin: false // Adding the missing property
           };
         });
 

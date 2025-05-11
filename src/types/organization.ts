@@ -11,4 +11,5 @@ export interface OrganizationUser {
   createdAt: string;
   isPending: boolean;
   isOrgAdmin: boolean;
+  isSuperAdmin?: boolean;  // Added this missing property
 }

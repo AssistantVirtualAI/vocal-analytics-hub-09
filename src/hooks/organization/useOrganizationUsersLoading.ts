@@ -1,8 +1,20 @@
-
 import { useState, useCallback } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+// Define a type for the Supabase query response
+type UserOrgQueryResult = {
+  user_id: string;
+  is_org_admin: boolean;
+  organization_id: string;
+  profiles: {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+};
 
 export const useOrganizationUsersLoading = () => {
   const [users, setUsers] = useState<OrganizationUser[]>([]);
@@ -30,52 +42,34 @@ export const useOrganizationUsersLoading = () => {
       if (error) throw error;
       
       if (data) {
-        const formattedUsers: OrganizationUser[] = data.map(item => {
-          // Handle case where profiles might be null or not an expected object
-          if (!item.profiles) {
-            return {
-              id: item.user_id,
-              email: '',
-              displayName: '',
-              avatarUrl: '',
-              role: item.is_org_admin ? 'admin' : 'user',
-              createdAt: new Date().toISOString(),
-              isPending: false,
-              isOrgAdmin: !!item.is_org_admin
-            };
-          }
-          
-          // Handle case where profiles might not be the right type or has an error
-          if (typeof item.profiles !== 'object' || 'error' in item.profiles) {
-            return {
-              id: item.user_id,
-              email: '',
-              displayName: '',
-              avatarUrl: '',
-              role: item.is_org_admin ? 'admin' : 'user',
-              createdAt: new Date().toISOString(),
-              isPending: false,
-              isOrgAdmin: !!item.is_org_admin
-            };
-          }
-          
-          // Now TypeScript knows profiles is a valid object, but we still use optional chaining for safety
-          const profile = item.profiles as {
-            id?: string; 
-            email?: string; 
-            display_name?: string | null; 
-            avatar_url?: string | null;
+        // Cast data to the expected type structure
+        const typedData = data as unknown as UserOrgQueryResult[];
+        
+        const formattedUsers: OrganizationUser[] = typedData.map(item => {
+          // Create default user with minimal info
+          const defaultUser: OrganizationUser = {
+            id: item.user_id,
+            email: '',
+            displayName: '',
+            avatarUrl: '',
+            role: item.is_org_admin ? 'admin' : 'user',
+            createdAt: new Date().toISOString(),
+            isPending: false,
+            isOrgAdmin: !!item.is_org_admin,
+            isSuperAdmin: false
           };
           
+          // Return default user if profiles is null or invalid
+          if (!item.profiles) {
+            return defaultUser;
+          }
+          
+          // Otherwise, use profile data with nullish coalescing for safety
           return {
-            id: item.user_id,
-            email: profile?.email || '',
-            displayName: profile?.display_name || '',
-            avatarUrl: profile?.avatar_url || '',
-            role: item.is_org_admin ? 'admin' : 'user',
-            createdAt: new Date().toISOString(), // fallback
-            isPending: false,
-            isOrgAdmin: !!item.is_org_admin
+            ...defaultUser,
+            email: item.profiles.email ?? '',
+            displayName: item.profiles.display_name ?? '',
+            avatarUrl: item.profiles.avatar_url ?? '',
           };
         });
         

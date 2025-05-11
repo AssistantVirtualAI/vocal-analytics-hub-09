@@ -62,18 +62,19 @@ export const useOrganizationUsersLoading = () => {
           }
           
           // Now TypeScript knows item.profiles is a valid object at this point
+          // Use optional chaining to safely access properties and provide fallbacks
           const profile = item.profiles as {
-            id: string; 
-            email: string; 
-            display_name: string | null; 
-            avatar_url: string | null;
+            id?: string; 
+            email?: string; 
+            display_name?: string | null; 
+            avatar_url?: string | null;
           };
           
           return {
             id: item.user_id,
-            email: profile.email || '',
-            displayName: profile.display_name || '',
-            avatarUrl: profile.avatar_url || '',
+            email: profile?.email || '',
+            displayName: profile?.display_name || '',
+            avatarUrl: profile?.avatar_url || '',
             role: item.is_org_admin ? 'admin' : 'user',
             createdAt: new Date().toISOString(), // fallback
             isPending: false,

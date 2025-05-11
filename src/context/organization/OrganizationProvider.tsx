@@ -1,9 +1,11 @@
 
-import React, { createContext, ReactNode } from 'react';
-import { OrganizationContextType } from './types';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { OrganizationContextType, OrganizationProviderProps } from './types';
+import { Organization, OrganizationUser } from '@/types/organization';
 import { useOrganizationState } from './useOrganizationState';
 
-const OrganizationContext = createContext<OrganizationContextType>({
+export const OrganizationContext = createContext<OrganizationContextType>({
   currentOrganization: null,
   organizations: [],
   users: [],
@@ -11,26 +13,49 @@ const OrganizationContext = createContext<OrganizationContextType>({
   createOrganization: async () => '',
   updateOrganization: async () => {},
   deleteOrganization: async () => {},
-  addUserToOrganization: async () => {},
-  removeUserFromOrganization: async () => {},
-  setUserRole: async () => {},
-  fetchOrganizationUsers: async () => {},
+  addUser: async () => {},
+  removeUser: async () => {},
+  updateUser: async () => {},
   isLoading: true,
+  userHasAdminAccessToCurrentOrg: false,
 });
 
-interface OrganizationProviderProps {
-  children: ReactNode;
-}
-
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
-  const organizationState = useOrganizationState();
+  const {
+    currentOrganization,
+    organizations,
+    users,
+    changeOrganization,
+    createOrganization,
+    updateOrganization,
+    deleteOrganization,
+    addUser,
+    removeUser,
+    updateUser,
+    isLoading,
+    userHasAdminAccessToCurrentOrg,
+  } = useOrganizationState();
 
   return (
-    <OrganizationContext.Provider value={organizationState}>
+    <OrganizationContext.Provider
+      value={{
+        currentOrganization,
+        organizations,
+        users,
+        changeOrganization,
+        createOrganization,
+        updateOrganization,
+        deleteOrganization,
+        addUser,
+        removeUser,
+        updateUser,
+        isLoading,
+        userHasAdminAccessToCurrentOrg,
+      }}
+    >
       {children}
     </OrganizationContext.Provider>
   );
 };
 
-export const useOrganization = () => React.useContext(OrganizationContext);
-export { OrganizationContext };
+export const useOrganization = () => useContext(OrganizationContext);

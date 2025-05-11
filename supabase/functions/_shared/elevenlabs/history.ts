@@ -25,15 +25,24 @@ export interface ElevenLabsHistoryResponse {
  * @param voiceId Optional voice ID filter
  * @param pageSize Number of items per request
  * @param maxItems Maximum items to return in total (across multiple requests)
- * @returns Array of history items
+ * @returns Array of history items or error
  */
 export async function fetchElevenLabsHistory(
-  apiKey: string,
+  apiKey?: string,
   voiceId?: string,
   pageSize = 100,
   maxItems = 1000
-): Promise<HistoryItem[]> {
+): Promise<{success: boolean; data?: HistoryItem[]; error?: string}> {
   try {
+    // Validate API key
+    if (!apiKey) {
+      console.error("Missing ElevenLabs API key");
+      return { 
+        success: false, 
+        error: "Missing ElevenLabs API key. Please configure ELEVENLABS_API_KEY in your environment."
+      };
+    }
+    
     console.log(`Fetching ElevenLabs history. Voice ID filter: ${voiceId}, Page Size: ${pageSize}, Max Items: ${maxItems}`);
 
     // URL for the history API
@@ -69,15 +78,46 @@ export async function fetchElevenLabsHistory(
         console.log(`Response status: ${response.status}, URL: ${paginationUrl}`);
         
         if (!response.ok) {
-          // Attempt to extract error details
+          // Handle API errors
+          const statusCode = response.status;
+          const statusText = response.statusText || '';
+          
           try {
-            const errorText = await response.text();
-            console.error(`Error response (${response.status}): ${response.statusText}`);
-            console.error(`Error response text: ${errorText}`);
-            throw new Error(`Error fetching history items from ElevenLabs`);
-          } catch (textError) {
-            console.error(`Failed to parse error response from /history`, textError);
-            throw new Error(`Error fetching history items from ElevenLabs`);
+            // Try to extract error details as JSON first
+            const errorData = await response.clone().json().catch(() => null);
+            if (errorData && errorData.detail) {
+              console.error(`Error response details:`, errorData);
+              
+              if (statusCode === 401) {
+                return { 
+                  success: false, 
+                  error: "Invalid ElevenLabs API key. Please check your API key configuration."
+                };
+              } else {
+                return {
+                  success: false,
+                  error: `ElevenLabs API error (${statusCode}): ${errorData.detail.message || 'Unknown error'}`
+                };
+              }
+            }
+          } catch (jsonError) {
+            // If JSON parsing fails, try to get the error as text
+            try {
+              const errorText = await response.clone().text();
+              console.error(`Error response (${response.status}): ${statusText}`);
+              console.error(`Error response text: ${errorText}`);
+              
+              return {
+                success: false,
+                error: `ElevenLabs API error (${statusCode}): ${errorText || statusText}`
+              };
+            } catch (textError) {
+              console.error(`Failed to parse error response from /history`, textError);
+              return {
+                success: false,
+                error: `ElevenLabs API error (${statusCode}): ${statusText || 'Unknown error'}`
+              };
+            }
           }
         }
         
@@ -86,12 +126,18 @@ export async function fetchElevenLabsHistory(
           data = await response.json();
         } catch (jsonError) {
           console.error(`Error during fetchElevenLabsHistory JSON parsing:`, jsonError);
-          throw new Error(`Error parsing response from ElevenLabs API`);
+          return {
+            success: false,
+            error: `Error parsing response from ElevenLabs API: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`
+          };
         }
         
         if (!data.history || !Array.isArray(data.history)) {
           console.error(`Invalid response format from ElevenLabs API:`, data);
-          throw new Error(`Invalid response format from ElevenLabs API`);
+          return {
+            success: false,
+            error: "Invalid response format from ElevenLabs API"
+          };
         }
         
         // Add items to our collection
@@ -110,15 +156,21 @@ export async function fetchElevenLabsHistory(
       }
       
       console.log(`Completed fetching history, total items: ${allItems.length}`);
-      return allItems;
+      return {success: true, data: allItems};
       
     } catch (loopError) {
       console.error(`Error during fetchElevenLabsHistory loop:`, loopError);
-      throw loopError;
+      return {
+        success: false,
+        error: `Error fetching history items: ${loopError instanceof Error ? loopError.message : String(loopError)}`
+      };
     }
   } catch (error) {
     console.error(`Error fetching ElevenLabs history:`, error);
-    throw error;
+    return {
+      success: false,
+      error: `Error fetching ElevenLabs history: ${error instanceof Error ? error.message : String(error)}`
+    };
   }
 }
 
@@ -126,6 +178,10 @@ export async function fetchElevenLabsHistory(
  * Fetch a specific history item from ElevenLabs
  */
 export async function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string): Promise<HistoryItem> {
+  if (!apiKey) {
+    throw new Error("Missing ElevenLabs API key");
+  }
+  
   try {
     const url = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`;
     

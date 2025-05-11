@@ -64,7 +64,18 @@ export function useSyncElevenLabsHistory() {
           toast.success(`Synchronisation réussie: ${data.summary?.success || 0} appels importés sur ${data.summary?.total || 0}.`);
         }
       } else if (data.error) {
-        toast.error(`Erreur de synchronisation: ${data.error.message || "Une erreur s'est produite"}`);
+        let errorMessage = data.error.message || "Une erreur s'est produite";
+        
+        // Add more context for specific errors
+        if (data.error.code === "ELEVENLABS_FETCH_ERROR") {
+          if (errorMessage.includes("Invalid ElevenLabs API key")) {
+            errorMessage = "Clé API ElevenLabs invalide. Veuillez vérifier votre configuration.";
+          } else if (errorMessage.includes("Missing ElevenLabs API key")) {
+            errorMessage = "Clé API ElevenLabs manquante. Veuillez configurer la variable d'environnement ELEVENLABS_API_KEY.";
+          }
+        }
+        
+        toast.error(`Erreur de synchronisation: ${errorMessage}`);
       }
       
       return data;

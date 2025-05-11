@@ -145,7 +145,7 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     console.log(`[handleHistorySyncRequest] Fetching ElevenLabs history for agent ${agentId}`);
     
     // Fetch the history from ElevenLabs
-    const historyResult = await fetchElevenLabsHistory();
+    const historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
     
     if (!historyResult.success) {
       console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${historyResult.error}`);

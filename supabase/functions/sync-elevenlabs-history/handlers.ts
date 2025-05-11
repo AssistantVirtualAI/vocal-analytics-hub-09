@@ -6,6 +6,7 @@ import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils
 import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
 import { fetchElevenLabsHistory } from "../_shared/elevenlabs-api.ts";
 import { getOrCreateAgent } from "../_shared/agent-resolver-improved.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
  * Gère la requête de synchronisation de l'historique ElevenLabs
@@ -45,7 +46,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
       }
       
       // Créer un client Supabase
-      const supabase = new createClient(supabaseUrl, supabaseServiceKey);
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
       // Utiliser la fonction améliorée pour résoudre ou créer l'agent
       const resolvedAgentId = await getOrCreateAgent(supabase, agentId);
@@ -128,7 +129,7 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
       
       // Mettre à jour le statut de synchronisation en cas d'erreur
       try {
-        const supabase = new createClient(
+        const supabase = createClient(
           getSupabaseEnvVars().supabaseUrl, 
           getSupabaseEnvVars().supabaseServiceKey
         );

@@ -61,10 +61,8 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
       params.append('call_start_before_unix', Math.floor(options.toDate.getTime() / 1000).toString());
     }
     
-    // Set default limit if not provided
     params.append('limit', options.limit?.toString() || '100');
     
-    // Add cursor for pagination if provided
     if (options.cursor) {
       params.append('cursor', options.cursor);
     }
@@ -72,28 +70,23 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
     const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
     console.log(`Calling ElevenLabs API: ${url}`);
     
-    // Using retry mechanism for fetch
     const response = await fetchWithRetry(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "xi-api-key": apiKey,
       }
-    }, 3); // Maximum 3 retries
+    }, 3);
 
     if (!response.ok) {
-      // Handle error response without consuming body twice
       const errorStatus = response.status;
       let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
-      
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
       } catch (parseError) {
-        // If JSON parsing fails, just use the default error message
-        console.error("Failed to parse error response", parseError);
+        console.error("Failed to parse error response from /convai/conversations", parseError);
       }
-      
       handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching conversations");
     }
 
@@ -106,7 +99,7 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
     if (error instanceof Response) {
       throw error;
     }
-    console.error(`Network error fetching from ElevenLabs: ${error.message || error}`);
+    console.error(`Network error fetching from ElevenLabs (/convai/conversations): ${error.message || error}`);
     throw createErrorResponse(
       `Network error fetching from ElevenLabs: ${error.message || error}`,
       500,
@@ -128,179 +121,135 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
-  maxPages?: number; // Safety parameter to limit the number of API calls
+  maxPages?: number;
 } = {}) {
   console.log("Fetching all conversations with pagination from ElevenLabs API");
   
   let allConversations = [];
-  let cursor = null;
+  let cursor: string | null | undefined = null;
   let hasMore = true;
   let pageCount = 0;
-  let retries = 0;
-  const maxRetries = 3;
-  const maxPages = options.maxPages || 10; // Default to 10 pages max to prevent endless loops
+  const maxPages = options.maxPages || 10;
+  const effectiveLimit = options.limit || 100;
   
   while (hasMore && pageCount < maxPages) {
     pageCount++;
-    console.log(`Fetching page ${pageCount} with cursor: ${cursor || 'initial'}`);
+    console.log(`Fetching page ${pageCount} of conversations with cursor: ${cursor || 'initial'}`);
     
     try {
       const result = await fetchElevenLabsConversations(apiKey, {
         ...options,
-        cursor
+        limit: effectiveLimit,
+        cursor: cursor || undefined,
       });
-      
-      // Reset retries on successful call
-      retries = 0;
       
       if (result.conversations && Array.isArray(result.conversations)) {
         allConversations = [...allConversations, ...result.conversations];
         console.log(`Added ${result.conversations.length} conversations, total: ${allConversations.length}`);
       }
       
-      // Check if there's another page
       cursor = result.cursor;
-      hasMore = cursor !== null && cursor !== undefined && cursor !== '';
+      hasMore = !!cursor;
       
       if (!hasMore) {
-        console.log("No more pages to fetch");
+        console.log("No more conversation pages to fetch.");
       }
     } catch (error) {
-      retries++;
-      
-      if (retries >= maxRetries) {
-        console.error(`Failed to fetch page ${pageCount} after ${maxRetries} retries, moving on`);
-        retries = 0;
-        // Skip to next page if we can, or break if no cursor
-        if (!cursor) break;
-      } else {
-        // Exponential backoff between attempts
-        const waitTime = 1000 * Math.pow(2, retries);
-        console.log(`Page fetch failed, retrying in ${waitTime/1000}s (${retries}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue; // Retry same page
-      }
+      console.error(`Failed to fetch conversation page ${pageCount}. Error: ${error.message || error}`);
+      break;
     }
   }
   
   if (pageCount >= maxPages && hasMore) {
-    console.warn(`Reached maximum number of pages (${maxPages}), some conversations might be missing`);
+    console.warn(`Reached maximum number of pages (${maxPages}) for conversations, some might be missing`);
   }
   
   return allConversations;
 }
 
 /**
- * Fetch a specific conversation by its ID
- * @param conversationId - ID of the conversation
- * @param apiKey - ElevenLabs API key
- * @returns Conversation data
- */
-export function fetchElevenLabsConversation(conversationId: string, apiKey: string) {
-  console.log(`Fetching conversation with ID ${conversationId} from ElevenLabs API`);
-  
-  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}`, {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "xi-api-key": apiKey,
-    }
-  }, 3) // 3 retries max
-  .then(async response => {
-    if (!response.ok) {
-      const status = response.status;
-      let errorMessage = `Error fetching conversation ${conversationId}`;
-      
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch {
-        // Ignore JSON parsing error
-      }
-      
-      handleElevenLabsApiError(status, errorMessage, `Error fetching conversation ${conversationId}`);
-    }
-    
-    return response.json();
-  })
-  .then(data => {
-    console.log(`Successfully retrieved conversation ${conversationId} from ElevenLabs`);
-    return data;
-  })
-  .catch(error => {
-    if (error instanceof Response) {
-      throw error;
-    }
-    console.error(`Network error fetching conversation from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching conversation from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
-  });
-}
-
-/**
- * For backward compatibility - Fetch history items from ElevenLabs API
+ * Fetch history items from ElevenLabs API with pagination.
  * This function is kept for compatibility with existing code, but new code should
- * use the conversation endpoints.
+ * consider using the conversation endpoints if they fit the use case.
+ * The /v1/history endpoint seems to be the one providing detailed generation history.
  */
-export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
-  console.log(`Fetching history for agent ID: ${agentId || 'all'}`);
+export async function fetchElevenLabsHistory(apiKey: string, elevenLabsVoiceId?: string, pageSize: number = 100, maxItems: number = 1000) {
+  console.log(`Fetching ElevenLabs history. Voice ID filter: ${elevenLabsVoiceId || 'all'}, Page Size: ${pageSize}, Max Items: ${maxItems}`);
   
-  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/history`, {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "xi-api-key": apiKey,
+  let allHistoryItems: any[] = [];
+  let lastHistoryItemId: string | null = null;
+  let hasMore = true;
+  let itemsFetchedInCurrentRequest = 0;
+
+  while (hasMore && allHistoryItems.length < maxItems) {
+    const params = new URLSearchParams();
+    params.append('page_size', pageSize.toString());
+    if (lastHistoryItemId) {
+      params.append('start_after_history_item_id', lastHistoryItemId);
     }
-  }, 3) // 3 retries max
-  .then(async response => {
-    if (!response.ok) {
-      const status = response.status;
-      let errorMessage = "Error fetching history items";
-      
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch {
-        // Ignore JSON parsing error if body is empty
+
+    const url = `${ELEVENLABS_API_BASE_URL}/history?${params.toString()}`;
+    console.log(`Calling ElevenLabs History API: ${url}`);
+
+    try {
+      const response = await fetchWithRetry(url, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "xi-api-key": apiKey,
+        }
+      }, 3);
+
+      if (!response.ok) {
+        const status = response.status;
+        let errorMessage = "Error fetching history items from ElevenLabs";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+        } catch (parseError) {
+          console.error("Failed to parse error response from /history", parseError);
+        }
+        console.error(`ElevenLabs History API Error: ${status} - ${errorMessage}`);
+        const error = new Error(errorMessage) as any;
+        error.status = status;
+        throw error;
+      }
+
+      const data = await response.json();
+      const historyPageItems = data.history || [];
+      itemsFetchedInCurrentRequest = historyPageItems.length;
+      console.log(`Retrieved ${itemsFetchedInCurrentRequest} history items in this page.`);
+
+      if (historyPageItems.length > 0) {
+        allHistoryItems = allHistoryItems.concat(historyPageItems);
+        lastHistoryItemId = historyPageItems[historyPageItems.length - 1].history_item_id;
       }
       
-      handleElevenLabsApiError(status, errorMessage, errorMessage);
-    }
-    
-    return response.json();
-  })
-  .then(data => {
-    console.log(`Received history data with ${data.history?.length || 0} items`);
-    
-    // Filter by agent ID if provided
-    let filteredItems = data.history;
-    if (agentId) {
-      console.log(`Filtering history items by agent ID: ${agentId}`);
-      filteredItems = data.history.filter((item: any) => 
-        item.voice_id === agentId || 
-        item.model_id === agentId
-      );
-    }
-    
-    console.log(`Found ${filteredItems.length} history items${agentId ? ` for agent ID: ${agentId}` : ''}`);
-    
-    return filteredItems;
-  })
-  .catch(error => {
-    console.error(`Error in fetchElevenLabsHistory:`, error);
-    if (error instanceof Response) {
+      hasMore = data.has_more && itemsFetchedInCurrentRequest > 0 && itemsFetchedInCurrentRequest === pageSize;
+      if (!hasMore) {
+        console.log("No more history pages to fetch or page size condition not met.");
+      }
+
+    } catch (error) {
+      console.error(`Error during fetchElevenLabsHistory loop: ${error.message || error}`);
       throw error;
     }
-    console.error(`Network error fetching from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
+  }
+  
+  console.log(`Total history items fetched before filtering: ${allHistoryItems.length}`);
+
+  // Filter by voice_id or model_id if elevenLabsVoiceId is provided
+  let filteredItems = allHistoryItems;
+  if (elevenLabsVoiceId) {
+    console.log(`Filtering total history items by ElevenLabs Voice ID: ${elevenLabsVoiceId}`);
+    filteredItems = allHistoryItems.filter((item: any) => 
+      item.voice_id === elevenLabsVoiceId || 
+      item.model_id === elevenLabsVoiceId // Some history items might use model_id as identifier
     );
-  });
+    console.log(`Found ${filteredItems.length} history items for Voice ID: ${elevenLabsVoiceId} after filtering.`);
+  }
+  
+  return filteredItems;
 }
 
 /**
@@ -318,40 +267,28 @@ export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }, 3) // 3 retries max
+  }, 3) 
   .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = `Error fetching history item ${historyItemId}`;
-      
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail || errorMessage;
-      } catch {
-        // Ignore JSON parsing error
-      }
-      
+      } catch (e) { console.error("Failed to parse error JSON for history item", e); }
       handleElevenLabsApiError(status, errorMessage, errorMessage);
     }
-    
     return response.json();
   })
   .then(historyData => {
-    // Construct the direct URL to fetch the audio for this history item
     const audioUrl = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}/audio`;
-
-    return {
-      ...historyData,
-      audio_url: audioUrl,
-    };
+    return { ...historyData, audio_url: audioUrl };
   })
   .catch(error => {
-    if (error instanceof Response) {
-      throw error;
-    }
-    console.error(`Network error fetching from ElevenLabs: ${error.message || error}`);
+    if (error instanceof Response) throw error;
+    console.error(`Network error fetching history item from ElevenLabs: ${error.message || error}`);
     throw createErrorResponse(
-      `Network error fetching from ElevenLabs: ${error.message || error}`,
+      `Network error fetching history item from ElevenLabs: ${error.message || error}`,
       500,
       ErrorCode.ELEVENLABS_API_ERROR
     );
@@ -386,22 +323,17 @@ export function fetchElevenLabsConversationTranscript(conversationId: string, ap
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }, 3) // 3 retries max
+  }, 3)
   .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = `Error fetching transcript for conversation ${conversationId}`;
-      
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail || errorMessage;
-      } catch {
-        // Ignore JSON parsing error
-      }
-      
+      } catch (e) { console.error("Failed to parse error JSON for transcript", e); }
       handleElevenLabsApiError(status, errorMessage, errorMessage);
     }
-    
     return response.json();
   })
   .then(data => {
@@ -409,9 +341,7 @@ export function fetchElevenLabsConversationTranscript(conversationId: string, ap
     return data;
   })
   .catch(error => {
-    if (error instanceof Response) {
-      throw error;
-    }
+    if (error instanceof Response) throw error;
     console.error(`Network error fetching transcript from ElevenLabs: ${error.message || error}`);
     throw createErrorResponse(
       `Network error fetching transcript from ElevenLabs: ${error.message || error}`,
@@ -423,35 +353,26 @@ export function fetchElevenLabsConversationTranscript(conversationId: string, ap
 
 /**
  * Helper function to handle errors from the ElevenLabs API
- * Modified to not consume response body multiple times
  */
 function handleElevenLabsApiError(status: number, errorMessage: string, baseErrorMessage: string) {
   console.error("ElevenLabs API error:", status, errorMessage);
+  let errCode = ErrorCode.ELEVENLABS_API_ERROR;
+  let msg = `${baseErrorMessage}: ${errorMessage}`;
 
   switch (status) {
     case 401:
-      throw createErrorResponse(
-        "Authentication failed with ElevenLabs API. Check API Key.",
-        401,
-        ErrorCode.ELEVENLABS_AUTH_ERROR
-      );
+      errCode = ErrorCode.ELEVENLABS_AUTH_ERROR;
+      msg = "Authentication failed with ElevenLabs API. Check API Key.";
+      break;
     case 404:
-      throw createErrorResponse(
-        `Item not found on ElevenLabs.`,
-        404,
-        ErrorCode.ELEVENLABS_NOT_FOUND
-      );
+      errCode = ErrorCode.ELEVENLABS_NOT_FOUND;
+      msg = `Item not found on ElevenLabs.`;
+      break;
     case 429:
-      throw createErrorResponse(
-        "ElevenLabs API rate limit or quota exceeded.",
-        429,
-        ErrorCode.ELEVENLABS_QUOTA_EXCEEDED
-      );
-    default:
-      throw createErrorResponse(
-        `${baseErrorMessage}: ${errorMessage}`,
-        status,
-        ErrorCode.ELEVENLABS_API_ERROR
-      );
+      errCode = ErrorCode.ELEVENLABS_QUOTA_EXCEEDED;
+      msg = "ElevenLabs API rate limit or quota exceeded.";
+      break;
   }
+  // Throw a Response object directly, as expected by some callers
+  throw createErrorResponse(msg, status, errCode);
 }

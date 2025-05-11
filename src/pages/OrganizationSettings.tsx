@@ -1,15 +1,20 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function OrganizationSettings() {
   const navigate = useNavigate();
   
   // Use effect to prevent multiple navigations
   useEffect(() => {
+    console.log("[OrganizationSettings] Component mounted, redirecting to Settings tab");
     // Navigate to the settings page with organization tab open
     navigate('/settings?tab=organization', { replace: true });
-  }, [navigate]); // Add navigate as dependency
+    
+    // Add toast to inform the user
+    toast.info("Redirection vers la page des paramètres");
+  }, []); // Remove navigate dependency to avoid redirection loop
   
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-slate-900 to-blue-950">

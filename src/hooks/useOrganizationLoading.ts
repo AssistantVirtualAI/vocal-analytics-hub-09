@@ -9,6 +9,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const loadOrganizations = useCallback(async (): Promise<Organization[]> => {
     setIsLoading(true);
@@ -34,7 +35,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     } catch (error: any) {
       console.error('[useOrganizationLoading] Error fetching organizations:', error);
       setError(error);
-      // Only show toast error once - removed from service
+      // Only show toast error once
       toast.error("Erreur lors de la récupération des organisations: " + error.message);
       return [];
     } finally {
@@ -42,16 +43,24 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     }
   }, [isAdmin, userId]);
 
-  // Add an effect to load organizations when the component mounts
+  // Add an effect to load organizations when the component mounts or when retrying
   useEffect(() => {
     if (userId || isAdmin) {
-      console.log("[useOrganizationLoading] Initial load triggered for user:", userId);
-      loadOrganizations();
+      console.log("[useOrganizationLoading] Initial load or retry triggered for user:", userId, "retry count:", retryCount);
+      loadOrganizations().then(orgs => {
+        if (orgs.length === 0 && retryCount < 3) {
+          // If no organizations found, retry a few times (could be timing issues)
+          const timer = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, 1000); // Wait 1 second before retrying
+          return () => clearTimeout(timer);
+        }
+      });
     } else {
       console.log("[useOrganizationLoading] No user ID available, skipping initial load");
       setIsLoading(false);
     }
-  }, [userId, isAdmin, loadOrganizations]);
+  }, [userId, isAdmin, loadOrganizations, retryCount]);
 
   return {
     organizations,

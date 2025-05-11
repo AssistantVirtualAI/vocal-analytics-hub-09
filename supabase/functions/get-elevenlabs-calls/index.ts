@@ -172,4 +172,3 @@ function calculateDuration(startTime?: number, endTime?: number): number {
   const durationInSeconds = endTime - startTime;
   return Math.max(1, Math.floor(durationInSeconds / 60)); // Ensure at least 1 minute
 }
-

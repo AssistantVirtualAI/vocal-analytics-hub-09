@@ -1,140 +1,167 @@
 
-import { corsHeaders } from "./cors.ts";
+import { corsHeaders } from './cors.ts';
 
-export interface ApiErrorResponse {
-  status: number;
-  message: string;
-  code: string;
-  details?: string;
+/**
+ * Standard response format for errors
+ */
+export interface ErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  timestamp?: string;
 }
 
 /**
- * Crée une réponse d'erreur normalisée
- * @param error Informations sur l'erreur
- * @returns Response HTTP avec les détails de l'erreur
+ * Standard response format for success
  */
-export function createErrorResponse(error: ApiErrorResponse): Response {
-  console.error(`Error: ${error.code} - ${error.message}`, error.details || '');
+export interface SuccessResponse<T = any> {
+  data: T;
+  meta?: Record<string, any>;
+}
+
+/**
+ * Create a standardized error response
+ */
+export function createErrorResponse({
+  message,
+  code = "INTERNAL_SERVER_ERROR",
+  status = 500,
+  details = undefined
+}: {
+  message: string;
+  code?: string;
+  status?: number;
+  details?: any;
+}): Response {
+  console.error(`Error: ${code} - ${message}`);
+  
+  const response: ErrorResponse = {
+    error: {
+      code,
+      message
+    },
+    timestamp: new Date().toISOString()
+  };
+  
+  if (details) {
+    response.error.details = details;
+  }
   
   return new Response(
-    JSON.stringify({
-      error: {
-        message: error.message,
-        code: error.code,
-        details: error.details
-      },
-      success: false,
-    }),
+    JSON.stringify(response),
     {
-      status: error.status,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
   );
 }
 
 /**
- * Crée une réponse de succès normalisée
- * @param data Données à retourner
- * @returns Response HTTP avec les données
+ * Create a standardized success response
  */
-export function createSuccessResponse<T>(data: T): Response {
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
+export function createSuccessResponse<T = any>(
+  data: T,
+  meta?: Record<string, any>,
+  status = 200
+): Response {
+  const response: SuccessResponse<T> = { data };
+  
+  if (meta) {
+    response.meta = meta;
+  }
+  
+  return new Response(
+    JSON.stringify(response),
+    {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
 }
 
 /**
- * Gère les requêtes CORS OPTIONS
- * @returns Response HTTP pour les requêtes OPTIONS
+ * Handle CORS preflight requests
  */
 export function handleCorsOptions(): Response {
   return new Response(null, {
-    headers: corsHeaders,
-    status: 204, // No Content
+    status: 204, // No content
+    headers: corsHeaders
   });
 }
 
 /**
- * Report API metrics to the api-monitor function
- * @param functionName Nom de la fonction
- * @param startTime Temps de début d'exécution
- * @param statusCode Code de statut HTTP
- * @param errorMessage Message d'erreur optionnel
+ * Handle and format API errors
  */
-export async function reportApiMetrics(
+export async function handleApiError(
+  error: any,
   functionName: string,
-  startTime: number,
-  statusCode: number,
-  errorMessage?: string
-): Promise<void> {
+  startTime: number
+): Promise<Response> {
+  const endTime = Date.now();
+  const duration = endTime - startTime;
+  
+  // Log detailed error information
+  console.error(`Error in ${functionName} after ${duration}ms:`, error);
+  
+  let status = 500;
+  let code = "INTERNAL_SERVER_ERROR";
+  let message = error instanceof Error ? error.message : "An unexpected error occurred";
+  
+  // Handle specific error types
+  if (error.code === "ELEVENLABS_AUTH_ERROR") {
+    status = 401;
+    code = "ELEVENLABS_AUTH_ERROR";
+  } else if (error.code === "ELEVENLABS_NOT_FOUND") {
+    status = 404;
+    code = "ELEVENLABS_NOT_FOUND";
+  } else if (error.code === "ELEVENLABS_QUOTA_EXCEEDED") {
+    status = 429;
+    code = "ELEVENLABS_QUOTA_EXCEEDED";
+  } else if (error.code === "BAD_REQUEST") {
+    status = 400;
+    code = "BAD_REQUEST";
+  } else if (error.code === "NOT_FOUND") {
+    status = 404;
+    code = "NOT_FOUND";
+  }
+  
   try {
-    const duration = Date.now() - startTime;
+    // Attempt to include detailed error information
+    const details: Record<string, any> = {};
     
-    // Skip reporting in development environments
-    if (Deno.env.get('ENVIRONMENT') === 'development') {
-      return;
+    if (error.stack) {
+      details.stack = error.stack;
     }
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.warn('Cannot report metrics: Missing Supabase credentials');
-      return;
+    if (error.cause) {
+      details.cause = String(error.cause);
     }
     
-    const payload = {
-      function_name: functionName,
-      duration_ms: duration,
-      status_code: statusCode,
-      error: errorMessage || null,
-      timestamp: new Date().toISOString(),
-    };
-    
-    // Use fetch directly rather than supabase client to avoid circular dependencies
-    await fetch(`${supabaseUrl}/functions/v1/api-monitor`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify(payload),
+    // Log final error details
+    console.error({
+      status,
+      code,
+      message,
+      details,
+      duration
     });
     
-  } catch (error) {
-    // Just log but don't fail the original request
-    console.error('Failed to report API metrics:', error);
+    return createErrorResponse({
+      message,
+      code,
+      status,
+      details
+    });
+  } catch (formatError) {
+    console.error("Error formatting error response:", formatError);
+    
+    // Fallback to simplified error response
+    return createErrorResponse({
+      message: "An unexpected error occurred while processing the error response",
+      code: "INTERNAL_SERVER_ERROR",
+      status: 500
+    });
   }
-}
-
-/**
- * Gestionnaire d'erreur standardisé pour les fonctions edge
- * @param error Erreur attrapée
- * @param functionName Nom de la fonction
- * @param startTime Temps de début d'exécution
- * @returns Response HTTP avec les détails de l'erreur
- */
-export async function handleApiError(error: unknown, functionName: string, startTime: number): Promise<Response> {
-  console.error(`Error in ${functionName}:`, error);
-  
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const errorCode = error instanceof Error && (error as any).code ? (error as any).code : 'INTERNAL_SERVER_ERROR';
-  const statusCode = errorCode === 'NOT_FOUND' ? 404 : 500;
-  
-  // Report the error metrics
-  await reportApiMetrics(functionName, startTime, statusCode, errorMessage);
-  
-  return createErrorResponse({
-    status: statusCode,
-    message: errorMessage,
-    code: errorCode,
-    details: error instanceof Error ? error.stack : undefined
-  });
 }

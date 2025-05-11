@@ -10,12 +10,17 @@ export const useOrganizationLoading = (session: any) => {
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const STORAGE_KEY = 'current_organization_id';
   
   // Load organizations
   const loadOrganizations = useCallback(async (): Promise<Organization[]> => {
-    if (!session?.user) return [];
+    if (!session?.user) {
+      console.log("[useOrganizationLoading] No session user, returning empty array");
+      setIsLoading(false);
+      return [];
+    }
     
     try {
       setIsLoading(true);
@@ -68,16 +73,26 @@ export const useOrganizationLoading = (session: any) => {
         description: "Failed to load organizations",
         variant: "destructive"
       });
+      
+      // Retry loading if we've failed less than 3 times
+      if (retryCount < 3) {
+        console.log(`[useOrganizationLoading] Retry attempt ${retryCount + 1}/3`);
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+        }, 2000);
+      }
+      
       return []; // Return empty array on error
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, retryCount]);
   
   // Change current organization
   const changeOrganization = useCallback((organizationId: string) => {
     const org = organizations.find(o => o.id === organizationId);
     if (org) {
+      console.log("[useOrganizationLoading] Changing current organization to:", org);
       setCurrentOrganization(org);
       localStorage.setItem(STORAGE_KEY, organizationId);
       return org;
@@ -92,8 +107,14 @@ export const useOrganizationLoading = (session: any) => {
       loadOrganizations();
     } else {
       console.log("[useOrganizationLoading] No session, not loading organizations");
+      setIsLoading(false);
     }
   }, [session, loadOrganizations]);
+  
+  // Reset retry count when session changes
+  useEffect(() => {
+    setRetryCount(0);
+  }, [session?.user?.id]);
   
   return {
     organizations,
@@ -103,6 +124,7 @@ export const useOrganizationLoading = (session: any) => {
     isLoading,
     error,
     loadOrganizations,
-    changeOrganization
+    changeOrganization,
+    retryCount
   };
 };

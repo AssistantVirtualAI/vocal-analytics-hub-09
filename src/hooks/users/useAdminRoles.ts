@@ -12,6 +12,7 @@ export const useAdminRoles = (
   const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);  // Set initial loading to true
   const [error, setError] = useState<Error | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Check if the current user is a super admin or an organization admin
   const checkCurrentUserPermissions = useCallback(async () => {
@@ -20,6 +21,7 @@ export const useAdminRoles = (
       setCurrentUserIsOrgAdmin(false);
       setCurrentUserIsSuperAdmin(false);
       setLoading(false);
+      setIsInitialized(true);
       return { isSuperAdmin: false, isOrgAdmin: false };
     }
     
@@ -46,6 +48,7 @@ export const useAdminRoles = (
       // Update state
       setCurrentUserIsSuperAdmin(isSuperAdmin);
       setCurrentUserIsOrgAdmin(isOrgAdmin);
+      setIsInitialized(true);
       
       return { isSuperAdmin, isOrgAdmin };
     } catch (error: any) {
@@ -54,22 +57,28 @@ export const useAdminRoles = (
       toast.error("Erreur lors de la vérification des permissions: " + error.message);
       setCurrentUserIsSuperAdmin(false);
       setCurrentUserIsOrgAdmin(false);
+      setIsInitialized(true);
       return { isSuperAdmin: false, isOrgAdmin: false };
     } finally {
       setLoading(false);
     }
   }, [userId, selectedOrg]);
 
+  // Reset initialization when dependencies change
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [userId, selectedOrg]);
+
   // Check permissions when component mounts or dependencies change
   useEffect(() => {
-    if (userId) {
+    if (!isInitialized && (userId || selectedOrg)) {
       console.log("[useAdminRoles] Dependencies changed, checking permissions");
       checkCurrentUserPermissions();
-    } else {
-      console.log("[useAdminRoles] Missing userId, skipping permission check");
+    } else if (!userId && !selectedOrg) {
+      console.log("[useAdminRoles] Missing userId and selectedOrg, skipping permission check");
       setLoading(false);
     }
-  }, [userId, selectedOrg, checkCurrentUserPermissions]);
+  }, [userId, selectedOrg, checkCurrentUserPermissions, isInitialized]);
 
   return {
     loading,

@@ -7,6 +7,18 @@ export const checkOrganizationAdminStatus = async (userId: string, organizationI
   try {
     console.log(`Checking organization admin status for user ${userId} in org ${organizationId}`);
     
+    // First verify we have a valid session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error('Error getting auth session:', sessionError);
+      return false;
+    }
+    
+    if (!session) {
+      console.log('No active session, cannot check permissions');
+      return false;
+    }
+    
     const { data, error } = await supabase
       .from('user_organizations')
       .select('is_org_admin')
@@ -31,6 +43,18 @@ export const checkOrganizationAdminStatus = async (userId: string, organizationI
 export const checkSuperAdminStatus = async (userId: string): Promise<boolean> => {
   try {
     console.log(`Checking super admin status for user ${userId}`);
+    
+    // First verify we have a valid session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error('Error getting auth session:', sessionError);
+      return false;
+    }
+    
+    if (!session) {
+      console.log('No active session, cannot check permissions');
+      return false;
+    }
     
     const { data, error } = await supabase
       .from('user_roles')

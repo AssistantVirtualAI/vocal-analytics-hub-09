@@ -15,6 +15,18 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     // If we're not explicitly told this is an admin user, check super admin status
     if (!isAdmin && userId) {
       try {
+        // Get the current user's session to verify auth
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error("Session check error:", sessionError);
+          throw sessionError;
+        }
+        
+        if (!sessionData?.session) {
+          console.warn("No active session found");
+          return [];
+        }
+        
         const { data: userRoles, error: rolesError } = await supabase
           .from('user_roles')
           .select('role')

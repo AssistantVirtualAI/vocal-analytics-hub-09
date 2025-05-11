@@ -11,11 +11,11 @@ import {
 } from '@/components/ui/select';
 
 export function OrganizationSelector() {
-  const { organizations, currentOrg, switchOrganization } = useOrg();
+  const { currentOrg, organizations, changeOrganization } = useOrg();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOrgChange = (value: string) => {
-    switchOrganization(value);
+    changeOrganization(value);
   };
 
   if (!organizations || organizations.length === 0) {

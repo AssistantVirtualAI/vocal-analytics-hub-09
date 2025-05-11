@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useIsMobile } from '@/components/ui/sidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function useMobile() {
   const isMobile = useIsMobile();

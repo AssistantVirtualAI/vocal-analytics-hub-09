@@ -18,6 +18,8 @@ export interface OrganizationUser {
   role: 'admin' | 'user';
   createdAt: string;
   isPending: boolean;
+  isOrgAdmin?: boolean;  // Added property
+  isSuperAdmin?: boolean; // Added property
 }
 
 export const DEFAULT_ORGANIZATION_ID = 'default';

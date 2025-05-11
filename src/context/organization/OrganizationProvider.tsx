@@ -1,8 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { createContext, useContext } from 'react';
 import { OrganizationContextType, OrganizationProviderProps } from './types';
-import { Organization, OrganizationUser } from '@/types/organization';
 import { useOrganizationState } from './useOrganizationState';
 
 export const OrganizationContext = createContext<OrganizationContextType>({
@@ -21,38 +19,10 @@ export const OrganizationContext = createContext<OrganizationContextType>({
 });
 
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
-  const {
-    currentOrganization,
-    organizations,
-    users,
-    changeOrganization,
-    createOrganization,
-    updateOrganization,
-    deleteOrganization,
-    addUser,
-    removeUser,
-    updateUser,
-    isLoading,
-    userHasAdminAccessToCurrentOrg,
-  } = useOrganizationState();
+  const organizationState = useOrganizationState();
 
   return (
-    <OrganizationContext.Provider
-      value={{
-        currentOrganization,
-        organizations,
-        users,
-        changeOrganization,
-        createOrganization,
-        updateOrganization,
-        deleteOrganization,
-        addUser,
-        removeUser,
-        updateUser,
-        isLoading,
-        userHasAdminAccessToCurrentOrg,
-      }}
-    >
+    <OrganizationContext.Provider value={organizationState}>
       {children}
     </OrganizationContext.Provider>
   );

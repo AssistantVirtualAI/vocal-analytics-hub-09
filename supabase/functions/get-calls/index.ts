@@ -1,77 +1,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAgentUUIDByExternalId } from "../_shared/agent-resolver-improved.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-/**
- * Helper function to get Agent UUID by matching with ID or name from the 'agents' table.
- */
-async function getAgentUUIDByExternalId(supabase: SupabaseClient, externalAgentId: string): Promise<string | null> {
-  if (!externalAgentId) {
-    console.log("[get-calls HELPER] externalAgentId is empty or null. Returning null.");
-    return null;
-  }
-
-  console.log(`[get-calls HELPER] Looking up agent with externalAgentId: ${externalAgentId}`);
-
-  // Attempt 1: If externalAgentId is a UUID, try matching it against 'agents.id'
-  if (uuidRegex.test(externalAgentId)) {
-    console.log(`[get-calls HELPER] externalAgentId '${externalAgentId}' is a valid UUID format. Querying agents.id.`);
-    try {
-      const { data: agentById, error: errorById } = await supabase
-        .from("agents")
-        .select("id")
-        .eq("id", externalAgentId)
-        .maybeSingle();
-
-      if (errorById && errorById.code !== 'PGRST116') { // PGRST116 means 0 rows, which is not an error for maybeSingle
-        console.error(`[get-calls HELPER] Error querying agents by id '${externalAgentId}':`, errorById);
-        // Do not return here, proceed to check by name as it might be a name that looks like a UUID
-      } else if (agentById) {
-        console.log(`[get-calls HELPER] Found agent by id: ${agentById.id}`);
-        return agentById.id;
-      }
-    } catch (e) {
-      console.error(`[get-calls HELPER] Exception during agent lookup by id '${externalAgentId}':`, e);
-      // Proceed to check by name
-    }
-  }
-
-  // Attempt 2: Try matching externalAgentId against 'agents.name'
-  console.log(`[get-calls HELPER] Querying agents.name for '${externalAgentId}'.`);
-  try {
-    const { data: agentByName, error: errorByName } = await supabase
-      .from("agents")
-      .select("id")
-      .eq("name", externalAgentId)
-      .maybeSingle();
-
-    if (errorByName && errorByName.code !== 'PGRST116') {
-      console.error(`[get-calls HELPER] Error querying agents by name '${externalAgentId}':`, errorByName);
-    } else if (agentByName) {
-      console.log(`[get-calls HELPER] Found agent by name '${externalAgentId}', UUID: ${agentByName.id}`);
-      return agentByName.id;
-    }
-  } catch (e) {
-    console.error(`[get-calls HELPER] Exception during agent lookup by name '${externalAgentId}':`, e);
-  }
-  
-  // If not found by ID or name, it might be an organization's agent_id (which is a string name for an agent)
-  // This part of the original logic for "USE_NO_FILTER" was specific to a scenario where
-  // an organization's agent_id might not directly map to an agent but still imply a filter context.
-  // For fetching calls *for a specific agent*, if we haven't found a UUID, we should return null.
-  // The 'USE_NO_FILTER' logic seems more applicable if the function was 'getOrgCalls' and agentId was optional.
-  // Given the function is 'get-calls' and an agentId is provided, we expect to filter by that agent.
-
-  console.warn(`[get-calls HELPER] No agent UUID found for externalAgentId '${externalAgentId}' in 'agents' table by id or name. Returning null.`);
-  return null;
-}
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {

@@ -29,8 +29,8 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
       }
 
       // Don't treat empty organizations as an error condition
-      setOrganizations(orgs);
-      return orgs;
+      setOrganizations(orgs || []);
+      return orgs || [];
     } catch (error: any) {
       console.error('[useOrganizationLoading] Error fetching organizations:', error);
       setError(error);

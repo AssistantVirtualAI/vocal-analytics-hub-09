@@ -1,63 +1,88 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export function SecurityIssuesFixer() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFixed, setIsFixed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [fixed, setFixed] = useState(false);
 
   const handleFixSecurityIssues = async () => {
+    setLoading(true);
+    setFixed(false);
+    
     try {
-      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke('fix-security-issues');
       
-      const { data, error } = await supabase.functions.invoke("fix-security-issues");
-      
-      if (error) throw error;
-      
-      toast.success("Security issues fixed successfully!");
-      setIsFixed(true);
-    } catch (error) {
-      console.error("Error fixing security issues:", error);
-      toast.error("Failed to fix security issues: " + error.message);
+      if (error) {
+        console.error('Error fixing security issues:', error);
+        toast.error('Erreur lors de la correction des problèmes de sécurité');
+      } else {
+        console.log('Security issues fixed:', data);
+        toast.success('Problèmes de sécurité corrigés avec succès');
+        setFixed(true);
+      }
+    } catch (err) {
+      console.error('Exception while fixing security issues:', err);
+      toast.error('Une erreur est survenue lors de la correction des problèmes de sécurité');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-4 mb-6 border rounded-lg bg-gradient-to-br from-red-50/30 to-pink-50/30 dark:from-red-950/30 dark:to-pink-950/30 backdrop-blur-sm">
-      <div className="flex items-start mb-4">
-        <AlertCircle className="mr-2 h-5 w-5 text-red-500 mt-0.5" />
-        <div>
-          <h3 className="font-medium text-red-700 dark:text-red-400">Security Issues Detected</h3>
-          <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">
-            We detected security configuration issues that need to be fixed:
-          </p>
-          <ul className="list-disc list-inside text-sm text-red-600/80 dark:text-red-400/80 mt-2">
-            <li>Security Definer View (calls_view) - Using SECURITY DEFINER can bypass RLS</li>
-            <li>Auth OTP long expiry - Email OTP expiry exceeds recommended threshold</li>
+    <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-amber-100/50 dark:border-amber-900/30">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          {fixed ? (
+            <CheckCircle className="h-5 w-5 text-green-500" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+          )}
+          <CardTitle>Problèmes de sécurité détectés</CardTitle>
+        </div>
+        <CardDescription>
+          Nous avons détecté des problèmes de sécurité dans votre configuration qui devraient être corrigés
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="font-medium">Problèmes détectés :</h3>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li>La sécurité au niveau des lignes (RLS) n'est pas activée sur la table <code>sync_status</code></li>
+            <li>L'extension <code>pg_net</code> est installée dans le schéma public</li>
+            <li>L'expiration OTP d'authentification est trop longue</li>
           </ul>
         </div>
-      </div>
-      
-      {isFixed ? (
-        <div className="flex items-center text-sm text-green-600 dark:text-green-400">
-          <CheckCircle className="mr-2 h-4 w-4" />
-          Security issues have been fixed successfully!
+
+        <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md text-sm border border-amber-200 dark:border-amber-800">
+          <p>Il est recommandé de corriger ces problèmes pour améliorer la sécurité de votre application.</p>
         </div>
-      ) : (
-        <Button 
+      </CardContent>
+      <CardFooter>
+        <Button
           onClick={handleFixSecurityIssues}
-          variant="destructive"
-          size="sm"
-          disabled={isLoading}
+          disabled={loading || fixed}
+          className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
         >
-          {isLoading ? "Fixing Issues..." : "Fix Security Issues"}
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Correction en cours...
+            </>
+          ) : fixed ? (
+            <>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Problèmes corrigés
+            </>
+          ) : (
+            'Corriger les problèmes de sécurité'
+          )}
         </Button>
-      )}
-    </div>
+      </CardFooter>
+    </Card>
   );
 }

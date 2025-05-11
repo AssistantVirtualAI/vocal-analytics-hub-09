@@ -1,7 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Organization } from '@/types/organization';
-import { toast } from 'sonner';
 
 export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Promise<Organization[]> => {
   try {
@@ -95,7 +94,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
-    throw error; // Removed toast here to avoid duplicate notifications
+    throw error;
   }
 };
 

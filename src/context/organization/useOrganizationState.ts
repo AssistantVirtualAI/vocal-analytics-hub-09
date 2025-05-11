@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserSession } from '@/hooks/auth/useUserSession'; 
@@ -253,14 +252,32 @@ export function useOrganizationState() {
       
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
-          // Use optional chaining and type assertion to safely access profile properties
-          const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null } | null;
+          // First check if profiles is actually an error object
+          const isProfilesError = typeof item.profiles === 'object' && 
+                                  item.profiles !== null && 
+                                  'error' in item.profiles;
+                                  
+          // If it's an error or null/undefined, use empty values
+          if (isProfilesError || !item.profiles) {
+            return {
+              id: item.user_id,
+              email: '',
+              displayName: '',
+              avatarUrl: '',
+              role: item.is_org_admin ? 'admin' : 'user',
+              createdAt: new Date().toISOString(),
+              isPending: false
+            };
+          }
+          
+          // Otherwise, safely access the profile properties
+          const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null };
           
           return {
             id: item.user_id,
-            email: profile?.email || '',
-            displayName: profile?.display_name || '',
-            avatarUrl: profile?.avatar_url || '',
+            email: profile.email || '',
+            displayName: profile.display_name || '',
+            avatarUrl: profile.avatar_url || '',
             role: item.is_org_admin ? 'admin' : 'user',
             createdAt: new Date().toISOString(), // fallback
             isPending: false

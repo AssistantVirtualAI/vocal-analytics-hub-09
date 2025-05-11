@@ -1,86 +1,107 @@
 
-import React from 'react';
-import { RequireAuth, RequireAdmin, RequireOrgAccess } from './guards';
+import { lazy } from "react";
 
-// Page imports
-import Dashboard from '@/pages/Dashboard';
-import Calls from '@/pages/Calls';
-import CallDetails from '@/pages/CallDetails';
-import Stats from '@/pages/Stats';
-import Customers from '@/pages/Customers';
-import CustomerDetails from '@/pages/CustomerDetails';
-import NotFound from '@/pages/NotFound';
-import OrganizationSettings from '@/pages/OrganizationSettings';
-import AuthPage from '@/pages/AuthPage';
-import UsersManagement from '@/pages/UsersManagement';
-import OrganizationLanding from '@/pages/OrganizationLanding';
-import OrgDashboard from '@/pages/OrgDashboard';
-import UserProfile from '@/pages/UserProfile';
-import UserSettings from '@/pages/UserSettings';
+// Use lazy loading for all pages to reduce initial bundle size
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const OrgDashboard = lazy(() => import("@/pages/OrgDashboard"));
+const Calls = lazy(() => import("@/pages/Calls"));
+const CallDetails = lazy(() => import("@/pages/CallDetails"));
+const Stats = lazy(() => import("@/pages/Stats"));
+const Customers = lazy(() => import("@/pages/Customers"));
+const CustomerDetails = lazy(() => import("@/pages/CustomerDetails"));
+const UserSettings = lazy(() => import("@/pages/UserSettings"));
+const OrganizationSettings = lazy(() => import("@/pages/OrganizationSettings"));
+const OrganizationLanding = lazy(() => import("@/pages/OrganizationLanding"));
+const AuthPage = lazy(() => import("@/pages/AuthPage"));
+const UserProfile = lazy(() => import("@/pages/UserProfile"));
+const UsersManagement = lazy(() => import("@/pages/UsersManagement"));
+const Index = lazy(() => import("@/pages/Index"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+// Add the new ElevenLabs configuration page
+const ElevenLabsConfig = lazy(() => import("@/pages/ElevenLabsConfig"));
 
 // Route configuration
-export interface RouteConfig {
-  path: string;
-  element: React.ReactNode;
-  children?: RouteConfig[];
-}
-
-export const routes: RouteConfig[] = [
-  {
-    path: "/auth",
-    element: <AuthPage />
-  },
+export const routes = [
   {
     path: "/",
-    element: <RequireAuth><Dashboard /></RequireAuth>
+    element: <Index />,
+    requireAuth: true,
   },
   {
-    path: "/calls",
-    element: <RequireAuth><Calls /></RequireAuth>
-  },
-  {
-    path: "/calls/:id",
-    element: <RequireAuth><CallDetails /></RequireAuth>
-  },
-  {
-    path: "/stats",
-    element: <RequireAuth><Stats /></RequireAuth>
-  },
-  {
-    path: "/customers",
-    element: <RequireAuth><Customers /></RequireAuth>
-  },
-  {
-    path: "/customers/:id",
-    element: <RequireAuth><CustomerDetails /></RequireAuth>
-  },
-  {
-    path: "/organizations",
-    element: <RequireAuth><OrganizationSettings /></RequireAuth>
-  },
-  {
-    path: "/users",
-    element: <RequireAdmin><UsersManagement /></RequireAdmin>
-  },
-  {
-    path: "/profile",
-    element: <RequireAuth><UserProfile /></RequireAuth>
-  },
-  {
-    path: "/settings",
-    element: <RequireAuth><UserSettings /></RequireAuth>
-  },
-  // New organization-specific routes
-  {
-    path: "/:orgSlug",
-    element: <OrganizationLanding />
+    path: "/dashboard",
+    element: <Dashboard />,
+    requireAuth: true,
   },
   {
     path: "/:orgSlug/dashboard",
-    element: <RequireOrgAccess><OrgDashboard /></RequireOrgAccess>
+    element: <OrgDashboard />,
+    requireAuth: true,
+  },
+  {
+    path: "/calls",
+    element: <Calls />,
+    requireAuth: true,
+  },
+  {
+    path: "/calls/:callId",
+    element: <CallDetails />,
+    requireAuth: true,
+  },
+  {
+    path: "/stats",
+    element: <Stats />,
+    requireAuth: true,
+  },
+  {
+    path: "/customers",
+    element: <Customers />,
+    requireAuth: true,
+  },
+  {
+    path: "/customers/:customerId",
+    element: <CustomerDetails />,
+    requireAuth: true,
+  },
+  {
+    path: "/settings",
+    element: <UserSettings />,
+    requireAuth: true,
+  },
+  // Add the new route for ElevenLabs configuration
+  {
+    path: "/elevenlabs-config",
+    element: <ElevenLabsConfig />,
+    requireAuth: true,
+  },
+  {
+    path: "/organization-settings",
+    element: <OrganizationSettings />,
+    requireAuth: true,
+  },
+  {
+    path: "/org",
+    element: <OrganizationLanding />,
+    requireAuth: true,
+  },
+  {
+    path: "/auth",
+    element: <AuthPage />,
+    requireAuth: false,
+  },
+  {
+    path: "/profile",
+    element: <UserProfile />,
+    requireAuth: true,
+  },
+  {
+    path: "/users",
+    element: <UsersManagement />,
+    requireAuth: true,
+    requireAdmin: true,
   },
   {
     path: "*",
-    element: <NotFound />
-  }
+    element: <NotFound />,
+    requireAuth: false,
+  },
 ];

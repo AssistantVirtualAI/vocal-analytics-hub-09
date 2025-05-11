@@ -31,9 +31,24 @@ export const useOrganizationUsersLoading = () => {
       
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
-          // Use type guard to check if profiles is null, undefined, or has error
-          if (!item.profiles || typeof item.profiles !== 'object' || 'error' in item.profiles) {
-            // If profiles is not valid, use empty values
+          // First check if profiles exists at all before trying to check properties on it
+          if (!item.profiles) {
+            // If profiles is null or undefined, use empty values
+            return {
+              id: item.user_id,
+              email: '',
+              displayName: '',
+              avatarUrl: '',
+              role: item.is_org_admin ? 'admin' : 'user',
+              createdAt: new Date().toISOString(),
+              isPending: false,
+              isOrgAdmin: !!item.is_org_admin
+            };
+          }
+          
+          // Then check if it's the right type of object
+          if (typeof item.profiles !== 'object' || 'error' in item.profiles) {
+            // If it's not a valid object or has an error property, use empty values
             return {
               id: item.user_id,
               email: '',

@@ -168,6 +168,64 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
 }
 
 /**
+ * Fetch dashboard settings from ElevenLabs API
+ * This endpoint provides information about available agents and their settings
+ * 
+ * @param apiKey - ElevenLabs API key
+ * @returns Dashboard settings data
+ */
+export async function fetchElevenLabsDashboardSettings(apiKey: string) {
+  console.log("Fetching ElevenLabs dashboard settings");
+  
+  try {
+    const url = `${ELEVENLABS_API_BASE_URL}/convai/dashboard-settings`;
+    console.log(`Calling ElevenLabs API: ${url}`);
+    
+    const response = await fetchWithRetry(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "xi-api-key": apiKey,
+      }
+    }, 3);
+
+    if (!response.ok) {
+      const errorStatus = response.status;
+      let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+      } catch (parseError) {
+        console.error("Failed to parse error response from dashboard-settings", parseError);
+      }
+      handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching dashboard settings");
+    }
+
+    const dashboardSettings = await response.json();
+    console.log("Successfully retrieved dashboard settings");
+    
+    // Extract list of agent IDs for easier access
+    const agentIds = dashboardSettings.agents?.map((agent: any) => agent.agent_id) || [];
+    console.log(`Available agents: ${agentIds.join(', ')}`);
+    
+    return {
+      ...dashboardSettings,
+      agentIds
+    };
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+    console.error(`Network error fetching dashboard settings from ElevenLabs: ${error.message || error}`);
+    throw createErrorResponse(
+      `Network error fetching dashboard settings from ElevenLabs: ${error.message || error}`,
+      500,
+      ErrorCode.ELEVENLABS_API_ERROR
+    );
+  }
+}
+
+/**
  * Fetch history items from ElevenLabs API with pagination.
  * This function is kept for compatibility with existing code, but new code should
  * consider using the conversation endpoints if they fit the use case.

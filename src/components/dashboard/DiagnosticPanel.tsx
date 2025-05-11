@@ -1,275 +1,253 @@
 
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertCircle, Check, RefreshCw, Clock } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { format, formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { SyncElevenLabsHistoryButton } from './SyncElevenLabsHistoryButton';
+import { SyncCallsButton } from './SyncCallsButton';
+import { AGENT_ID } from '@/config/agent';
+import { Badge } from '@/components/ui/badge';
+import { Check, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export function DiagnosticPanel() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiStatus, setApiStatus] = useState<any>(null);
-  const [dbStatus, setDbStatus] = useState<any>(null);
-  const [systemStatus, setSystemStatus] = useState<any>(null);
-  const [syncStatus, setSyncStatus] = useState<any>(null);
-  const { toast } = useToast();
+  const [isRunning, setIsRunning] = useState(false);
+  const [results, setResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('api');
   
   const runDiagnostic = async () => {
-    setIsLoading(true);
-    try {
-      // Run comprehensive system diagnostic
-      const { data: systemResult, error: systemError } = await supabase.functions.invoke(
-        'system-diagnostic',
-        {}
-      );
-      
-      if (systemError) {
-        console.error("System diagnostic error:", systemError);
-        setSystemStatus({ error: systemError.message });
-      } else {
-        setSystemStatus(systemResult);
-        
-        // Extract API status from system diagnostic
-        setApiStatus({
-          status: systemResult.api.elevenlabsConnected ? "OK" : "ERROR",
-          subscriptionTier: systemResult.api.userInfo?.tier,
-          error: systemResult.api.error
-        });
-        
-        // Extract DB status from system diagnostic
-        setDbStatus({
-          callCount: systemResult.database.callsCount || 0,
-          agents: systemResult.agents?.length || 0,
-          success: systemResult.database.callsTableExists !== false,
-          error: systemResult.database.countError || systemResult.database.tableCheckError
-        });
-      }
-
-      // Fetch sync status from database
-      const { data: latestSync, error: syncError } = await supabase
-        .from('sync_status')
-        .select('*')
-        .eq('provider', 'elevenlabs')
-        .maybeSingle();
-
-      if (syncError) {
-        console.error("Sync status fetch error:", syncError);
-      } else {
-        setSyncStatus(latestSync);
-      }
-    } catch (error) {
-      console.error("Diagnostic error:", error);
-      setApiStatus({ status: "ERROR", error: "Failed to run API diagnostic" });
-      setDbStatus({ success: false, error: "Failed to run database diagnostic" });
-      setSystemStatus({ error: "Failed to run system diagnostic" });
-    } finally {
-      setIsLoading(false);
+    if (!AGENT_ID) {
+      console.error("No agent ID configured");
+      return;
     }
-  };
-  
-  useEffect(() => {
-    runDiagnostic();
-  }, []);
-  
-  const handleSyncElevenLabs = async () => {
-    setIsLoading(true);
+    
+    setIsRunning(true);
+    
     try {
-      // Force synchronization with default agent ID
       const { data, error } = await supabase.functions.invoke(
-        'sync-elevenlabs-conversations', 
-        { 
-          body: { 
-            agentId: "QNdB45Jpgh06Hr67TzFO", // Default agent ID from code
-            usePagination: true 
-          }
+        'elevenlabs-diagnostic', 
+        {
+          body: { agentId: AGENT_ID }
         }
       );
       
       if (error) {
-        toast({
-          title: "Erreur de synchronisation",
-          description: error.message || "Une erreur s'est produite lors de la synchronisation",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Synchronisation lancée",
-          description: data?.success 
-            ? `${data.summary.success} conversations importées sur ${data.summary.total}`
-            : "Vérifiez les journaux pour plus de détails"
-        });
+        console.error("Diagnostic error:", error);
+        return;
       }
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur s'est produite lors de la synchronisation",
-        variant: "destructive"
-      });
+      
+      console.log("Diagnostic results:", data);
+      setResults(data?.results || null);
+      
+    } catch (error) {
+      console.error("Error running diagnostic:", error);
     } finally {
-      setIsLoading(false);
-      // Refresh diagnostic
-      setTimeout(runDiagnostic, 2000);
+      setIsRunning(false);
     }
   };
+
+  useEffect(() => {
+    runDiagnostic();
+  }, []);
   
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Jamais";
-    
-    try {
-      const date = new Date(dateString);
-      return format(date, "dd MMM yyyy à HH:mm", { locale: fr });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const StatusBadge = ({ success }: { success: boolean }) => (
+    <Badge variant={success ? "outline" : "destructive"} className="ml-2">
+      {success ? (
+        <Check className="h-3 w-3 text-green-500" />
+      ) : (
+        <X className="h-3 w-3" />
+      )}
+    </Badge>
+  );
   
-  const formatTimeAgo = (dateString: string | null) => {
-    if (!dateString) return "Jamais";
-    
-    try {
-      const date = new Date(dateString);
-      return formatDistanceToNow(date, { addSuffix: true, locale: fr });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  if (isRunning) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Diagnostic ElevenLabs</CardTitle>
+          <CardDescription>Vérification de la configuration et de l'API</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-2 pb-4 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2 py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Diagnostic en cours...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (!results) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Diagnostic ElevenLabs</CardTitle>
+          <CardDescription>Vérification de la configuration et de l'API</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-2">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erreur</AlertTitle>
+            <AlertDescription>
+              Impossible d'exécuter le diagnostic. Vérifiez la console pour plus de détails.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={runDiagnostic}>Réessayer</Button>
+        </CardFooter>
+      </Card>
+    );
+  }
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Système de Diagnostic</CardTitle>
-        <CardDescription>Vérifiez et réparez les problèmes de connexion</CardDescription>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-lg">Diagnostic ElevenLabs</CardTitle>
+            <CardDescription>Vérification de la configuration et de l'API</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={runDiagnostic} disabled={isRunning}>
+            {isRunning ? 'Diagnostic...' : 'Actualiser'}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Connexion API ElevenLabs:</h3>
-              {apiStatus ? (
-                apiStatus.status === "OK" ? 
-                  <span className="flex items-center text-green-500"><Check className="h-4 w-4 mr-1" /> OK</span> : 
-                  <span className="flex items-center text-red-500"><AlertCircle className="h-4 w-4 mr-1" /> Erreur</span>
-              ) : <span className="text-gray-400">Vérification...</span>}
-            </div>
-            {apiStatus?.subscriptionTier && (
-              <p className="text-sm text-gray-600">Abonnement: {apiStatus.subscriptionTier}</p>
-            )}
-            {apiStatus?.error && (
-              <p className="text-sm text-red-500 mt-1">{apiStatus.error}</p>
-            )}
-          </div>
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Base de données:</h3>
-              {dbStatus ? 
-                <span className={dbStatus.success ? "flex items-center text-green-500" : "flex items-center text-red-500"}>
-                  {dbStatus.success ? <Check className="h-4 w-4 mr-1" /> : <AlertCircle className="h-4 w-4 mr-1" />}
-                  {dbStatus.callCount} appels
-                </span> : 
-                <span className="text-gray-400">Vérification...</span>
-              }
-            </div>
-            {dbStatus?.agents !== undefined && (
-              <p className="text-sm text-gray-600">{dbStatus.agents} agents configurés</p>
-            )}
-            {dbStatus?.error && (
-              <p className="text-sm text-red-500 mt-1">{dbStatus.error}</p>
-            )}
-          </div>
-        </div>
-        
-        {/* Synchronization Status Panel */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="font-medium mb-2">Statut de la synchronisation automatique:</h3>
-          <div className="space-y-2">
-            {syncStatus ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Statut:</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    syncStatus.status === 'success' ? 'bg-green-100 text-green-800' :
-                    syncStatus.status === 'error' ? 'bg-red-100 text-red-800' :
-                    syncStatus.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                    syncStatus.status === 'partial_success' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {syncStatus.status === 'success' ? 'Réussite' :
-                     syncStatus.status === 'error' ? 'Erreur' :
-                     syncStatus.status === 'in_progress' ? 'En cours' :
-                     syncStatus.status === 'partial_success' ? 'Succès partiel' :
-                     syncStatus.status || 'Inconnu'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Dernière synchronisation:</span>
-                  <span className="text-sm font-medium flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {formatTimeAgo(syncStatus.last_sync_date)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Date précise:</span>
-                  <span className="text-sm">{formatDate(syncStatus.last_sync_date)}</span>
-                </div>
-                {syncStatus.error_message && (
-                  <div className="mt-2">
-                    <span className="text-sm text-red-500">Erreur: {syncStatus.error_message}</span>
-                  </div>
-                )}
-                <div className="text-xs text-gray-500 mt-1">
-                  La synchronisation automatique est programmée pour s'exécuter chaque heure.
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Aucune information de synchronisation disponible.</p>
-            )}
-          </div>
-        </div>
-        
-        {systemStatus && systemStatus.environment && (
-          <div className="p-4 border rounded-lg">
-            <h3 className="font-medium mb-2">Variables d'environnement:</h3>
-            <div className="text-sm space-y-1">
-              <p>
-                Clé ElevenLabs: {' '}
-                {systemStatus.environment.elevenLabsApiKeyConfigured ? 
-                  <span className="text-green-500">Configurée ({systemStatus.environment.activeElevenLabsKeyName})</span> : 
-                  <span className="text-red-500">Non configurée</span>
-                }
-              </p>
-              <p>
-                Supabase URL: {' '}
-                {systemStatus.environment.supabaseUrlConfigured ? 
-                  <span className="text-green-500">Configurée</span> : 
-                  <span className="text-red-500">Non configurée</span>
-                }
-              </p>
-            </div>
-          </div>
-        )}
-        
-        <div className="space-y-2 pt-2">
-          <Button 
-            onClick={() => runDiagnostic()} 
-            disabled={isLoading}
-            className="w-full"
-          >
-            {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Exécuter le diagnostic
-          </Button>
+      <CardContent className="pt-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="api">Connexion API</TabsTrigger>
+            <TabsTrigger value="agent">Agent</TabsTrigger>
+            <TabsTrigger value="data">Données</TabsTrigger>
+          </TabsList>
           
-          <Button 
-            onClick={handleSyncElevenLabs}
-            variant="outline"
-            className="w-full"
-            disabled={isLoading}
-          >
-            Forcer la synchronisation avec ElevenLabs
-          </Button>
-        </div>
+          <TabsContent value="api" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Connexion à l'API ElevenLabs</span>
+                <StatusBadge success={results.apiConnection.success} />
+              </div>
+              
+              {results.apiConnection.success ? (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>Utilisateur: {results.apiConnection.data?.username}</p>
+                  <p>Abonnement: {results.apiConnection.data?.subscription}</p>
+                </div>
+              ) : (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTitle>Erreur de connexion</AlertTitle>
+                  <AlertDescription>
+                    {results.apiConnection.error || "Impossible de se connecter à l'API ElevenLabs"}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="flex justify-between items-center mt-4">
+                <span className="font-medium">API Conversations</span>
+                <StatusBadge success={results.conversationsApi.success} />
+              </div>
+              
+              {results.conversationsApi.success ? (
+                <div className="text-sm text-muted-foreground">
+                  <p>{results.conversationsApi.count} conversations trouvées</p>
+                </div>
+              ) : (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTitle>Erreur API Conversations</AlertTitle>
+                  <AlertDescription>
+                    {results.conversationsApi.error || "Erreur lors de l'appel à l'API Conversations"}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="flex justify-between items-center mt-4">
+                <span className="font-medium">API Dashboard Settings</span>
+                <StatusBadge success={results.dashboardSettings.success} />
+              </div>
+              
+              {!results.dashboardSettings.success && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertTitle>Erreur Dashboard Settings</AlertTitle>
+                  <AlertDescription>
+                    {results.dashboardSettings.error || "Erreur lors de l'appel à l'API Dashboard Settings"}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="agent" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Configuration de l'agent</span>
+              </div>
+              
+              <div className="text-sm">
+                <p className="flex justify-between">
+                  <span className="text-muted-foreground">ID fourni:</span>
+                  <code className="bg-muted px-1 rounded text-xs">{results.agentDetails.providedId}</code>
+                </p>
+                <p className="flex justify-between mt-1">
+                  <span className="text-muted-foreground">ID résolu:</span>
+                  <code className="bg-muted px-1 rounded text-xs">{results.agentDetails.resolvedId || "Non résolu"}</code>
+                </p>
+                <p className="flex justify-between mt-1">
+                  <span className="text-muted-foreground">ID effectif:</span>
+                  <code className="bg-muted px-1 rounded text-xs">{results.agentDetails.effectiveId}</code>
+                </p>
+              </div>
+              
+              {!results.agentDetails.resolvedId && (
+                <Alert variant="warning" className="mt-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Attention</AlertTitle>
+                  <AlertDescription>
+                    L'agent n'a pas été trouvé dans la base de données. Si vous utilisez un ID externe pour la première fois, un nouvel agent sera créé automatiquement.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="data" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Base de données</span>
+                <StatusBadge success={results.database?.success || false} />
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                <p>{results.database?.callsFound || 0} appels trouvés pour cet agent</p>
+              </div>
+              
+              {results.database?.callsFound === 0 && (
+                <Alert className="mt-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Aucun appel trouvé</AlertTitle>
+                  <AlertDescription>
+                    Aucun appel n'est présent dans la base de données pour cet agent. Essayez de synchroniser les appels.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="mt-4 space-y-2">
+                <p className="font-medium">Actions de synchronisation</p>
+                <div className="flex space-x-2 mt-2">
+                  <SyncElevenLabsHistoryButton agentId={AGENT_ID} variant="secondary" />
+                  <SyncCallsButton agentId={AGENT_ID} variant="secondary" />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

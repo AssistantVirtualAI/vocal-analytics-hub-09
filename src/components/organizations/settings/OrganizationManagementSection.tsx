@@ -4,6 +4,8 @@ import { Organization } from '@/types/organization';
 import { AddOrganizationDialog } from '@/components/organizations/AddOrganizationDialog';
 import { EditOrganizationDialog } from '@/components/organizations/EditOrganizationDialog';
 import { OrganizationsList } from '@/components/organizations/OrganizationsList';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface OrganizationManagementSectionProps {
   organizations: Organization[];
@@ -13,6 +15,7 @@ interface OrganizationManagementSectionProps {
   onUpdateOrganization: (organization: Organization) => Promise<void>;
   onDeleteOrganization: (orgId: string) => Promise<void>;
   onSelectOrganization: (orgId: string) => void;
+  error?: Error | null;
 }
 
 export const OrganizationManagementSection = ({
@@ -22,7 +25,8 @@ export const OrganizationManagementSection = ({
   onAddOrganization,
   onUpdateOrganization,
   onDeleteOrganization,
-  onSelectOrganization
+  onSelectOrganization,
+  error
 }: OrganizationManagementSectionProps) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [orgToEdit, setOrgToEdit] = useState<Organization | null>(null);
@@ -50,6 +54,17 @@ export const OrganizationManagementSection = ({
         )}
       </div>
 
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erreur</AlertTitle>
+          <AlertDescription>
+            Une erreur est survenue lors de la récupération des organisations. 
+            Détails: {error.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {organizations && organizations.length > 0 ? (
         <OrganizationsList 
           organizations={organizations}
@@ -58,9 +73,12 @@ export const OrganizationManagementSection = ({
           onDelete={onDeleteOrganization}
           onSelect={onSelectOrganization}
         />
-      ) : (
+      ) : !error && (
         <div className="py-8 text-center text-gray-500">
-          Aucune organisation disponible.
+          {isAdmin ? 
+            "Aucune organisation disponible. Ajoutez une organisation pour commencer." :
+            "Vous n'appartenez à aucune organisation. Contactez un administrateur pour être ajouté à une organisation."
+          }
         </div>
       )}
 

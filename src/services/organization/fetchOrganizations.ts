@@ -28,6 +28,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
         query = query.in('id', orgIds);
       } else {
         console.log('User does not belong to any organizations');
+        // Returning empty array immediately to avoid unnecessary query
         return [];
       }
     }
@@ -42,6 +43,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     
     if (!data || data.length === 0) {
       console.log("No organizations found");
+      // Don't show an error toast for simply having no organizations
       return [];
     }
     

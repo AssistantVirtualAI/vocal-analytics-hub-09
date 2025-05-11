@@ -11,16 +11,25 @@ import { OrganizationForm } from '@/components/organizations/settings/Organizati
 import { OrganizationManagementSection } from '@/components/organizations/settings/OrganizationManagementSection';
 import { OrganizationUserManagementSection } from '@/components/organizations/settings/OrganizationUserManagementSection';
 import { AIHeader } from '@/components/dashboard/AIHeader';
+import { DataWrapper } from '@/components/dashboard/DataWrapper';
+import { Loader2 } from 'lucide-react';
 
 export function OrganizationSettings() {
   const { 
     currentOrganization, 
+    organizations,
+    isLoading,
+    error,
+    loadOrganizations,
     updateOrganization,
     userHasAdminAccessToCurrentOrg,
     users,
     addUser,
     removeUser,
-    updateUser
+    updateUser,
+    deleteOrganization,
+    createOrganization,
+    changeOrganization
   } = useOrganization();
 
   const [name, setName] = useState(currentOrganization?.name || '');
@@ -53,20 +62,33 @@ export function OrganizationSettings() {
   return (
     <div className="space-y-6">
       <AIHeader 
-        title="Organization Settings"
-        description="Manage your organization's settings and members"
+        title="Paramètres de l'organisation"
+        description="Gérez les paramètres et les membres de votre organisation"
       />
+
+      <DataWrapper isLoading={isLoading} error={error} refetch={loadOrganizations}>
+        <OrganizationManagementSection
+          organizations={organizations}
+          currentOrganization={currentOrganization}
+          isAdmin={userHasAdminAccessToCurrentOrg}
+          onAddOrganization={createOrganization}
+          onUpdateOrganization={updateOrganization}
+          onDeleteOrganization={deleteOrganization}
+          onSelectOrganization={changeOrganization}
+          error={error}
+        />
+      </DataWrapper>
 
       {currentOrganization && (
         <>
           <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-blue-100/50 dark:border-blue-900/30">
             <CardHeader>
-              <CardTitle>Organization Details</CardTitle>
+              <CardTitle>Détails de l'organisation</CardTitle>
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">Nom</Label>
                   <Input 
                     id="name" 
                     value={name} 
@@ -86,7 +108,7 @@ export function OrganizationSettings() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="agent-id">ElevenLabs Agent ID</Label>
+                  <Label htmlFor="agent-id">ID d'agent ElevenLabs</Label>
                   <div className="flex gap-2">
                     <Input 
                       id="agent-id" 
@@ -104,7 +126,7 @@ export function OrganizationSettings() {
                     type="submit" 
                     className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
-                    Save Changes
+                    Enregistrer les modifications
                   </Button>
                 </CardFooter>
               )}

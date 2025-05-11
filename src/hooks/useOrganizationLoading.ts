@@ -8,9 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const loadOrganizations = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       console.log("[useOrganizationLoading] Loading organizations for user:", userId, "isAdmin:", isAdmin);
       
@@ -25,11 +27,17 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
         orgs = await fetchUserOrganizations(userId);
         console.log('[useOrganizationLoading] Regular user - fetched user organizations:', orgs);
       }
+
+      if (orgs.length === 0) {
+        console.log('[useOrganizationLoading] No organizations found for user');
+        toast.info("Vous n'appartenez à aucune organisation. Contactez un administrateur pour être ajouté.");
+      }
           
       setOrganizations(orgs);
       return orgs;
     } catch (error: any) {
       console.error('[useOrganizationLoading] Error fetching organizations:', error);
+      setError(error);
       toast.error("Erreur lors de la récupération des organisations: " + error.message);
       return [];
     } finally {
@@ -44,6 +52,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
       loadOrganizations();
     } else {
       console.log("[useOrganizationLoading] No user ID available, skipping initial load");
+      setIsLoading(false);
     }
   }, [userId, loadOrganizations]);
 
@@ -51,6 +60,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     organizations,
     setOrganizations,
     isLoading,
+    error,
     loadOrganizations
   };
 };

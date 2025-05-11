@@ -33,9 +33,9 @@ export const useOrganizationUsersLoading = () => {
         const formattedUsers: OrganizationUser[] = data.map(item => {
           // First check if profiles is actually an error object, null, or undefined
           const isProfilesError = item.profiles === null || 
-                                 typeof item.profiles === 'object' && 
+                                 (typeof item.profiles === 'object' && 
                                  item.profiles !== null && 
-                                 'error' in item.profiles;
+                                 'error' in item.profiles);
           
           // If it's an error or null/undefined, use empty values
           if (isProfilesError || item.profiles === null || item.profiles === undefined) {
@@ -52,8 +52,13 @@ export const useOrganizationUsersLoading = () => {
           }
           
           // Use type assertion after proper checks to make TypeScript happy
-          // We've already verified profiles is not null or an error
-          const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null };
+          // We need to cast as unknown first to avoid TS error
+          const profile = (item.profiles as unknown) as { 
+            id: string; 
+            email: string; 
+            display_name: string | null; 
+            avatar_url: string | null;
+          };
           
           return {
             id: item.user_id,

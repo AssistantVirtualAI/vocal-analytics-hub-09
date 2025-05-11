@@ -49,6 +49,7 @@ export function useSyncElevenLabsHistory() {
       
       if (error) {
         console.error("Supabase function error:", error);
+        toast.error(`Erreur de synchronisation: ${error.message || "Une erreur s'est produite"}`);
         throw error;
       }
       

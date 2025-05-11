@@ -11,8 +11,54 @@ import { fetchElevenLabsHistory } from "../_shared/elevenlabs/history.ts";
  */
 export async function handleHistorySyncRequest(req: Request): Promise<Response> {
   try {
+    // Valider les variables d'environnement avant tout
+    console.log("Vérification des variables d'environnement essentielles...");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
+    
+    if (!supabaseUrl) {
+      console.error("SUPABASE_URL n'est pas défini");
+      return createErrorResponse({
+        status: 500,
+        message: "Configuration incorrecte: SUPABASE_URL manquant",
+        code: "MISSING_ENV_VAR"
+      });
+    }
+    
+    if (!supabaseServiceKey) {
+      console.error("SUPABASE_SERVICE_ROLE_KEY n'est pas défini");
+      return createErrorResponse({
+        status: 500,
+        message: "Configuration incorrecte: SUPABASE_SERVICE_ROLE_KEY manquant",
+        code: "MISSING_ENV_VAR"
+      });
+    }
+    
+    if (!elevenlabsApiKey) {
+      console.error("ELEVENLABS_API_KEY et ELEVEN_LABS_API_KEY ne sont pas définis");
+      return createErrorResponse({
+        status: 500,
+        message: "Configuration incorrecte: Clé API ElevenLabs manquante",
+        code: "MISSING_ENV_VAR"
+      });
+    }
+    
     // Parse request body
-    const requestData = await req.json() as SyncRequest;
+    console.log("Analyse de la requête...");
+    let requestData: SyncRequest;
+    try {
+      requestData = await req.json() as SyncRequest;
+      console.log("Données de requête reçues:", JSON.stringify(requestData));
+    } catch (error) {
+      console.error("Erreur lors de l'analyse du JSON de la requête:", error);
+      return createErrorResponse({
+        status: 400,
+        message: "Format de requête invalide",
+        code: "INVALID_REQUEST"
+      });
+    }
+    
     const { agentId } = requestData;
     
     if (!agentId) {
@@ -26,11 +72,10 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
 
     try {
       console.log("Getting environment variables...");
-      const { elevenlabsApiKey } = getElevenLabsEnvVars();
-      const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
       
-      console.log(`Environment variables obtained. Using API key: ${elevenlabsApiKey ? "***" + elevenlabsApiKey.substring(elevenlabsApiKey.length - 4) : "undefined"}`);
-      console.log(`Supabase URL: ${supabaseUrl ? supabaseUrl : "undefined"}`);
+      // Utiliser directement les variables d'environnement validées
+      console.log(`Environnement: API key: ${elevenlabsApiKey ? "***" + elevenlabsApiKey.substring(elevenlabsApiKey.length - 4) : "undefined"}`);
+      console.log(`Supabase URL: ${supabaseUrl || "undefined"}`);
       console.log(`Supabase service key present: ${supabaseServiceKey ? "Yes" : "No"}`);
       
       // Récupérer l'historique depuis ElevenLabs

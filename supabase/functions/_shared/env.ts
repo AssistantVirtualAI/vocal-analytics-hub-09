@@ -33,10 +33,25 @@ export function getRequiredEnvVars(variables: string[]): Record<string, string> 
  * @returns Object containing Supabase URL and service role key
  */
 export function getSupabaseEnvVars(): { supabaseUrl: string; supabaseServiceKey: string } {
-  return getRequiredEnvVars(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) as {
-    supabaseUrl: string;
-    supabaseServiceKey: string;
-  };
+  try {
+    // First, try direct access
+    const url = Deno.env.get('SUPABASE_URL');
+    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (url && key) {
+      console.log("Successfully retrieved Supabase environment variables directly");
+      return { supabaseUrl: url, supabaseServiceKey: key };
+    }
+    
+    console.log("Direct access to Supabase variables failed, trying through getRequiredEnvVars");
+    return getRequiredEnvVars(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) as {
+      supabaseUrl: string;
+      supabaseServiceKey: string;
+    };
+  } catch (error) {
+    console.error("Failed to get Supabase environment variables:", error);
+    throw error;
+  }
 }
 
 /**
@@ -61,6 +76,7 @@ export function getElevenLabsEnvVars(): { elevenlabsApiKey: string } {
     }
     
     // If we get here, neither key exists
+    console.error("Missing ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY environment variables");
     throw new Error("Missing ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY environment variables");
   } catch (error) {
     console.error("Error getting ElevenLabs API key:", error);

@@ -13,6 +13,7 @@ import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { CallsChart } from "@/components/dashboard/CallsChart";
 import { CallsList } from "@/components/dashboard/CallsList";
 import { CustomerStatsList } from "@/components/dashboard/CustomerStatsList";
+import { ElevenLabsDiagnosticsButton } from "@/components/dashboard/ElevenLabsDiagnosticsButton";
 
 // Import our new specialized hooks
 import { 
@@ -111,6 +112,7 @@ export default function Index() {
             Tableau de bord {currentOrg ? `- ${currentOrg.name}` : ""}
           </h1>
           <div className="flex items-center space-x-2">
+            <ElevenLabsDiagnosticsButton variant="outline" size="sm" className="mr-2" />
             <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
             <Button
               variant="outline"

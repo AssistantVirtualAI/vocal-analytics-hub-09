@@ -15,6 +15,9 @@ export async function fetchWithRetry(
       console.log(`Fetching ${url} (attempt ${retries + 1}/${maxRetries})`);
       const response = await fetch(url, options);
       
+      // Log response status and headers for debugging
+      console.log(`Response status: ${response.status}, URL: ${url}`);
+      
       // If we get a 429 (too many requests), wait and retry
       if (response.status === 429) {
         // Get recommended wait time or use default
@@ -25,8 +28,15 @@ export async function fetchWithRetry(
         continue;
       }
       
+      // Log other non-successful responses
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error(`Error response (${response.status}): ${responseText}`);
+      }
+      
       return response;
     } catch (error) {
+      console.error(`Network error (attempt ${retries + 1}/${maxRetries}):`, error);
       retries++;
       
       if (retries >= maxRetries) {

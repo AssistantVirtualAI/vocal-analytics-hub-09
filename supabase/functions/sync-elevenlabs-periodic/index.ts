@@ -98,9 +98,55 @@ async function fetchElevenLabsCalls(
     }
     
     const data = await response.json();
+    
+    // Validate the response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response from ElevenLabs API: data is not an object');
+    }
+    
+    if (!Array.isArray(data.conversations)) {
+      console.warn('Unexpected response format from ElevenLabs API:', data);
+      return [];
+    }
+    
     return data.conversations || [];
   } catch (error) {
     console.error(`Error fetching ElevenLabs calls: ${error.message}`);
+    throw error;
+  }
+}
+
+// Helper function to ensure customer exists, returns customer_id
+async function ensureCustomerExists(supabase: any, customerName: string): Promise<string> {
+  try {
+    // First, try to find existing customer by name
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('name', customerName)
+      .maybeSingle();
+    
+    if (existingCustomer?.id) {
+      return existingCustomer.id;
+    }
+    
+    // Create a new customer if not found
+    const { data: newCustomer, error } = await supabase
+      .from('customers')
+      .insert({
+        name: customerName
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error(`Error creating customer: ${error.message}`);
+      throw error;
+    }
+    
+    return newCustomer.id;
+  } catch (error) {
+    console.error(`Error in ensureCustomerExists: ${error.message}`);
     throw error;
   }
 }
@@ -115,18 +161,38 @@ serve(async (req: Request) => {
   console.log("Starting ElevenLabs periodic sync function");
   
   try {
+    // Parse request body for any options
+    let options = {};
+    try {
+      const requestText = await req.text();
+      if (requestText) {
+        options = JSON.parse(requestText);
+        if (options && (options as any).debug) {
+          console.log("Debug mode enabled, verbose logging will be used");
+        }
+      }
+    } catch (e) {
+      console.log("No request body provided or invalid JSON");
+    }
+    
     // Get environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
     
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing Supabase configuration");
+    if (!supabaseUrl) {
+      throw new Error("Missing SUPABASE_URL environment variable");
+    }
+    
+    if (!supabaseServiceKey) {
+      throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY environment variable");
     }
     
     if (!elevenLabsApiKey) {
-      throw new Error("Missing ElevenLabs API key");
+      throw new Error("Missing ElevenLabs API key (ELEVENLABS_API_KEY or ELEVEN_LABS_API_KEY)");
     }
+    
+    console.log("Environment variables validated successfully");
     
     // Create Supabase client with service role key for admin access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -206,10 +272,21 @@ serve(async (req: Request) => {
         // Process each call
         for (const call of calls) {
           try {
+            if (!call.id) {
+              console.warn("Call missing ID, generating random UUID");
+              call.id = crypto.randomUUID();
+            }
+            
+            // Ensure caller has a name
+            const callerName = call.caller_name || 'Unknown Caller';
+            
+            // Get or create customer
+            const customerId = await ensureCustomerExists(supabase, callerName);
+            
             // Transform ElevenLabs call to match our schema
             const transformedCall = {
               id: call.id,
-              customer_id: await ensureCustomerExists(supabase, call.caller_name || 'Unknown Caller'),
+              customer_id: customerId,
               date: formatDate(call.start_time_unix || Date.now()),
               duration: calculateDuration(call.start_time_unix, call.end_time_unix),
               agent_id: agent.id,
@@ -327,33 +404,3 @@ serve(async (req: Request) => {
     );
   }
 });
-
-// Helper function to ensure customer exists, returns customer_id
-async function ensureCustomerExists(supabase: any, customerName: string): Promise<string> {
-  // First, try to find existing customer by name
-  const { data: existingCustomer } = await supabase
-    .from('customers')
-    .select('id')
-    .eq('name', customerName)
-    .maybeSingle();
-  
-  if (existingCustomer?.id) {
-    return existingCustomer.id;
-  }
-  
-  // Create a new customer if not found
-  const { data: newCustomer, error } = await supabase
-    .from('customers')
-    .insert({
-      name: customerName
-    })
-    .select('id')
-    .single();
-  
-  if (error) {
-    console.error(`Error creating customer: ${error.message}`);
-    throw error;
-  }
-  
-  return newCustomer.id;
-}

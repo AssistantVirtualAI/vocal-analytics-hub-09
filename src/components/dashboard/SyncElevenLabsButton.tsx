@@ -22,7 +22,15 @@ export function SyncElevenLabsButton({
     setIsSyncing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('sync-elevenlabs-periodic');
+      console.log("Starting ElevenLabs sync...");
+      
+      const { data, error } = await supabase.functions.invoke('sync-elevenlabs-periodic', {
+        body: { 
+          debug: true // Enable verbose logging in the edge function
+        }
+      });
+      
+      console.log("Sync response:", { data, error });
       
       if (error) {
         console.error("Sync error:", error);

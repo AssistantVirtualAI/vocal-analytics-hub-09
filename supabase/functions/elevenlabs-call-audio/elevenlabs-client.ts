@@ -1,4 +1,5 @@
 
+import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
 import { ErrorCode } from "./types.ts";
 import { createErrorResponse } from "./utils.ts";
 
@@ -14,13 +15,13 @@ export async function fetchElevenLabsHistoryData(historyItemId: string, apiKey: 
   console.log(`Fetching history item from ElevenLabs API for ID ${historyItemId}`);
 
   try {
-    const response = await fetch(`https://api.elevenlabs.io/v1/history/${historyItemId}`, {
+    const response = await fetchWithRetry(`https://api.elevenlabs.io/v1/history/${historyItemId}`, {
       method: "GET",
       headers: {
         Accept: "application/json",
         "xi-api-key": apiKey,
       },
-    });
+    }, 3); // Maximum 3 retries
 
     if (!response.ok) {
       let errorData: any = {};
@@ -106,12 +107,12 @@ export async function fetchElevenLabsHistoryItemAudio(historyItemId: string, api
   console.log(`Fetching audio for history item ID ${historyItemId} from ElevenLabs API`);
 
   try {
-    const response = await fetch(`https://api.elevenlabs.io/v1/history/${historyItemId}/audio`, {
+    const response = await fetchWithRetry(`https://api.elevenlabs.io/v1/history/${historyItemId}/audio`, {
       method: "GET",
       headers: {
         "xi-api-key": apiKey,
       },
-    });
+    }, 3); // Maximum 3 retries
 
     if (!response.ok) {
       let errorDetail = `ElevenLabs API returned status ${response.status} for audio.`;
@@ -161,6 +162,3 @@ export async function fetchElevenLabsHistoryItemAudio(historyItemId: string, api
   }
 }
 
-// The previous `fetchElevenLabsStatistics` function is no longer needed as statistics
-// (like character counts) are part of the main history item response from `fetchElevenLabsHistoryData`.
-// The `statsCalculator.ts` in the `get-stats` function can be adapted to use these fields if necessary.

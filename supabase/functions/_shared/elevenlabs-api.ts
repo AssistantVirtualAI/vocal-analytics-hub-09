@@ -1,4 +1,6 @@
+
 // Shared module for interacting with the ElevenLabs API
+import { fetchWithRetry } from "./fetch-with-retry.ts";
 
 const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
 
@@ -70,13 +72,14 @@ export async function fetchElevenLabsConversations(apiKey: string, options: {
     const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
     console.log(`Calling ElevenLabs API: ${url}`);
     
-    const response = await fetch(url, {
+    // Using retry mechanism for fetch
+    const response = await fetchWithRetry(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "xi-api-key": apiKey,
       }
-    });
+    }, 3); // Maximum 3 retries
 
     if (!response.ok) {
       // Handle error response without consuming body twice
@@ -133,28 +136,50 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
   let cursor = null;
   let hasMore = true;
   let pageCount = 0;
+  let retries = 0;
+  const maxRetries = 3;
   const maxPages = options.maxPages || 10; // Default to 10 pages max to prevent endless loops
   
   while (hasMore && pageCount < maxPages) {
     pageCount++;
     console.log(`Fetching page ${pageCount} with cursor: ${cursor || 'initial'}`);
     
-    const result = await fetchElevenLabsConversations(apiKey, {
-      ...options,
-      cursor
-    });
-    
-    if (result.conversations && Array.isArray(result.conversations)) {
-      allConversations = [...allConversations, ...result.conversations];
-      console.log(`Added ${result.conversations.length} conversations, total: ${allConversations.length}`);
-    }
-    
-    // Check if there's another page
-    cursor = result.cursor;
-    hasMore = cursor !== null && cursor !== undefined && cursor !== '';
-    
-    if (!hasMore) {
-      console.log("No more pages to fetch");
+    try {
+      const result = await fetchElevenLabsConversations(apiKey, {
+        ...options,
+        cursor
+      });
+      
+      // Reset retries on successful call
+      retries = 0;
+      
+      if (result.conversations && Array.isArray(result.conversations)) {
+        allConversations = [...allConversations, ...result.conversations];
+        console.log(`Added ${result.conversations.length} conversations, total: ${allConversations.length}`);
+      }
+      
+      // Check if there's another page
+      cursor = result.cursor;
+      hasMore = cursor !== null && cursor !== undefined && cursor !== '';
+      
+      if (!hasMore) {
+        console.log("No more pages to fetch");
+      }
+    } catch (error) {
+      retries++;
+      
+      if (retries >= maxRetries) {
+        console.error(`Failed to fetch page ${pageCount} after ${maxRetries} retries, moving on`);
+        retries = 0;
+        // Skip to next page if we can, or break if no cursor
+        if (!cursor) break;
+      } else {
+        // Exponential backoff between attempts
+        const waitTime = 1000 * Math.pow(2, retries);
+        console.log(`Page fetch failed, retrying in ${waitTime/1000}s (${retries}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue; // Retry same page
+      }
     }
   }
   
@@ -174,13 +199,14 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
 export function fetchElevenLabsConversation(conversationId: string, apiKey: string) {
   console.log(`Fetching conversation with ID ${conversationId} from ElevenLabs API`);
   
-  return fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}`, {
+  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}`, {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }).then(async response => {
+  }, 3) // 3 retries max
+  .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = `Error fetching conversation ${conversationId}`;
@@ -196,10 +222,12 @@ export function fetchElevenLabsConversation(conversationId: string, apiKey: stri
     }
     
     return response.json();
-  }).then(data => {
+  })
+  .then(data => {
     console.log(`Successfully retrieved conversation ${conversationId} from ElevenLabs`);
     return data;
-  }).catch(error => {
+  })
+  .catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -220,13 +248,14 @@ export function fetchElevenLabsConversation(conversationId: string, apiKey: stri
 export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
   console.log(`Fetching history for agent ID: ${agentId || 'all'}`);
   
-  return fetch(`${ELEVENLABS_API_BASE_URL}/history`, {
+  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/history`, {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }).then(async response => {
+  }, 3) // 3 retries max
+  .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = "Error fetching history items";
@@ -242,7 +271,8 @@ export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
     }
     
     return response.json();
-  }).then(data => {
+  })
+  .then(data => {
     console.log(`Received history data with ${data.history?.length || 0} items`);
     
     // Filter by agent ID if provided
@@ -258,7 +288,8 @@ export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
     console.log(`Found ${filteredItems.length} history items${agentId ? ` for agent ID: ${agentId}` : ''}`);
     
     return filteredItems;
-  }).catch(error => {
+  })
+  .catch(error => {
     console.error(`Error in fetchElevenLabsHistory:`, error);
     if (error instanceof Response) {
       throw error;
@@ -281,13 +312,14 @@ export function fetchElevenLabsHistory(apiKey: string, agentId?: string) {
 export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string) {
   console.log(`Fetching history item from ElevenLabs API for ID ${historyItemId}`);
 
-  return fetch(`${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`, {
+  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`, {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }).then(async response => {
+  }, 3) // 3 retries max
+  .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = `Error fetching history item ${historyItemId}`;
@@ -303,7 +335,8 @@ export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string
     }
     
     return response.json();
-  }).then(historyData => {
+  })
+  .then(historyData => {
     // Construct the direct URL to fetch the audio for this history item
     const audioUrl = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}/audio`;
 
@@ -311,7 +344,8 @@ export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string
       ...historyData,
       audio_url: audioUrl,
     };
-  }).catch(error => {
+  })
+  .catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -346,13 +380,14 @@ export function getElevenLabsConversationAudioUrl(conversationId: string, messag
 export function fetchElevenLabsConversationTranscript(conversationId: string, apiKey: string) {
   console.log(`Fetching transcript for conversation ID ${conversationId}`);
   
-  return fetch(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
+  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "xi-api-key": apiKey,
     }
-  }).then(async response => {
+  }, 3) // 3 retries max
+  .then(async response => {
     if (!response.ok) {
       const status = response.status;
       let errorMessage = `Error fetching transcript for conversation ${conversationId}`;
@@ -368,10 +403,12 @@ export function fetchElevenLabsConversationTranscript(conversationId: string, ap
     }
     
     return response.json();
-  }).then(data => {
+  })
+  .then(data => {
     console.log(`Successfully retrieved transcript for conversation ${conversationId}`);
     return data;
-  }).catch(error => {
+  })
+  .catch(error => {
     if (error instanceof Response) {
       throw error;
     }
@@ -418,3 +455,4 @@ function handleElevenLabsApiError(status: number, errorMessage: string, baseErro
       );
   }
 }
+

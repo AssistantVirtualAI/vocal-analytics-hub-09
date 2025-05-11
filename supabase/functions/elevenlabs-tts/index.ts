@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,7 +19,7 @@ serve(async (req) => {
     const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
     const defaultVoiceId = 'QNdB45Jpgh06Hr67TzFO'; // Using the provided agent ID as voice ID
 
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || defaultVoiceId}`,
       {
         method: 'POST',
@@ -35,7 +36,8 @@ serve(async (req) => {
             similarity_boost: 0.5,
           },
         }),
-      }
+      },
+      3 // Maximum 3 retries
     );
 
     if (!response.ok) {
@@ -53,6 +55,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Error in elevenlabs-tts function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
@@ -62,3 +65,4 @@ serve(async (req) => {
     );
   }
 });
+

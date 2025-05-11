@@ -84,24 +84,34 @@ export function useElevenLabsCalls({
         console.log(`Retrieved ${data.data.length} calls from ElevenLabs`);
         return data.data;
       } catch (error) {
+        // Implement retry logic for client-side errors
         console.error('Error fetching ElevenLabs calls:', error);
+        
+        // Show toast error but continue to return empty array to prevent page crash
         toast({
           title: 'Erreur',
-          description: 'Impossible de récupérer les appels depuis ElevenLabs',
+          description: 'Impossible de récupérer les appels depuis ElevenLabs. Nouvelle tentative en cours...',
           variant: 'destructive'
         });
+        
         return []; // Return empty array instead of throwing
       } finally {
         setIsLoading(false);
       }
     },
-    enabled
+    enabled,
+    // Add retry behavior for the React Query layer
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff capped at 30 seconds
   });
   
   return {
     calls: query.data || [],
     isLoading: query.isPending || isLoading,
     error: query.error,
-    refetch: query.refetch
+    refetch: query.refetch,
+    isError: query.isError,
+    isRefetching: query.isRefetching
   };
 }
+

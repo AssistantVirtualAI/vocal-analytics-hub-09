@@ -1,24 +1,36 @@
 
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
 
 interface RetryButtonProps {
-  onRetry: () => void;
-  isRetrying: boolean;
+  onClick: () => void;
+  isDisabled?: boolean;
+  retryCount?: number;
+  maxRetries?: number;
 }
 
-export const RetryButton = ({ onRetry, isRetrying }: RetryButtonProps) => {
+export const RetryButton = ({ 
+  onClick, 
+  isDisabled = false,
+  retryCount = 0,
+  maxRetries = 3
+}: RetryButtonProps) => {
+  const remainingAttempts = maxRetries - retryCount;
+  
   return (
-    <Button 
-      variant="outline" 
-      size="sm" 
-      onClick={onRetry}
-      disabled={isRetrying}
-      aria-label="Réessayer le chargement de l'audio"
-      title="Réessayer le chargement de l'audio"
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={isDisabled}
+      className="flex items-center space-x-2"
     >
-      <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
-      Réessayer
+      <RotateCcw className="h-4 w-4 mr-1" />
+      <span>
+        Réessayer
+        {remainingAttempts > 0 && ` (${remainingAttempts} tentative${remainingAttempts > 1 ? 's' : ''} restante${remainingAttempts > 1 ? 's' : ''})`}
+      </span>
     </Button>
   );
 };
+

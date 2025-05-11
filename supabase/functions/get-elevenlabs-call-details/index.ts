@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
 
 // Main handler for the function
 serve(async (req: Request) => {
@@ -66,17 +67,17 @@ serve(async (req: Request) => {
       );
     }
     
-    // Call ElevenLabs API to get conversation details
+    // Call ElevenLabs API to get conversation details using retry mechanism
     const apiUrl = `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`;
     console.log(`Calling ElevenLabs API: ${apiUrl}`);
     
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithRetry(apiUrl, {
       method: "GET",
       headers: {
         "Accept": "application/json",
         "xi-api-key": apiKey,
       }
-    });
+    }, 3); // Maximum 3 retries
     
     console.log(`ElevenLabs API response status: ${response.status}`);
     
@@ -149,3 +150,4 @@ function calculateDuration(startTime?: number, endTime?: number): number {
   const durationInSeconds = endTime - startTime;
   return Math.max(1, Math.floor(durationInSeconds / 60)); // Ensure at least 1 minute
 }
+

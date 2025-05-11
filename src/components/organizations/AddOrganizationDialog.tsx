@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,25 +24,44 @@ interface NewOrgData {
 }
 
 interface AddOrganizationDialogProps {
+  isOpen?: boolean;
+  onOpenChange: (open: boolean) => void;
   onAddOrganization: (newOrg: NewOrgData) => Promise<void>;
 }
 
-export const AddOrganizationDialog = ({ onAddOrganization }: AddOrganizationDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const AddOrganizationDialog = ({ 
+  isOpen, 
+  onOpenChange, 
+  onAddOrganization 
+}: AddOrganizationDialogProps) => {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [newOrg, setNewOrg] = useState<NewOrgData>({
     name: '',
     agentId: '',
     description: ''
   });
 
+  // Sync the internal state with the prop
+  useEffect(() => {
+    if (isOpen !== undefined) {
+      setInternalIsOpen(isOpen);
+    }
+  }, [isOpen]);
+
+  // Handle the dialog state change
+  const handleOpenChange = (open: boolean) => {
+    setInternalIsOpen(open);
+    onOpenChange(open);
+  };
+
   const handleAddOrganization = async () => {
     await onAddOrganization(newOrg);
-    setIsOpen(false);
+    handleOpenChange(false);
     setNewOrg({ name: '', agentId: '', description: '' });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={internalIsOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-4 w-4 mr-2" />

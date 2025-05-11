@@ -94,17 +94,17 @@ export const OrganizationManagementSection = ({
         ) : (
           <OrganizationsList 
             organizations={organizations}
-            selectedOrganizationId={currentOrganization?.id || null}
-            onSelectOrganization={onSelectOrganization}
-            onDeleteOrganization={isAdmin ? onDeleteOrganization : undefined}
-            onUpdateOrganization={isAdmin ? onUpdateOrganization : undefined}
+            currentOrganization={currentOrganization}
+            onEdit={onUpdateOrganization}
+            onDelete={onDeleteOrganization}
+            onSelect={onSelectOrganization}
           />
         )}
       </CardContent>
       
       {showAddDialog && (
         <AddOrganizationDialog
-          open={showAddDialog}
+          isOpen={showAddDialog}
           onOpenChange={setShowAddDialog}
           onAddOrganization={handleAddOrganization}
         />

@@ -27,6 +27,7 @@ export const useOrganizationInvitations = (organizationId: string | null) => {
         
       if (error) throw error;
       
+      // Transform the snake_case database fields to camelCase for our OrganizationInvitation type
       const formattedInvitations: OrganizationInvitation[] = (data || []).map(item => ({
         id: item.id,
         email: item.email,

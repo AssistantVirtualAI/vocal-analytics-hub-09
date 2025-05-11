@@ -88,7 +88,7 @@ export async function fetchWithRetry(
 export async function safeParseJson(response: Response): Promise<any> {
   try {
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing JSON response:', error);
     const text = await response.text();
     console.log('Raw response text:', text.substring(0, 500)); // Limit text size for logs

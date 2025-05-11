@@ -74,12 +74,19 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     
     // Try to fetch history with enhanced error handling
     try {
+      // Mask key for logging purposes
+      const maskedKey = elevenLabsApiKey.substring(0, 4) + "..." + 
+                       elevenLabsApiKey.substring(elevenLabsApiKey.length - 4);
+      console.log(`[handleHistorySyncRequest] Using ElevenLabs API key: ${maskedKey}`);
+
       // Fetch the history from ElevenLabs
       const historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
       
       if (!historyResult.success) {
-        console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${historyResult.error}`);
-        return createElevenLabsErrorResponse(historyResult.error || "");
+        const errorDetails = typeof historyResult.error === 'object' ? 
+          JSON.stringify(historyResult.error) : historyResult.error;
+        console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${errorDetails}`);
+        return createElevenLabsErrorResponse(historyResult.error || "Unknown error occurred");
       }
       
       // Check if we have any history items
@@ -108,16 +115,26 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
       console.log(`[handleHistorySyncRequest] Sync completed: ${summary.success}/${summary.total} successful, ${summary.error} errors`);
 
       return createSuccessResponse(results, summary);
-    } catch (elevenLabsError) {
-      console.error("[handleHistorySyncRequest] Error fetching history from ElevenLabs:", elevenLabsError);
+    } catch (elevenLabsError: any) {
+      // Enhanced error logging
+      console.error("[handleHistorySyncRequest] Error fetching history from ElevenLabs:", {
+        message: elevenLabsError.message,
+        stack: elevenLabsError.stack,
+        details: elevenLabsError
+      });
+      
       return createErrorResponse(
         `Error fetching history from ElevenLabs: ${elevenLabsError instanceof Error ? elevenLabsError.message : String(elevenLabsError)}`,
         "ELEVENLABS_FETCH_ERROR",
         500
       );
     }
-  } catch (error) {
-    console.error(`[handleHistorySyncRequest] Error processing request:`, error);
+  } catch (error: any) {
+    console.error(`[handleHistorySyncRequest] Error processing request:`, {
+      message: error.message,
+      stack: error.stack,
+      details: error
+    });
     return createGenericErrorResponse(error);
   }
 }

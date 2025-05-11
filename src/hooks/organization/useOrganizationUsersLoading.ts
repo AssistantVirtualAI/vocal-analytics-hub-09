@@ -32,7 +32,8 @@ export const useOrganizationUsersLoading = () => {
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
           // First check if profiles is actually an error object, null, or undefined
-          const isProfilesError = typeof item.profiles === 'object' && 
+          const isProfilesError = item.profiles === null || 
+                                 typeof item.profiles === 'object' && 
                                  item.profiles !== null && 
                                  'error' in item.profiles;
           
@@ -50,7 +51,8 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Make TypeScript happy by casting properly after checking for null
+          // Use type assertion after proper checks to make TypeScript happy
+          // We've already verified profiles is not null or an error
           const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null };
           
           return {

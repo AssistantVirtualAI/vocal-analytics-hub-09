@@ -83,6 +83,17 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
         const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
         const role = userRoles.length > 0 ? userRoles[0].role : 'user';
         
+        // Get the organization admin status from user_organizations table
+        const { data: orgAdminData } = await supabase
+          .from('user_organizations')
+          .select('is_org_admin')
+          .eq('user_id', profile.id)
+          .eq('organization_id', organizationId)
+          .single();
+        
+        // Check if user is a super admin (has admin role in user_roles)
+        const isSuperAdmin = role === 'admin';
+        
         activeUsers.push({
           id: profile.id,
           email: profile.email || '',
@@ -90,7 +101,9 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
           avatarUrl: profile.avatar_url || '',
           role: role as 'admin' | 'user',
           createdAt: profile.created_at || new Date().toISOString(),
-          isPending: false
+          isPending: false,
+          isOrgAdmin: orgAdminData?.is_org_admin || false,
+          isSuperAdmin: isSuperAdmin
         });
       }
     }
@@ -137,7 +150,9 @@ export const fetchPendingInvitations = async (organizationId: string): Promise<O
       avatarUrl: '',
       role: 'user',
       createdAt: invitation.created_at,
-      isPending: true
+      isPending: true,
+      isOrgAdmin: false, // Pending users are not org admins
+      isSuperAdmin: false // Pending users are not super admins
     }));
   } catch (error) {
     console.error('[fetchPendingInvitations] Error fetching pending invitations:', error);

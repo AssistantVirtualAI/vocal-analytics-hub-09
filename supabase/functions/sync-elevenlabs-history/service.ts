@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   HistoryItem, 
@@ -88,7 +89,7 @@ export async function syncHistoryItem(
     return { 
       id: item.history_item_id, 
       success: false, 
-      error: error.message || "Unknown error"
+      error: error instanceof Error ? error.message : "Unknown error"
     };
   }
 }
@@ -102,6 +103,17 @@ export async function syncHistoryItems(
   historyItems: HistoryItem[],
   agentId: string
 ): Promise<SyncResult[]> {
+  // Vérifier que les variables nécessaires sont présentes
+  if (!supabaseUrl || !supabaseServiceKey) {
+    const missingVars = [];
+    if (!supabaseUrl) missingVars.push('SUPABASE_URL');
+    if (!supabaseServiceKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+    
+    const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
   console.log(`Creating Supabase client with URL: ${supabaseUrl}`);
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   

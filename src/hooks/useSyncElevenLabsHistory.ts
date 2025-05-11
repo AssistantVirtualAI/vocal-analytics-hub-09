@@ -58,7 +58,11 @@ export function useSyncElevenLabsHistory() {
       }
       
       if (data.success) {
-        toast.success(`Synchronisation réussie: ${data.summary?.success} appels importés sur ${data.summary?.total}.`);
+        if (data.summary?.total === 0) {
+          toast.info("Aucun nouvel appel à synchroniser");
+        } else {
+          toast.success(`Synchronisation réussie: ${data.summary?.success || 0} appels importés sur ${data.summary?.total || 0}.`);
+        }
       } else if (data.error) {
         toast.error(`Erreur de synchronisation: ${data.error.message || "Une erreur s'est produite"}`);
       }

@@ -10,6 +10,16 @@ serve(async (req) => {
   
   console.log(`[${functionName}] Request received: ${req.method} ${req.url}`);
   
+  // Log all environment variables for debugging
+  try {
+    console.log(`[${functionName}] Environment check - SUPABASE_URL: ${Deno.env.get('SUPABASE_URL') ? 'Present' : 'Missing'}`);
+    console.log(`[${functionName}] Environment check - SUPABASE_SERVICE_ROLE_KEY: ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'Present' : 'Missing'}`);
+    console.log(`[${functionName}] Environment check - ELEVENLABS_API_KEY: ${Deno.env.get('ELEVENLABS_API_KEY') ? 'Present' : 'Missing'}`);
+    console.log(`[${functionName}] Environment check - ELEVEN_LABS_API_KEY: ${Deno.env.get('ELEVEN_LABS_API_KEY') ? 'Present' : 'Missing'}`);
+  } catch (error) {
+    console.error(`[${functionName}] Error checking environment variables:`, error);
+  }
+  
   // Gestion des requêtes CORS preflight
   if (req.method === 'OPTIONS') {
     console.log(`[${functionName}] Handling OPTIONS request`);
@@ -18,17 +28,6 @@ serve(async (req) => {
   
   try {
     console.log(`[${functionName}] Processing ${req.method} request...`);
-    
-    // Log environment variable availability
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
-    
-    console.log(`[${functionName}] Environment variables status:
-      - SUPABASE_URL: ${supabaseUrl ? 'Available' : 'Missing'}
-      - SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'Available' : 'Missing'}
-      - ELEVENLABS_API_KEY or ELEVEN_LABS_API_KEY: ${elevenlabsApiKey ? 'Available' : 'Missing'}
-    `);
     
     const response = await handleHistorySyncRequest(req);
     const duration = Date.now() - startTime;

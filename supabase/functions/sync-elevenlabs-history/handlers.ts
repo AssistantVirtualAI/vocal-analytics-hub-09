@@ -3,7 +3,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { SyncRequest, SyncResponse } from "./models.ts";
 import { syncHistoryItems } from "./service.ts";
 import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
-import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
 import { fetchElevenLabsHistory } from "../_shared/elevenlabs/history.ts";
 
 /**
@@ -11,39 +10,6 @@ import { fetchElevenLabsHistory } from "../_shared/elevenlabs/history.ts";
  */
 export async function handleHistorySyncRequest(req: Request): Promise<Response> {
   try {
-    // Valider les variables d'environnement avant tout
-    console.log("Vérification des variables d'environnement essentielles...");
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
-    
-    if (!supabaseUrl) {
-      console.error("SUPABASE_URL n'est pas défini");
-      return createErrorResponse({
-        status: 500,
-        message: "Configuration incorrecte: SUPABASE_URL manquant",
-        code: "MISSING_ENV_VAR"
-      });
-    }
-    
-    if (!supabaseServiceKey) {
-      console.error("SUPABASE_SERVICE_ROLE_KEY n'est pas défini");
-      return createErrorResponse({
-        status: 500,
-        message: "Configuration incorrecte: SUPABASE_SERVICE_ROLE_KEY manquant",
-        code: "MISSING_ENV_VAR"
-      });
-    }
-    
-    if (!elevenlabsApiKey) {
-      console.error("ELEVENLABS_API_KEY et ELEVEN_LABS_API_KEY ne sont pas définis");
-      return createErrorResponse({
-        status: 500,
-        message: "Configuration incorrecte: Clé API ElevenLabs manquante",
-        code: "MISSING_ENV_VAR"
-      });
-    }
-    
     // Parse request body
     console.log("Analyse de la requête...");
     let requestData: SyncRequest;
@@ -73,10 +39,41 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     try {
       console.log("Getting environment variables...");
       
-      // Utiliser directement les variables d'environnement validées
-      console.log(`Environnement: API key: ${elevenlabsApiKey ? "***" + elevenlabsApiKey.substring(elevenlabsApiKey.length - 4) : "undefined"}`);
-      console.log(`Supabase URL: ${supabaseUrl || "undefined"}`);
-      console.log(`Supabase service key present: ${supabaseServiceKey ? "Yes" : "No"}`);
+      // Get required environment variables
+      const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      console.log("Environment variables status:");
+      console.log(`- ELEVENLABS_API_KEY: ${elevenlabsApiKey ? 'Available' : 'Missing'}`);
+      console.log(`- SUPABASE_URL: ${supabaseUrl ? 'Available' : 'Missing'}`);
+      console.log(`- SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? 'Available' : 'Missing'}`);
+      
+      if (!elevenlabsApiKey) {
+        return createErrorResponse({
+          status: 500,
+          message: "ELEVENLABS_API_KEY not configured",
+          code: "MISSING_ENV_VAR"
+        });
+      }
+      
+      if (!supabaseUrl) {
+        return createErrorResponse({
+          status: 500,
+          message: "SUPABASE_URL not configured",
+          code: "MISSING_ENV_VAR"
+        });
+      }
+      
+      if (!supabaseServiceKey) {
+        return createErrorResponse({
+          status: 500,
+          message: "SUPABASE_SERVICE_ROLE_KEY not configured",
+          code: "MISSING_ENV_VAR"
+        });
+      }
+      
+      console.log(`Environment variables obtained. Using API key: ***${elevenlabsApiKey.slice(-4)}`);
       
       // Récupérer l'historique depuis ElevenLabs
       console.log(`Fetching history from ElevenLabs for agent ${agentId}...`);
@@ -122,12 +119,15 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     } catch (error) {
       console.error("Error accessing environment variables or API:", error);
       
-      if (error instanceof Error && error.message.includes('environment variable')) {
-        return createErrorResponse({
-          status: 500,
-          message: error.message,
-          code: "MISSING_ENV_VAR"
-        });
+      if (error instanceof Error) {
+        const message = error.message;
+        if (message.includes('environment variable') || message.includes('env') || message.includes('required')) {
+          return createErrorResponse({
+            status: 500,
+            message: message,
+            code: "MISSING_ENV_VAR"
+          });
+        }
       }
       throw error;
     }

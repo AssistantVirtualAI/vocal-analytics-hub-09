@@ -34,6 +34,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
     } catch (error: any) {
       console.error('[useOrganizationLoading] Error fetching organizations:', error);
       setError(error);
+      // Only show toast error once - removed from service
       toast.error("Erreur lors de la récupération des organisations: " + error.message);
       return [];
     } finally {

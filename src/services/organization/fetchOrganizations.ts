@@ -94,6 +94,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
+    // Removed toast error here to avoid duplicate error messages
     throw error;
   }
 };

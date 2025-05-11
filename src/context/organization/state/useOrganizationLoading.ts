@@ -25,6 +25,7 @@ export const useOrganizationLoading = (session: any) => {
       const orgs = await fetchOrganizations(false, session.user.id);
       
       if (orgs && orgs.length > 0) {
+        console.log("[useOrganizationLoading] Setting organizations:", orgs);
         setOrganizations(orgs);
         
         // Attempt to load a previously selected organization
@@ -32,23 +33,30 @@ export const useOrganizationLoading = (session: any) => {
         let selectedOrg = null;
         
         if (storedOrgId) {
+          console.log("[useOrganizationLoading] Found stored org ID:", storedOrgId);
           const foundOrg = orgs.find(org => org.id === storedOrgId);
           if (foundOrg) {
+            console.log("[useOrganizationLoading] Found stored org:", foundOrg);
             selectedOrg = foundOrg;
           } else if (orgs.length > 0) {
             // If stored org wasn't found, select first available org
+            console.log("[useOrganizationLoading] Stored org not found, using first org:", orgs[0]);
             selectedOrg = orgs[0];
             localStorage.setItem(STORAGE_KEY, orgs[0].id);
           }
         } else if (orgs.length > 0) {
           // No stored org, select first available
+          console.log("[useOrganizationLoading] No stored org, using first org:", orgs[0]);
           selectedOrg = orgs[0];
           localStorage.setItem(STORAGE_KEY, orgs[0].id);
         }
         
         if (selectedOrg) {
+          console.log("[useOrganizationLoading] Setting current organization:", selectedOrg);
           setCurrentOrganization(selectedOrg);
         }
+      } else {
+        console.log("[useOrganizationLoading] No organizations found");
       }
       
       return orgs; // Return the array of orgs directly to match the expected return type
@@ -80,7 +88,10 @@ export const useOrganizationLoading = (session: any) => {
   // Load organizations on session change
   useEffect(() => {
     if (session?.user) {
+      console.log("[useOrganizationLoading] Session changed, loading organizations");
       loadOrganizations();
+    } else {
+      console.log("[useOrganizationLoading] No session, not loading organizations");
     }
   }, [session, loadOrganizations]);
   

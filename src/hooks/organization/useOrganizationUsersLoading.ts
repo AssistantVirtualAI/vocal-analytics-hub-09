@@ -51,9 +51,9 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Use type assertion after proper checks to make TypeScript happy
-          // We need to cast as unknown first to avoid TS error
-          const profile = (item.profiles as unknown) as { 
+          // Now TypeScript knows item.profiles is not null or undefined at this point
+          // We can safely cast it to the expected type
+          const profile = item.profiles as {
             id: string; 
             email: string; 
             display_name: string | null; 

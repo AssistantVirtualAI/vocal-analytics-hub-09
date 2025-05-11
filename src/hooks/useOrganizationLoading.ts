@@ -10,7 +10,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadOrganizations = useCallback(async () => {
+  const loadOrganizations = useCallback(async (): Promise<Organization[]> => {
     setIsLoading(true);
     setError(null);
     try {

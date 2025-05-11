@@ -3,7 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { OrganizationInvitation, OrganizationUser } from '@/types/organization';
+import { OrganizationUser } from '@/types/organization';
+import { OrganizationInvitation } from '@/types/invitation';
 
 interface OrganizationUsersTableProps {
   users: OrganizationUser[];

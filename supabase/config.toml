@@ -54,3 +54,6 @@ verify_jwt = true
 
 [functions.system-diagnostic]
 verify_jwt = true
+
+[functions.fix-security-issues]
+verify_jwt = true

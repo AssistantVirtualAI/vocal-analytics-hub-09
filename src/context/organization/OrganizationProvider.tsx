@@ -2,6 +2,7 @@
 import React, { createContext, useContext } from 'react';
 import { OrganizationContextType, OrganizationProviderProps } from './types';
 import { useOrganizationState } from './useOrganizationState';
+import { Organization } from '@/types/organization';
 
 export const OrganizationContext = createContext<OrganizationContextType>({
   currentOrganization: null,
@@ -15,6 +16,8 @@ export const OrganizationContext = createContext<OrganizationContextType>({
   removeUser: async () => {},
   updateUser: async () => {},
   isLoading: true,
+  error: null,
+  loadOrganizations: async () => [], // Added the missing property with correct return type
   userHasAdminAccessToCurrentOrg: false,
 });
 

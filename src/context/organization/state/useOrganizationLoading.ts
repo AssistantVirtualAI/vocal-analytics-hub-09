@@ -14,8 +14,8 @@ export const useOrganizationLoading = (session: any) => {
   const STORAGE_KEY = 'current_organization_id';
   
   // Load organizations
-  const loadOrganizations = useCallback(async () => {
-    if (!session?.user) return { orgs: [] };
+  const loadOrganizations = useCallback(async (): Promise<Organization[]> => {
+    if (!session?.user) return [];
     
     try {
       setIsLoading(true);
@@ -49,11 +49,9 @@ export const useOrganizationLoading = (session: any) => {
         if (selectedOrg) {
           setCurrentOrganization(selectedOrg);
         }
-        
-        return { orgs, selectedOrg };
       }
       
-      return { orgs: [] };
+      return orgs; // Return the array of orgs directly to match the expected return type
     } catch (error: any) {
       console.error("Failed to load organizations:", error);
       setError(error);
@@ -62,7 +60,7 @@ export const useOrganizationLoading = (session: any) => {
         description: "Failed to load organizations",
         variant: "destructive"
       });
-      return { orgs: [] };
+      return []; // Return empty array on error
     } finally {
       setIsLoading(false);
     }

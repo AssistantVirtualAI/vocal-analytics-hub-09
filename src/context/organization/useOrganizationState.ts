@@ -252,15 +252,20 @@ export function useOrganizationState() {
       if (error) throw error;
       
       if (data) {
-        const formattedUsers: OrganizationUser[] = data.map(item => ({
-          id: item.user_id,
-          email: item.profiles?.email || '',
-          displayName: item.profiles?.display_name || '',
-          avatarUrl: item.profiles?.avatar_url || '',
-          role: item.is_org_admin ? 'admin' : 'user',
-          createdAt: new Date().toISOString(), // fallback
-          isPending: false
-        }));
+        const formattedUsers: OrganizationUser[] = data.map(item => {
+          // Use optional chaining and type assertion to safely access profile properties
+          const profile = item.profiles as { id: string; email: string; display_name: string | null; avatar_url: string | null } | null;
+          
+          return {
+            id: item.user_id,
+            email: profile?.email || '',
+            displayName: profile?.display_name || '',
+            avatarUrl: profile?.avatar_url || '',
+            role: item.is_org_admin ? 'admin' : 'user',
+            createdAt: new Date().toISOString(), // fallback
+            isPending: false
+          };
+        });
         
         setUsers(formattedUsers);
       }

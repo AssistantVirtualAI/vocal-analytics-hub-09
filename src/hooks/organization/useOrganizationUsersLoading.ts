@@ -31,14 +31,15 @@ export const useOrganizationUsersLoading = () => {
       
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
-          // First check if profiles is actually an error object, null, or undefined
-          const isProfilesError = item.profiles === null || 
-                                 (typeof item.profiles === 'object' && 
-                                 item.profiles !== null && 
-                                 'error' in item.profiles);
+          // First check if profiles is null, undefined, or an error object
+          const isProfilesValid = 
+            item.profiles !== null && 
+            item.profiles !== undefined && 
+            typeof item.profiles === 'object' && 
+            !('error' in item.profiles);
           
-          // If it's an error or null/undefined, use empty values
-          if (isProfilesError || item.profiles === null || item.profiles === undefined) {
+          // If it's not valid, use empty values
+          if (!isProfilesValid) {
             return {
               id: item.user_id,
               email: '',
@@ -51,7 +52,7 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Now TypeScript knows item.profiles is not null or undefined at this point
+          // Now TypeScript knows item.profiles is a valid object at this point
           // We can safely cast it to the expected type
           const profile = item.profiles as {
             id: string; 

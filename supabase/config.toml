@@ -51,3 +51,6 @@ verify_jwt = true
 
 [functions.elevenlabs-api-test]
 verify_jwt = true
+
+[functions.system-diagnostic]
+verify_jwt = true

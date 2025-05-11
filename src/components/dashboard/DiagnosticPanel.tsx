@@ -10,34 +10,44 @@ export function DiagnosticPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<any>(null);
   const [dbStatus, setDbStatus] = useState<any>(null);
+  const [systemStatus, setSystemStatus] = useState<any>(null);
   const { toast } = useToast();
   
   const runDiagnostic = async () => {
     setIsLoading(true);
     try {
-      // Test API connection
-      const { data: apiResult, error: apiError } = await supabase.functions.invoke(
-        'elevenlabs-api-test',
+      // Run comprehensive system diagnostic
+      const { data: systemResult, error: systemError } = await supabase.functions.invoke(
+        'system-diagnostic',
         {}
       );
       
-      setApiStatus(apiError ? { status: "ERROR", error: apiError.message } : apiResult);
-      
-      // Get call counts
-      const { data: dbResult, error: dbError } = await supabase.functions.invoke(
-        'get-calls',
-        { body: { limit: 1 } }
-      );
-      
-      setDbStatus({
-        callCount: dbResult?.count || 0,
-        success: !dbError,
-        error: dbError?.message
-      });
+      if (systemError) {
+        console.error("System diagnostic error:", systemError);
+        setSystemStatus({ error: systemError.message });
+      } else {
+        setSystemStatus(systemResult);
+        
+        // Extract API status from system diagnostic
+        setApiStatus({
+          status: systemResult.api.elevenlabsConnected ? "OK" : "ERROR",
+          subscriptionTier: systemResult.api.userInfo?.tier,
+          error: systemResult.api.error
+        });
+        
+        // Extract DB status from system diagnostic
+        setDbStatus({
+          callCount: systemResult.database.callsCount || 0,
+          agents: systemResult.agents?.length || 0,
+          success: systemResult.database.callsTableExists !== false,
+          error: systemResult.database.countError || systemResult.database.tableCheckError
+        });
+      }
     } catch (error) {
       console.error("Diagnostic error:", error);
       setApiStatus({ status: "ERROR", error: "Failed to run API diagnostic" });
       setDbStatus({ success: false, error: "Failed to run database diagnostic" });
+      setSystemStatus({ error: "Failed to run system diagnostic" });
     } finally {
       setIsLoading(false);
     }
@@ -124,11 +134,36 @@ export function DiagnosticPanel() {
                 <span className="text-gray-400">Vérification...</span>
               }
             </div>
+            {dbStatus?.agents !== undefined && (
+              <p className="text-sm text-gray-600">{dbStatus.agents} agents configurés</p>
+            )}
             {dbStatus?.error && (
               <p className="text-sm text-red-500 mt-1">{dbStatus.error}</p>
             )}
           </div>
         </div>
+        
+        {systemStatus && systemStatus.environment && (
+          <div className="p-4 border rounded-lg">
+            <h3 className="font-medium mb-2">Variables d'environnement:</h3>
+            <div className="text-sm space-y-1">
+              <p>
+                Clé ElevenLabs: {' '}
+                {systemStatus.environment.elevenLabsApiKeyConfigured ? 
+                  <span className="text-green-500">Configurée ({systemStatus.environment.activeElevenLabsKeyName})</span> : 
+                  <span className="text-red-500">Non configurée</span>
+                }
+              </p>
+              <p>
+                Supabase URL: {' '}
+                {systemStatus.environment.supabaseUrlConfigured ? 
+                  <span className="text-green-500">Configurée</span> : 
+                  <span className="text-red-500">Non configurée</span>
+                }
+              </p>
+            </div>
+          </div>
+        )}
         
         <div className="space-y-2 pt-2">
           <Button 

@@ -4,7 +4,10 @@ import { SyncRequest, SyncResponse } from "./models.ts";
 import { syncConversations } from "./service.ts";
 import { createErrorResponse, createSuccessResponse } from "../_shared/api-utils.ts";
 import { getElevenLabsEnvVars, getSupabaseEnvVars } from "../_shared/env.ts";
-import { fetchElevenLabsConversations, fetchAllElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
+import { 
+  fetchElevenLabsConversations, 
+  fetchAllElevenLabsConversations 
+} from "../_shared/elevenlabs/conversations.ts";
 
 /**
  * Gère la requête de synchronisation des conversations ElevenLabs

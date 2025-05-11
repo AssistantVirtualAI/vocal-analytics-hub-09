@@ -1,174 +1,212 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
+import { fetchAllElevenLabsConversations } from "../_shared/elevenlabs/conversations.ts";
+import { createErrorResponse, ErrorCode } from "../_shared/elevenlabs/error.ts";
 
-// Main handler for the function
-serve(async (req: Request) => {
-  console.log("get-elevenlabs-calls function called");
+// Get environment variables
+function getEnvVars() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const elevenlabsApiKey = Deno.env.get("ELEVENLABS_API_KEY");
   
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log("Handling OPTIONS request with CORS headers");
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (!supabaseUrl) throw new Error("SUPABASE_URL environment variable is not set");
+  if (!supabaseServiceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is not set");
+  if (!elevenlabsApiKey) throw new Error("ELEVENLABS_API_KEY environment variable is not set");
+  
+  return { supabaseUrl, supabaseServiceKey, elevenlabsApiKey };
+}
+
+// Handle CORS preflight requests
+function handleCorsOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  });
+}
+
+// Main handler for getting calls
+async function handleGetCallsRequest(req: Request): Promise<Response> {
+  console.log("Processing get-elevenlabs-calls request");
   
   try {
-    // Variable to store our parameters
-    // Default agent ID to always use if none is provided
-    const defaultAgentId = 'QNdB45Jpgh06Hr67TzFO';
-    let agentId: string = defaultAgentId;
-    let fromDateStr: string | undefined = undefined;
-    let toDateStr: string | undefined = undefined;
+    // Parse request body
+    const requestData = await req.json();
+    console.log("Request data:", requestData);
     
-    // Process parameters based on request method
-    if (req.method === 'POST') {
-      console.log("Processing POST request");
-      try {
-        const requestData = await req.json();
-        console.log("Request body:", requestData);
+    const { agent_id, from_date, to_date } = requestData;
+    
+    if (!agent_id) {
+      return new Response(
+        JSON.stringify({
+          error: "agent_id is required"
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Get environment variables
+    const { supabaseUrl, supabaseServiceKey, elevenlabsApiKey } = getEnvVars();
+    
+    // Create Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // First, try to get calls from database
+    console.log(`Fetching calls from database for agent ${agent_id}`);
+    let query = supabase
+      .from("calls")
+      .select("*")
+      .eq("agent_id", agent_id)
+      .order("date", { ascending: false });
+    
+    // Apply date filters if provided
+    if (from_date) {
+      console.log(`Filtering calls after ${from_date}`);
+      query = query.gte("date", from_date);
+    }
+    
+    if (to_date) {
+      console.log(`Filtering calls before ${to_date}`);
+      query = query.lte("date", to_date);
+    }
+    
+    const { data: dbCalls, error: dbError } = await query;
+    
+    if (dbError) {
+      console.error("Error fetching calls from database:", dbError);
+      // Continue with API fetch even if db query fails
+    }
+    
+    // Fetch calls from ElevenLabs API as well to ensure we have latest data
+    console.log(`Fetching calls from ElevenLabs API for agent ${agent_id}`);
+    
+    let apiCalls = [];
+    try {
+      // Convert dates to Date objects if provided
+      const fromDate = from_date ? new Date(from_date) : undefined;
+      const toDate = to_date ? new Date(to_date) : undefined;
+      
+      apiCalls = await fetchAllElevenLabsConversations(elevenlabsApiKey, {
+        agentId: agent_id,
+        fromDate,
+        toDate,
+        limit: 100,
+        maxPages: 3 // Limit to 3 pages (300 conversations) for performance
+      });
+      
+      console.log(`Retrieved ${apiCalls.length} calls from ElevenLabs API`);
+      
+      // Import new calls to database
+      for (const call of apiCalls) {
+        // Check if call already exists in DB
+        const { data: existing } = await supabase
+          .from("calls")
+          .select("id")
+          .eq("id", call.id)
+          .maybeSingle();
         
-        // Extract parameters from request body
-        agentId = requestData.agent_id || defaultAgentId;
-        fromDateStr = requestData.from_date;
-        toDateStr = requestData.to_date;
-      } catch (parseError) {
-        console.error("Failed to parse request body:", parseError);
-      }
-    } else {
-      // Default to GET method
-      console.log("Processing GET request");
-      const url = new URL(req.url);
-      agentId = url.searchParams.get('agent_id') || defaultAgentId;
-      fromDateStr = url.searchParams.get('from_date') || undefined;
-      toDateStr = url.searchParams.get('to_date') || undefined;
-    }
-    
-    console.log(`Request params: agent_id=${agentId}, from_date=${fromDateStr}, to_date=${toDateStr}`);
-    
-    // Get ElevenLabs API key from environment
-    const apiKey = Deno.env.get('ELEVENLABS_API_KEY') || Deno.env.get('ELEVEN_LABS_API_KEY');
-    
-    if (!apiKey) {
-      console.error("ElevenLabs API key is not configured");
-      return new Response(
-        JSON.stringify({ 
-          error: "ElevenLabs API key is not configured",
-          data: [] 
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
+        if (!existing) {
+          console.log(`Importing new call ${call.id} to database`);
+          
+          await supabase
+            .from("calls")
+            .insert({
+              id: call.id,
+              agent_id: agent_id,
+              date: new Date(call.start_time_unix * 1000).toISOString(),
+              customer_id: null,
+              customer_name: call.title || "Unknown Customer",
+              duration: call.duration_seconds || (call.end_time_unix ? call.end_time_unix - call.start_time_unix : 0),
+              audio_url: `https://api.elevenlabs.io/v1/convai/conversations/${call.id}/audio`,
+              transcript: call.messages?.map((m: any) => `${m.role}: ${m.text}`).join('\n') || "",
+              source: "elevenlabs"
+            });
         }
-      );
-    }
-    
-    console.log(`Using ElevenLabs API key (masked): ${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}`);
-    
-    // Build query parameters for the ElevenLabs API call
-    const params = new URLSearchParams();
-    
-    // Always set the agent_id to our specified ID
-    params.append('agent_id', agentId);
-    
-    if (fromDateStr) {
-      const fromDate = new Date(fromDateStr);
-      params.append('call_start_after_unix', Math.floor(fromDate.getTime() / 1000).toString());
-    }
-    
-    if (toDateStr) {
-      const toDate = new Date(toDateStr);
-      params.append('call_start_before_unix', Math.floor(toDate.getTime() / 1000).toString());
-    }
-    
-    // Add default limit
-    params.append('limit', '100');
-    
-    // Call ElevenLabs API using retry mechanism
-    const apiUrl = `https://api.elevenlabs.io/v1/convai/conversations?${params.toString()}`;
-    console.log(`Calling ElevenLabs API: ${apiUrl}`);
-    
-    const response = await fetchWithRetry(apiUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
       }
-    }, 3); // Maximum 3 retries
-
-    console.log(`ElevenLabs API response status: ${response.status}`);
-    
-    if (!response.ok) {
-      const status = response.status;
-      let errorMessage = `ElevenLabs API returned status ${status}`;
-      
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
-        console.error("Error response from ElevenLabs:", errorData);
-      } catch (parseError) {
-        console.error("Failed to parse error response", parseError);
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          error: errorMessage,
-          data: [] 
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: status >= 400 && status < 600 ? status : 500,
-        }
-      );
+    } catch (apiError) {
+      console.error("Error fetching from ElevenLabs API:", apiError);
+      // Continue with DB results if API fails
     }
-
-    // Successfully got response, convert to JSON
-    const responseData = await response.json();
-    const conversations = responseData.conversations || [];
-    console.log(`Retrieved ${conversations.length} conversations from ElevenLabs API`);
     
-    // Transform the conversations for the frontend
-    const transformedCalls = conversations.map(call => ({
+    // Merge results, preferring database records but including new API records
+    let allCalls = dbCalls || [];
+    
+    // Add API calls that don't exist in DB results
+    for (const apiCall of apiCalls) {
+      if (!allCalls.find((dbCall: any) => dbCall.id === apiCall.id)) {
+        allCalls.push({
+          id: apiCall.id,
+          agent_id: agent_id,
+          date: new Date(apiCall.start_time_unix * 1000).toISOString(),
+          customer_id: null,
+          customer_name: apiCall.title || "Unknown Customer",
+          duration: apiCall.duration_seconds || 0,
+          source: "elevenlabs"
+        });
+      }
+    }
+    
+    // Format the calls for the response
+    const formattedCalls = allCalls.map((call: any) => ({
       id: call.id,
-      customer_id: call.caller_id || 'unknown',
-      customer_name: call.caller_name || 'Unknown Caller',
-      duration: calculateDuration(call.start_time_unix, call.end_time_unix),
-      date: new Date(call.start_time_unix * 1000).toISOString(),
-      agent_id: call.agent_id || defaultAgentId, // Use our default if none provided
-      status: call.status || 'completed',
-      source: 'elevenlabs'
+      customer_id: call.customer_id || null,
+      customer_name: call.customer_name || "Unknown Customer",
+      duration: call.duration || 0,
+      date: call.date,
+      agent_id: call.agent_id,
+      status: call.status || "completed",
+      source: call.source || "elevenlabs"
     }));
     
-    console.log(`Transformed ${transformedCalls.length} calls for response`);
+    // Sort by date (most recent first)
+    formattedCalls.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    // Return the response
+    console.log(`Returning ${formattedCalls.length} calls`);
+    
     return new Response(
-      JSON.stringify({ data: transformedCalls }),
+      JSON.stringify({
+        data: formattedCalls
+      }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
     );
   } catch (error) {
-    console.error('Error in get-elevenlabs-calls function:', error);
+    console.error("Error processing request:", error);
     
-    // Return a structured error response
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
-        data: [] 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "An unexpected error occurred"
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
     );
   }
-});
-
-// Helper function to calculate call duration in minutes
-function calculateDuration(startTime?: number, endTime?: number): number {
-  if (!startTime || !endTime) return 0;
-  const durationInSeconds = endTime - startTime;
-  return Math.max(1, Math.floor(durationInSeconds / 60)); // Ensure at least 1 minute
 }
+
+// Main entry point
+serve(async (req: Request) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return handleCorsOptions();
+  }
+  
+  // Handle main request
+  return await handleGetCallsRequest(req);
+});

@@ -1,164 +1,94 @@
 
+// ElevenLabs API client for audio retrieval
 import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
-import { ErrorCode } from "./types.ts";
-import { createErrorResponse } from "./utils.ts";
+import { 
+  fetchElevenLabsConversationTranscript,
+  getElevenLabsConversationAudioUrl 
+} from "../_shared/elevenlabs/conversations.ts";
+import { fetchElevenLabsHistoryItem } from "../_shared/elevenlabs/history.ts";
+import { ELEVENLABS_API_BASE_URL, handleElevenLabsApiError } from "../_shared/elevenlabs/client.ts";
+
+export const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY") || "";
 
 /**
- * Fetches history item data from ElevenLabs API.
- * This includes metadata and some statistics like character count.
- * The `historyItemId` is the `callId` from the original code's context.
- * @param historyItemId - ID of the history item to fetch (equivalent to callId).
- * @param apiKey - ElevenLabs API key.
- * @returns Object containing the history item data and the URL to fetch the audio.
+ * Fetch audio URL from ElevenLabs for a given conversation
  */
-export async function fetchElevenLabsHistoryData(historyItemId: string, apiKey: string) {
-  console.log(`Fetching history item from ElevenLabs API for ID ${historyItemId}`);
+export async function getElevenLabsAudioUrl(conversationId: string, useConversationalApi = true) {
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
+  }
+  
+  if (useConversationalApi) {
+    return getElevenLabsConversationAudioUrl(conversationId);
+  } else {
+    // Legacy approach - use history item audio endpoint
+    return `${ELEVENLABS_API_BASE_URL}/history/${conversationId}/audio`;
+  }
+}
 
+/**
+ * Fetch transcript from ElevenLabs for a given conversation
+ */
+export async function getElevenLabsTranscript(conversationId: string, useConversationalApi = true) {
+  if (!ELEVENLABS_API_KEY) {
+    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
+  }
+  
   try {
-    const response = await fetchWithRetry(`https://api.elevenlabs.io/v1/history/${historyItemId}`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "xi-api-key": apiKey,
-      },
-    }, 3); // Maximum 3 retries
-
-    if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch {
-        // Ignore JSON parsing error if body is empty or not JSON
-      }
-
-      const errorMessage = errorData.detail?.message ||
-                          errorData.detail ||
-                          `ElevenLabs API returned status ${response.status}`;
-
-      console.error("ElevenLabs API error:", response.status, errorMessage, errorData);
-
-      switch (response.status) {
-        case 401:
-          throw createErrorResponse(
-            "Authentication failed with ElevenLabs API. Check API Key.",
-            401,
-            ErrorCode.ELEVENLABS_AUTH_ERROR
-          );
-        case 404:
-          throw createErrorResponse(
-            `History Item ID ${historyItemId} not found on ElevenLabs. This ID is the 'callId' or 'history_item_id'.`,
-            404,
-            ErrorCode.ELEVENLABS_NOT_FOUND
-          );
-        case 429:
-          throw createErrorResponse(
-            "ElevenLabs API rate limit or quota exceeded.",
-            429,
-            ErrorCode.ELEVENLABS_QUOTA_EXCEEDED
-          );
-        default:
-          throw createErrorResponse(
-            errorMessage,
-            response.status,
-            ErrorCode.ELEVENLABS_API_ERROR
-          );
-      }
+    if (useConversationalApi) {
+      const transcriptData = await fetchElevenLabsConversationTranscript(conversationId, ELEVENLABS_API_KEY);
+      return transcriptData.transcript?.map(item => item.text).join(" ") || "";
+    } else {
+      // Legacy approach - use history item text
+      const historyItem = await fetchElevenLabsHistoryItem(conversationId, ELEVENLABS_API_KEY);
+      return historyItem.text || "";
     }
+  } catch (error) {
+    console.error("Error fetching transcript:", error);
+    throw error;
+  }
+}
 
-    const historyData = await response.json();
+/**
+ * Check if audio exists for a given conversation without downloading the full content
+ */
+export async function checkElevenLabsAudioExists(audioUrl: string) {
+  try {
+    const response = await fetch(audioUrl, {
+      method: "HEAD",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+      },
+    });
     
-    // Construct the direct URL to fetch the audio for this history item
-    const audioUrl = `https://api.elevenlabs.io/v1/history/${historyItemId}/audio`;
-
-    // The historyData object itself contains statistics like character counts (e.g., historyData.character_count_change_to)
-    // and the input text (historyData.text), which can be considered the transcript of the input.
-    // "Summary" is not directly provided by this endpoint and would need to be generated elsewhere if required.
-    return {
-        ...historyData, // Includes all history item fields, like 'text', 'date_unix', 'character_count_change_to', etc.
-        audio_url: audioUrl, // The direct URL to stream/download the audio recording
-        // Statistics are part of historyData. For example, historyData.character_count_change_to
-        // Transcript (of input) is historyData.text
-    };
-
+    return response.ok && response.headers.get("Content-Type")?.includes("audio");
   } catch (error) {
-    if (error instanceof Response) {
-      // Already formatted as error response
-      throw error;
-    }
-    // Handle network errors
-    console.error(`Network error fetching from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
+    console.error("Error checking audio existence:", error);
+    return false;
   }
 }
 
 /**
- * Fetches the audio content for a specific history item from ElevenLabs API.
- * This function can be used if the server needs to process or proxy the audio.
- * Otherwise, the `audio_url` from `fetchElevenLabsHistoryData` can be used by the client.
- * @param historyItemId - ID of the history item.
- * @param apiKey - ElevenLabs API key.
- * @returns The raw Response object from the fetch call, which contains the audio stream.
+ * Generate text statistics from transcript
  */
-export async function fetchElevenLabsHistoryItemAudio(historyItemId: string, apiKey: string): Promise<Response> {
-  console.log(`Fetching audio for history item ID ${historyItemId} from ElevenLabs API`);
-
-  try {
-    const response = await fetchWithRetry(`https://api.elevenlabs.io/v1/history/${historyItemId}/audio`, {
-      method: "GET",
-      headers: {
-        "xi-api-key": apiKey,
-      },
-    }, 3); // Maximum 3 retries
-
-    if (!response.ok) {
-      let errorDetail = `ElevenLabs API returned status ${response.status} for audio.`;
-      try {
-        const textError = await response.text(); // Try to get text error first
-        if (textError) errorDetail = textError;
-      } catch {
-        // Ignore parsing error if body is not text
-      }
-
-      console.error("ElevenLabs API audio error:", response.status, errorDetail);
-
-      switch (response.status) {
-        case 401:
-          throw createErrorResponse(
-            "Authentication failed with ElevenLabs API for audio. Check API Key.",
-            401,
-            ErrorCode.ELEVENLABS_AUTH_ERROR
-          );
-        case 404:
-          throw createErrorResponse(
-            `Audio for History Item ID ${historyItemId} not found on ElevenLabs. This ID is the 'callId' or 'history_item_id'.`,
-            404,
-            ErrorCode.ELEVENLABS_NOT_FOUND
-          );
-        default:
-          throw createErrorResponse(
-            errorDetail,
-            response.status,
-            ErrorCode.ELEVENLABS_API_ERROR
-          );
-      }
-    }
-    // Return the Response object directly. The caller can then use .blob(), .arrayBuffer(), .body (ReadableStream), etc.
-    return response;
-
-  } catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-    console.error(`Network error fetching audio from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching audio from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
+export function generateTextStatistics(transcript: string) {
+  if (!transcript) {
+    return {
+      totalWords: 0,
+      totalCharacters: 0,
+      averageWordLength: 0,
+      wordsPerMinute: 0,
+    };
   }
+  
+  const words = transcript.trim().split(/\s+/).filter(w => w.length > 0);
+  const totalWords = words.length;
+  const totalCharacters = transcript.replace(/\s/g, "").length;
+  const averageWordLength = totalWords > 0 ? totalCharacters / totalWords : 0;
+  
+  return {
+    totalWords,
+    totalCharacters,
+    averageWordLength: parseFloat(averageWordLength.toFixed(2)),
+  };
 }
-

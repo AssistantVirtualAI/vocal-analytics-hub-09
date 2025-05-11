@@ -28,13 +28,7 @@ export const useOrganizationLoading = (isAdmin: boolean, userId?: string) => {
         console.log('[useOrganizationLoading] Regular user - fetched user organizations:', orgs);
       }
 
-      if (orgs.length === 0) {
-        console.log('[useOrganizationLoading] No organizations found for user');
-        if (!isAdmin) {
-          toast.info("Vous n'appartenez à aucune organisation. Contactez un administrateur pour être ajouté.");
-        }
-      }
-          
+      // Don't treat empty organizations as an error condition
       setOrganizations(orgs);
       return orgs;
     } catch (error: any) {

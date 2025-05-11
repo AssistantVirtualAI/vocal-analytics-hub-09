@@ -14,6 +14,8 @@ export const useAdminRoles = (
   // Check if the current user is a super admin or an organization admin
   const checkCurrentUserPermissions = useCallback(async () => {
     if (!userId) {
+      setCurrentUserIsOrgAdmin(false);
+      setCurrentUserIsSuperAdmin(false);
       setLoading(false);
       return { isSuperAdmin: false, isOrgAdmin: false };
     }
@@ -41,12 +43,14 @@ export const useAdminRoles = (
       setCurrentUserIsSuperAdmin(isSuperAdmin);
       setCurrentUserIsOrgAdmin(isOrgAdmin);
       
+      setLoading(false);
       return { isSuperAdmin, isOrgAdmin };
     } catch (error) {
       console.error("Error checking admin permissions:", error);
-      return { isSuperAdmin: false, isOrgAdmin: false };
-    } finally {
+      setCurrentUserIsSuperAdmin(false);
+      setCurrentUserIsOrgAdmin(false);
       setLoading(false);
+      return { isSuperAdmin: false, isOrgAdmin: false };
     }
   }, [userId, selectedOrg]);
 

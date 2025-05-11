@@ -95,8 +95,7 @@ export const fetchOrganizations = async (isAdmin: boolean, userId?: string): Pro
     
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
-    toast.error(`Erreur lors de la récupération des organisations: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-    throw error;
+    throw error; // Removed toast here to avoid duplicate notifications
   }
 };
 

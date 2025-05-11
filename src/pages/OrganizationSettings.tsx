@@ -1,14 +1,19 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function OrganizationSettings() {
   const navigate = useNavigate();
+  const [hasRedirected, setHasRedirected] = useState(false);
   
   useEffect(() => {
-    // Redirect to the new settings page with organization tab open
-    navigate('/settings?tab=organization', { replace: true });
-  }, [navigate]);
+    // Use a state to prevent multiple redirections
+    if (!hasRedirected) {
+      setHasRedirected(true);
+      // Redirect to the new settings page with organization tab open
+      navigate('/settings?tab=organization', { replace: true });
+    }
+  }, [navigate, hasRedirected]);
   
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-slate-900 to-blue-950">
@@ -19,6 +24,7 @@ export default function OrganizationSettings() {
       />
       <div className="text-lg text-center">
         <div className="animate-pulse text-blue-400 font-semibold">Redirection vers les paramètres...</div>
+        <p className="text-gray-300 mt-2">Si vous n'êtes pas redirigé, <button onClick={() => navigate('/settings?tab=organization')} className="text-blue-400 underline">cliquez ici</button></p>
       </div>
     </div>
   );

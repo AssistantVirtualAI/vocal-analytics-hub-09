@@ -14,8 +14,9 @@ import { CallsChart } from "@/components/dashboard/CallsChart";
 import { CallsList } from "@/components/dashboard/CallsList";
 import { CustomerStatsList } from "@/components/dashboard/CustomerStatsList";
 import { ElevenLabsDiagnosticsButton } from "@/components/dashboard/ElevenLabsDiagnosticsButton";
+import { DiagnosticPanel } from "@/components/dashboard/DiagnosticPanel";
 
-// Import our new specialized hooks
+// Import our specialized hooks
 import { 
   useStats, 
   useCallsData, 
@@ -40,8 +41,9 @@ export default function Index() {
   const [callsPage, setCallsPage] = useState(1);
   const [callsSortBy, setCallsSortBy] = useState("date");
   const [callsSortOrder, setCallsSortOrder] = useState<"asc" | "desc">("desc");
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Use our new specialized hooks
+  // Use our specialized hooks
   const { 
     statsData, 
     isLoading: isLoadingStats, 
@@ -112,7 +114,12 @@ export default function Index() {
             Tableau de bord {currentOrg ? `- ${currentOrg.name}` : ""}
           </h1>
           <div className="flex items-center space-x-2">
-            <ElevenLabsDiagnosticsButton variant="outline" size="sm" className="mr-2" />
+            <ElevenLabsDiagnosticsButton 
+              variant="outline" 
+              size="sm" 
+              className="mr-2" 
+              onClick={() => setShowDiagnostics(!showDiagnostics)} 
+            />
             <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
             <Button
               variant="outline"
@@ -126,6 +133,13 @@ export default function Index() {
             </Button>
           </div>
         </div>
+
+        {/* Diagnostic Panel - conditionally shown */}
+        {showDiagnostics && (
+          <div className="mb-6">
+            <DiagnosticPanel />
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">

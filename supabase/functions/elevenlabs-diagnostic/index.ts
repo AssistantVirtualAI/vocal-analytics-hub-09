@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getElevenLabsEnvVars } from "../_shared/env.ts";
 import { createErrorResponse, createSuccessResponse, handleCorsOptions } from "../_shared/api-utils.ts";
@@ -51,13 +50,18 @@ serve(async (req) => {
     console.log("Resolved agent ID:", resolvedAgentId || "None (using original ID)");
     const effectiveAgentId = resolvedAgentId || agentId;
 
+    // Check if the ID matches our new agent ID
+    const isNewAgent = effectiveAgentId === "38e75a58-a1fa-460d-b2fd-00d1e2477ec8";
+    console.log("Is this our new agent?", isNewAgent);
+
     // Check calls/conversations API
     console.log("Testing ElevenLabs conversations API");
     const diagnosticResults = {
       agentDetails: {
         providedId: agentId,
         resolvedId: resolvedAgentId,
-        effectiveId: effectiveAgentId
+        effectiveId: effectiveAgentId,
+        isNewAgent: isNewAgent
       },
       apiConnection: {
         success: false,

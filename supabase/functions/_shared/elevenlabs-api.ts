@@ -1,4 +1,3 @@
-
 // Shared module for interacting with the ElevenLabs API
 import { fetchWithRetry } from "./fetch-with-retry.ts";
 
@@ -27,6 +26,57 @@ export function createErrorResponse(message: string, status: number = 500, code:
       headers: { 'Content-Type': 'application/json' },
     }
   );
+}
+
+/**
+ * Fetch dashboard settings from ElevenLabs API
+ * This provides information about available agents and other settings
+ * 
+ * @param apiKey - ElevenLabs API key
+ * @returns Dashboard settings data
+ */
+export async function fetchElevenLabsDashboardSettings(apiKey: string) {
+  console.log("Fetching dashboard settings from ElevenLabs API");
+  
+  try {
+    const url = `${ELEVENLABS_API_BASE_URL}/convai/dashboard-settings`;
+    console.log(`Calling ElevenLabs API: ${url}`);
+    
+    const response = await fetchWithRetry(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "xi-api-key": apiKey,
+      }
+    }, 3);
+
+    if (!response.ok) {
+      const errorStatus = response.status;
+      let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
+      } catch (parseError) {
+        console.error("Failed to parse error response from /convai/dashboard-settings", parseError);
+      }
+      handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching dashboard settings");
+    }
+
+    const settingsData = await response.json();
+    console.log("Successfully retrieved dashboard settings from ElevenLabs");
+    
+    return settingsData;
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+    console.error(`Network error fetching from ElevenLabs (/convai/dashboard-settings): ${error.message || error}`);
+    throw createErrorResponse(
+      `Network error fetching from ElevenLabs: ${error.message || error}`,
+      500,
+      ErrorCode.ELEVENLABS_API_ERROR
+    );
+  }
 }
 
 /**
@@ -121,15 +171,15 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
-  maxPages?: number;
+  maxPages?: number; 
 } = {}) {
   console.log("Fetching all conversations with pagination from ElevenLabs API");
   
   let allConversations = [];
-  let cursor: string | null | undefined = null;
+  let cursor: string | null | undefined = null; // Ensure cursor can be null or undefined
   let hasMore = true;
   let pageCount = 0;
-  const maxPages = options.maxPages || 10;
+  const maxPages = options.maxPages || 10; 
   const effectiveLimit = options.limit || 100;
   
   while (hasMore && pageCount < maxPages) {
@@ -140,7 +190,7 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
       const result = await fetchElevenLabsConversations(apiKey, {
         ...options,
         limit: effectiveLimit,
-        cursor: cursor || undefined,
+        cursor: cursor || undefined, // Pass undefined if cursor is null
       });
       
       if (result.conversations && Array.isArray(result.conversations)) {
@@ -149,14 +199,16 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
       }
       
       cursor = result.cursor;
-      hasMore = !!cursor;
+      hasMore = !!cursor; // Simpler check for hasMore
       
       if (!hasMore) {
         console.log("No more conversation pages to fetch.");
       }
     } catch (error) {
       console.error(`Failed to fetch conversation page ${pageCount}. Error: ${error.message || error}`);
-      break;
+      // Depending on the error, you might want to break or retry with backoff
+      // For simplicity, we break here. Implement retries if needed.
+      break; 
     }
   }
   
@@ -165,64 +217,6 @@ export async function fetchAllElevenLabsConversations(apiKey: string, options: {
   }
   
   return allConversations;
-}
-
-/**
- * Fetch dashboard settings from ElevenLabs API
- * This endpoint provides information about available agents and their settings
- * 
- * @param apiKey - ElevenLabs API key
- * @returns Dashboard settings data
- */
-export async function fetchElevenLabsDashboardSettings(apiKey: string) {
-  console.log("Fetching ElevenLabs dashboard settings");
-  
-  try {
-    const url = `${ELEVENLABS_API_BASE_URL}/convai/dashboard-settings`;
-    console.log(`Calling ElevenLabs API: ${url}`);
-    
-    const response = await fetchWithRetry(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    }, 3);
-
-    if (!response.ok) {
-      const errorStatus = response.status;
-      let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
-      } catch (parseError) {
-        console.error("Failed to parse error response from dashboard-settings", parseError);
-      }
-      handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching dashboard settings");
-    }
-
-    const dashboardSettings = await response.json();
-    console.log("Successfully retrieved dashboard settings");
-    
-    // Extract list of agent IDs for easier access
-    const agentIds = dashboardSettings.agents?.map((agent: any) => agent.agent_id) || [];
-    console.log(`Available agents: ${agentIds.join(', ')}`);
-    
-    return {
-      ...dashboardSettings,
-      agentIds
-    };
-  } catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-    console.error(`Network error fetching dashboard settings from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching dashboard settings from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
-  }
 }
 
 /**
@@ -267,10 +261,12 @@ export async function fetchElevenLabsHistory(apiKey: string, elevenLabsVoiceId?:
         } catch (parseError) {
           console.error("Failed to parse error response from /history", parseError);
         }
+        // Throw the error to be caught by the caller (sync-elevenlabs-history/handlers.ts)
+        // This allows the caller to handle API errors more specifically.
         console.error(`ElevenLabs History API Error: ${status} - ${errorMessage}`);
         const error = new Error(errorMessage) as any;
         error.status = status;
-        throw error;
+        throw error; 
       }
 
       const data = await response.json();
@@ -285,12 +281,13 @@ export async function fetchElevenLabsHistory(apiKey: string, elevenLabsVoiceId?:
       
       hasMore = data.has_more && itemsFetchedInCurrentRequest > 0 && itemsFetchedInCurrentRequest === pageSize;
       if (!hasMore) {
-        console.log("No more history pages to fetch or page size condition not met.");
+          console.log("No more history pages to fetch or page size condition not met.");
       }
 
     } catch (error) {
       console.error(`Error during fetchElevenLabsHistory loop: ${error.message || error}`);
-      throw error;
+      // If an error occurs (network, or API error re-thrown), stop pagination and re-throw.
+      throw error; 
     }
   }
   

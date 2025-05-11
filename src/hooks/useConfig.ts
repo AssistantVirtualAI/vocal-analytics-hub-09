@@ -46,7 +46,7 @@ export function useConfig() {
         }
         
         // Fallback to default configuration
-        const defaultAgentId = "Procolor AM Lasalle New";
+        const defaultAgentId = "38e75a58-a1fa-460d-b2fd-00d1e2477ec8"; // Updated to new agent ID
         setAgentId(defaultAgentId);
       } catch (err) {
         console.error("Error in useConfig:", err);

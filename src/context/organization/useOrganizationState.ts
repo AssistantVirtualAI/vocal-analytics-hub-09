@@ -25,8 +25,9 @@ export function useOrganizationState() {
     const loadOrganizations = async () => {
       try {
         setIsLoading(true);
-        // Pass no argument as fetchOrganizations() should get all orgs for the current user
-        const orgs = await fetchOrganizations();
+        // Pass false as the first argument to indicate not admin by default
+        // and user ID as second argument
+        const orgs = await fetchOrganizations(false, session.user.id);
         
         if (orgs && orgs.length > 0) {
           setOrganizations(orgs);
@@ -101,8 +102,10 @@ export function useOrganizationState() {
 
       const newOrgId = data.id;
 
-      // Refresh organizations list - no arguments needed here
-      const orgs = await fetchOrganizations();
+      // Refresh organizations list
+      // Pass false as the first argument to indicate not admin by default
+      // and user ID as second argument if available
+      const orgs = await fetchOrganizations(false, session.user.id);
       setOrganizations(orgs);
       
       // Select the newly created organization

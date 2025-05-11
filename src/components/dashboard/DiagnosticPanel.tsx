@@ -206,7 +206,7 @@ export function DiagnosticPanel() {
               </div>
               
               {!results.agentDetails.resolvedId && (
-                <Alert variant="warning" className="mt-3">
+                <Alert variant="default" className="mt-3">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Attention</AlertTitle>
                   <AlertDescription>
@@ -229,7 +229,7 @@ export function DiagnosticPanel() {
               </div>
               
               {results.database?.callsFound === 0 && (
-                <Alert className="mt-3">
+                <Alert variant="default" className="mt-3">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Aucun appel trouvé</AlertTitle>
                   <AlertDescription>

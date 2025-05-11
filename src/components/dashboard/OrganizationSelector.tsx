@@ -11,12 +11,25 @@ import {
 } from '@/components/ui/select';
 
 export function OrganizationSelector() {
-  const { currentOrg, organizations, changeOrganization } = useOrg();
+  const { currentOrg, organizations, changeOrganization, loading } = useOrg();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOrgChange = (value: string) => {
-    changeOrganization(value);
+    if (changeOrganization) {
+      changeOrganization(value);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-between px-2 py-1.5 rounded-md text-sm">
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4" />
+          <span className="font-medium">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!organizations || organizations.length === 0) {
     return (

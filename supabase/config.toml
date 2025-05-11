@@ -45,3 +45,9 @@ verify_jwt = true
 
 [functions.get-elevenlabs-call-details]
 verify_jwt = true
+
+[functions.elevenlabs-diagnostic]
+verify_jwt = true
+
+[functions.elevenlabs-api-test]
+verify_jwt = true

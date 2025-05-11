@@ -20,7 +20,9 @@ export function getRequiredEnvVars(variables: string[]): Record<string, string> 
   }
 
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    const errorMessage = `Missing required environment variables: ${missing.join(', ')}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
   }
 
   return result;
@@ -39,8 +41,59 @@ export function getSupabaseEnvVars(): { supabaseUrl: string; supabaseServiceKey:
 
 /**
  * Gets the ElevenLabs API key from environment variables
+ * Tries both ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY for backwards compatibility
  * @returns Object containing the ElevenLabs API key
  */
 export function getElevenLabsEnvVars(): { elevenlabsApiKey: string } {
-  return getRequiredEnvVars(['ELEVENLABS_API_KEY']) as { elevenlabsApiKey: string };
+  try {
+    // Try the standard naming first
+    const key = Deno.env.get('ELEVENLABS_API_KEY');
+    if (key) {
+      console.log("Found ELEVENLABS_API_KEY");
+      return { elevenlabsApiKey: key };
+    }
+    
+    // Try the alternate naming
+    const alternateKey = Deno.env.get('ELEVEN_LABS_API_KEY');
+    if (alternateKey) {
+      console.log("Found ELEVEN_LABS_API_KEY");
+      return { elevenlabsApiKey: alternateKey };
+    }
+    
+    // If we get here, neither key exists
+    throw new Error("Missing ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY environment variables");
+  } catch (error) {
+    console.error("Error getting ElevenLabs API key:", error);
+    throw error;
+  }
+}
+
+/**
+ * Safe environment variable getter with logging
+ * @param name Environment variable name
+ * @param required Whether the variable is required
+ * @returns The variable value or undefined
+ */
+export function safeGetEnv(name: string, required = false): string | undefined {
+  try {
+    const value = Deno.env.get(name);
+    if (!value && required) {
+      console.error(`Required environment variable ${name} is missing`);
+      throw new Error(`Required environment variable ${name} is missing`);
+    }
+    
+    if (value) {
+      console.log(`Successfully retrieved environment variable: ${name}`);
+      return value;
+    } else {
+      console.log(`Environment variable not found: ${name}`);
+      return undefined;
+    }
+  } catch (error) {
+    console.error(`Error accessing environment variable ${name}:`, error);
+    if (required) {
+      throw error;
+    }
+    return undefined;
+  }
 }

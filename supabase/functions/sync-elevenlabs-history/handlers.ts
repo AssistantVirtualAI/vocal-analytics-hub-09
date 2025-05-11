@@ -16,6 +16,7 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     const { agentId } = requestData;
     
     if (!agentId) {
+      console.error("Missing agentId in request body");
       return createErrorResponse({
         status: 400,
         message: "Agent ID is required",
@@ -24,15 +25,22 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
     }
 
     try {
+      console.log("Getting environment variables...");
       const { elevenlabsApiKey } = getElevenLabsEnvVars();
       const { supabaseUrl, supabaseServiceKey } = getSupabaseEnvVars();
       
+      console.log(`Environment variables obtained. Using API key: ${elevenlabsApiKey ? "***" + elevenlabsApiKey.substring(elevenlabsApiKey.length - 4) : "undefined"}`);
+      console.log(`Supabase URL: ${supabaseUrl ? supabaseUrl : "undefined"}`);
+      console.log(`Supabase service key present: ${supabaseServiceKey ? "Yes" : "No"}`);
+      
       // Récupérer l'historique depuis ElevenLabs
+      console.log(`Fetching history from ElevenLabs for agent ${agentId}...`);
       const historyItems = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
       
       console.log(`Retrieved ${historyItems.length} history items for agent ${agentId}`);
       
       if (!Array.isArray(historyItems)) {
+        console.error("Invalid response from ElevenLabs API - not an array:", historyItems);
         return createErrorResponse({
           status: 500,
           message: "Invalid response from ElevenLabs API",
@@ -41,6 +49,7 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
       }
       
       // Synchroniser avec Supabase
+      console.log(`Syncing ${historyItems.length} history items with Supabase...`);
       const syncResults = await syncHistoryItems(
         supabaseUrl,
         supabaseServiceKey,
@@ -51,6 +60,8 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
       // Calculer les statistiques de synchronisation
       const successCount = syncResults.filter(r => r.success).length;
       const errorCount = syncResults.filter(r => !r.success).length;
+      
+      console.log(`Sync complete. Success: ${successCount}, Error: ${errorCount}`);
       
       const response: SyncResponse = {
         success: errorCount === 0,
@@ -64,6 +75,8 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
       
       return createSuccessResponse(response);
     } catch (error) {
+      console.error("Error accessing environment variables or API:", error);
+      
       if (error instanceof Error && error.message.includes('environment variable')) {
         return createErrorResponse({
           status: 500,

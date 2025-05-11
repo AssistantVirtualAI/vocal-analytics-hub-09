@@ -66,7 +66,7 @@ export const ElevenLabsAudioPlayer = ({
         toast({
           title: "Échec de la tentative",
           description: "Impossible de récupérer l'audio. Nouvelle tentative dans quelques secondes.",
-          variant: "warning"
+          variant: "destructive" // Changed from "warning" to "destructive" to match allowed variants
         });
         
         // Auto-retry with exponential backoff
@@ -101,4 +101,3 @@ export const ElevenLabsAudioPlayer = ({
     </Card>
   );
 };
-

@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSyncElevenLabsHistory } from '@/hooks/useSyncElevenLabsHistory';
+import { toast } from 'sonner';
+import { useOrganization } from '@/context/OrganizationContext';
+import { AGENT_ID } from '@/config/agent';
 
 interface SyncElevenLabsHistoryButtonProps {
   agentId?: string;
@@ -18,10 +21,19 @@ export function SyncElevenLabsHistoryButton({
   variant = "outline"
 }: SyncElevenLabsHistoryButtonProps) {
   const { syncHistory, isSyncing } = useSyncElevenLabsHistory();
+  const { currentOrganization } = useOrganization();
+  
+  // Determine which agent ID to use (priority: prop > organization > default)
+  const effectiveAgentId = agentId || currentOrganization?.agentId || AGENT_ID;
 
   const handleSync = async () => {
-    console.log("Starting ElevenLabs history sync with agentId:", agentId);
-    const result = await syncHistory(agentId);
+    if (!effectiveAgentId) {
+      toast.error("Aucun ID d'agent ElevenLabs n'est configuré");
+      return;
+    }
+    
+    console.log("Starting ElevenLabs history sync with agentId:", effectiveAgentId);
+    const result = await syncHistory(effectiveAgentId);
     console.log("Sync result:", result);
     
     if (result.success && onSuccess) {

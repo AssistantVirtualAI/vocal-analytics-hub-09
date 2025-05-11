@@ -1,136 +1,153 @@
 
-// ElevenLabs API history endpoints handlers
+// Shared module for interacting with the ElevenLabs API - History functionality
 import { fetchWithRetry } from "../fetch-with-retry.ts";
 import { ELEVENLABS_API_BASE_URL, handleElevenLabsApiError } from "./client.ts";
-import { createErrorResponse, ErrorCode } from "./error.ts";
 
-/**
- * Fetch history items from ElevenLabs API with pagination.
- * This function is kept for compatibility with existing code, but new code should
- * consider using the conversation endpoints if they fit the use case.
- * The /v1/history endpoint seems to be the one providing detailed generation history.
- */
-export async function fetchElevenLabsHistory(apiKey: string, elevenLabsVoiceId?: string, pageSize: number = 100, maxItems: number = 1000) {
-  console.log(`Fetching ElevenLabs history. Voice ID filter: ${elevenLabsVoiceId || 'all'}, Page Size: ${pageSize}, Max Items: ${maxItems}`);
-  
-  let allHistoryItems: any[] = [];
-  let lastHistoryItemId: string | null = null;
-  let hasMore = true;
-  let itemsFetchedInCurrentRequest = 0;
+export interface HistoryItem {
+  history_item_id: string;
+  voice_id?: string;
+  model_id?: string;
+  text?: string;
+  created_at?: string;
+  date_unix?: number;
+  [key: string]: any;
+}
 
-  while (hasMore && allHistoryItems.length < maxItems) {
-    const params = new URLSearchParams();
-    params.append('page_size', pageSize.toString());
-    if (lastHistoryItemId) {
-      params.append('start_after_history_item_id', lastHistoryItemId);
-    }
-
-    const url = `${ELEVENLABS_API_BASE_URL}/history?${params.toString()}`;
-    console.log(`Calling ElevenLabs History API: ${url}`);
-
-    try {
-      const response = await fetchWithRetry(url, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-          "xi-api-key": apiKey,
-        }
-      }, 3);
-
-      if (!response.ok) {
-        const status = response.status;
-        let errorMessage = "Error fetching history items from ElevenLabs";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
-        } catch (parseError) {
-          console.error("Failed to parse error response from /history", parseError);
-        }
-        // Throw the error to be caught by the caller (sync-elevenlabs-history/handlers.ts)
-        // This allows the caller to handle API errors more specifically.
-        console.error(`ElevenLabs History API Error: ${status} - ${errorMessage}`);
-        const error = new Error(errorMessage) as any;
-        error.status = status;
-        throw error; 
-      }
-
-      const data = await response.json();
-      const historyPageItems = data.history || [];
-      itemsFetchedInCurrentRequest = historyPageItems.length;
-      console.log(`Retrieved ${itemsFetchedInCurrentRequest} history items in this page.`);
-
-      if (historyPageItems.length > 0) {
-        allHistoryItems = allHistoryItems.concat(historyPageItems);
-        lastHistoryItemId = historyPageItems[historyPageItems.length - 1].history_item_id;
-      }
-      
-      hasMore = data.has_more && itemsFetchedInCurrentRequest > 0 && itemsFetchedInCurrentRequest === pageSize;
-      if (!hasMore) {
-          console.log("No more history pages to fetch or page size condition not met.");
-      }
-
-    } catch (error) {
-      console.error(`Error during fetchElevenLabsHistory loop: ${error.message || error}`);
-      // If an error occurs (network, or API error re-thrown), stop pagination and re-throw.
-      throw error; 
-    }
-  }
-  
-  console.log(`Total history items fetched before filtering: ${allHistoryItems.length}`);
-
-  // Filter by voice_id or model_id if elevenLabsVoiceId is provided
-  let filteredItems = allHistoryItems;
-  if (elevenLabsVoiceId) {
-    console.log(`Filtering total history items by ElevenLabs Voice ID: ${elevenLabsVoiceId}`);
-    filteredItems = allHistoryItems.filter((item: any) => 
-      item.voice_id === elevenLabsVoiceId || 
-      item.model_id === elevenLabsVoiceId // Some history items might use model_id as identifier
-    );
-    console.log(`Found ${filteredItems.length} history items for Voice ID: ${elevenLabsVoiceId} after filtering.`);
-  }
-  
-  return filteredItems;
+export interface ElevenLabsHistoryResponse {
+  history: HistoryItem[];
+  last_history_item_id?: string;
+  has_more?: boolean;
 }
 
 /**
- * Fetch details of a specific history item
- * @param historyItemId - ID of the history item
- * @param apiKey - ElevenLabs API key
- * @returns History item data
+ * Fetch history items from ElevenLabs API
+ * @param apiKey ElevenLabs API key
+ * @param voiceId Optional voice ID filter
+ * @param pageSize Number of items per request
+ * @param maxItems Maximum items to return in total (across multiple requests)
+ * @returns Array of history items
  */
-export function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string) {
-  console.log(`Fetching history item from ElevenLabs API for ID ${historyItemId}`);
+export async function fetchElevenLabsHistory(
+  apiKey: string,
+  voiceId?: string,
+  pageSize = 100,
+  maxItems = 1000
+): Promise<HistoryItem[]> {
+  try {
+    console.log(`Fetching ElevenLabs history. Voice ID filter: ${voiceId}, Page Size: ${pageSize}, Max Items: ${maxItems}`);
 
-  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`, {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "xi-api-key": apiKey,
+    // URL for the history API
+    let url = `${ELEVENLABS_API_BASE_URL}/history?page_size=${pageSize}`;
+    
+    // Add voice filter if provided
+    if (voiceId) {
+      url += `&voice_id=${voiceId}`;
     }
-  }, 3) 
-  .then(async response => {
+
+    console.log(`Calling ElevenLabs History API: ${url}`);
+    
+    const allItems: HistoryItem[] = [];
+    let hasMore = true;
+    let lastItemId: string | undefined = undefined;
+    let totalRequests = 0;
+    
+    try {
+      // Loop to fetch all pages
+      while (hasMore && allItems.length < maxItems && totalRequests < 10) {
+        totalRequests++;
+        
+        // Add pagination token if we have one
+        const paginationUrl = lastItemId ? `${url}&history_item_id=${lastItemId}` : url;
+        
+        const response = await fetchWithRetry(paginationUrl, {
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+        });
+        
+        console.log(`Response status: ${response.status}, URL: ${paginationUrl}`);
+        
+        if (!response.ok) {
+          // Attempt to extract error details
+          try {
+            const errorText = await response.text();
+            console.error(`Error response (${response.status}): ${response.statusText}`);
+            console.error(`Error response text: ${errorText}`);
+            throw new Error(`Error fetching history items from ElevenLabs`);
+          } catch (textError) {
+            console.error(`Failed to parse error response from /history`, textError);
+            throw new Error(`Error fetching history items from ElevenLabs`);
+          }
+        }
+        
+        let data: ElevenLabsHistoryResponse;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error(`Error during fetchElevenLabsHistory JSON parsing:`, jsonError);
+          throw new Error(`Error parsing response from ElevenLabs API`);
+        }
+        
+        if (!data.history || !Array.isArray(data.history)) {
+          console.error(`Invalid response format from ElevenLabs API:`, data);
+          throw new Error(`Invalid response format from ElevenLabs API`);
+        }
+        
+        // Add items to our collection
+        allItems.push(...data.history);
+        
+        // Check if there are more pages
+        hasMore = !!data.has_more;
+        lastItemId = data.last_history_item_id;
+        
+        console.log(`Retrieved ${data.history.length} items, total: ${allItems.length}, has_more: ${hasMore}`);
+        
+        // Respect API rate limits
+        if (hasMore && allItems.length < maxItems) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      console.log(`Completed fetching history, total items: ${allItems.length}`);
+      return allItems;
+      
+    } catch (loopError) {
+      console.error(`Error during fetchElevenLabsHistory loop:`, loopError);
+      throw loopError;
+    }
+  } catch (error) {
+    console.error(`Error fetching ElevenLabs history:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch a specific history item from ElevenLabs
+ */
+export async function fetchElevenLabsHistoryItem(historyItemId: string, apiKey: string): Promise<HistoryItem> {
+  try {
+    const url = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}`;
+    
+    const response = await fetchWithRetry(url, {
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+    
     if (!response.ok) {
-      const status = response.status;
-      let errorMessage = `Error fetching history item ${historyItemId}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch (e) { console.error("Failed to parse error JSON for history item", e); }
-      handleElevenLabsApiError(status, errorMessage, errorMessage);
+      handleElevenLabsApiError(
+        response.status,
+        response.statusText,
+        `Could not fetch history item ${historyItemId}`
+      );
     }
-    return response.json();
-  })
-  .then(historyData => {
-    const audioUrl = `${ELEVENLABS_API_BASE_URL}/history/${historyItemId}/audio`;
-    return { ...historyData, audio_url: audioUrl };
-  })
-  .catch(error => {
-    if (error instanceof Response) throw error;
-    console.error(`Network error fetching history item from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching history item from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
-  });
+    
+    const historyItem = await response.json();
+    return historyItem;
+  } catch (error) {
+    console.error(`Error fetching history item ${historyItemId}:`, error);
+    throw error;
+  }
 }

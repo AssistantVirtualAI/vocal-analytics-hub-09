@@ -3,20 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserSession } from '@/hooks/auth/useUserSession'; 
 import { Organization, OrganizationUser } from '@/types/organization';
-import { 
-  fetchOrganizations,
-  fetchOrganization
-} from '@/services/organization';
-import { 
-  createOrg, 
-  updateOrg, 
-  deleteOrg 
-} from '@/services/organization/crudOperations';
-import { 
-  fetchOrganizationUsers, 
-  addUserToOrganization, 
-  removeUserFromOrganization
-} from '@/services/organization/users';
+import { fetchOrganizations } from '@/services/organization';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -92,11 +79,24 @@ export function useOrganizationState() {
       const newOrgData: Omit<Organization, "id" | "createdAt"> = {
         name,
         description,
-        agentId,
-        ownerId: session.user.id
+        agentId
       };
       
-      const newOrgId = await createOrg(newOrgData);
+      // Use direct Supabase call instead of createOrg
+      const { data, error } = await supabase
+        .from('organizations')
+        .insert([{
+          name: newOrgData.name,
+          description: newOrgData.description,
+          agent_id: newOrgData.agentId
+        }])
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      if (!data) throw new Error('No data returned from insert operation');
+
+      const newOrgId = data.id;
 
       // Refresh organizations list
       const orgs = await fetchOrganizations();
@@ -131,7 +131,17 @@ export function useOrganizationState() {
   // Update an organization
   const updateOrganization = async (organization: Organization): Promise<void> => {
     try {
-      await updateOrg(organization);
+      // Use direct Supabase call instead of updateOrg
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          name: organization.name,
+          description: organization.description,
+          agent_id: organization.agentId
+        })
+        .eq('id', organization.id);
+
+      if (error) throw error;
       
       // Update local state
       setOrganizations(orgs => 
@@ -160,7 +170,13 @@ export function useOrganizationState() {
   // Delete an organization
   const deleteOrganization = async (organizationId: string): Promise<void> => {
     try {
-      await deleteOrg(organizationId);
+      // Use direct Supabase call instead of deleteOrg
+      const { error } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', organizationId);
+
+      if (error) throw error;
       
       // Update local state
       setOrganizations(orgs => orgs.filter(org => org.id !== organizationId));
@@ -215,8 +231,32 @@ export function useOrganizationState() {
     try {
       if (!orgId) return;
       
-      const fetchedUsers = await fetchOrganizationUsers(orgId);
-      setUsers(fetchedUsers);
+      // Fetch organization users directly from Supabase
+      const { data, error } = await supabase
+        .from('user_organizations')
+        .select(`
+          user_id,
+          is_org_admin,
+          organization_id,
+          profiles:user_id(id, email, display_name, avatar_url)
+        `)
+        .eq('organization_id', orgId);
+      
+      if (error) throw error;
+      
+      if (data) {
+        const formattedUsers: OrganizationUser[] = data.map(item => ({
+          id: item.user_id,
+          email: item.profiles?.email || '',
+          displayName: item.profiles?.display_name || '',
+          avatarUrl: item.profiles?.avatar_url || '',
+          role: item.is_org_admin ? 'admin' : 'user',
+          createdAt: new Date().toISOString(), // fallback
+          isPending: false
+        }));
+        
+        setUsers(formattedUsers);
+      }
     } catch (error) {
       console.error(`Error loading users for organization ${orgId}:`, error);
       toast({
@@ -234,7 +274,44 @@ export function useOrganizationState() {
         throw new Error("No organization selected");
       }
       
-      await addUserToOrganization(currentOrganization.id, email, role);
+      // Find user by email
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+        
+      if (userError) throw userError;
+      
+      if (!userData) {
+        throw new Error(`User with email ${email} not found`);
+      }
+      
+      // Check if user is already in the organization
+      const { data: existingMember, error: memberError } = await supabase
+        .from('user_organizations')
+        .select('*')
+        .eq('user_id', userData.id)
+        .eq('organization_id', currentOrganization.id)
+        .maybeSingle();
+        
+      if (memberError) throw memberError;
+      
+      if (existingMember) {
+        throw new Error('User is already a member of this organization');
+      }
+      
+      // Add user to organization
+      const { error: addError } = await supabase
+        .from('user_organizations')
+        .insert({
+          user_id: userData.id,
+          organization_id: currentOrganization.id,
+          is_org_admin: role === 'admin'
+        });
+        
+      if (addError) throw addError;
+      
       await loadOrganizationUsers(currentOrganization.id);
       
       toast({
@@ -259,7 +336,13 @@ export function useOrganizationState() {
         throw new Error("No organization selected");
       }
       
-      await removeUserFromOrganization(currentOrganization.id, userId);
+      const { error } = await supabase
+        .from('user_organizations')
+        .delete()
+        .eq('user_id', userId)
+        .eq('organization_id', currentOrganization.id);
+        
+      if (error) throw error;
       
       // Update local state
       setUsers(users => users.filter(user => user.id !== userId));
@@ -286,10 +369,12 @@ export function useOrganizationState() {
         throw new Error("No organization selected");
       }
       
-      // Note: Using supabase directly as there's no updateUserRole function
+      const isAdmin = role === 'admin';
+      
+      // Update user role
       const { error } = await supabase
-        .from('organization_users')
-        .update({ role })
+        .from('user_organizations')
+        .update({ is_org_admin: isAdmin })
         .eq('organization_id', currentOrganization.id)
         .eq('user_id', userId);
         
@@ -333,14 +418,13 @@ export function useOrganizationState() {
       
       // Check if user is an admin of this organization
       const { data } = await supabase
-        .from('organization_users')
-        .select('*')
+        .from('user_organizations')
+        .select('is_org_admin')
         .eq('user_id', userId)
         .eq('organization_id', orgId)
-        .eq('role', 'admin')
         .maybeSingle();
       
-      setUserHasAdminAccessToCurrentOrg(!!data);
+      setUserHasAdminAccessToCurrentOrg(!!data?.is_org_admin);
     } catch (error) {
       console.error("Error checking user access:", error);
       setUserHasAdminAccessToCurrentOrg(false);

@@ -5,25 +5,26 @@ import { OrganizationUsers } from '@/components/organizations/OrganizationUsers'
 interface OrganizationUserManagementSectionProps {
   currentOrganization: Organization | null;
   users: OrganizationUser[];
-  fetchOrganizationUsers: (organizationId: string) => Promise<void>;
-  addUserToOrganization: (email: string, organizationId: string) => Promise<void>;
-  removeUserFromOrganization: (userId: string, organizationId: string) => Promise<void>;
+  addUserToOrganization: (email: string, role?: string) => Promise<void>;
+  removeUserFromOrganization: (userId: string) => Promise<void>;
+  updateUserRole: (userId: string, role: string) => Promise<void>;
 }
 
 export const OrganizationUserManagementSection = ({
   currentOrganization,
   users,
-  fetchOrganizationUsers,
   addUserToOrganization,
-  removeUserFromOrganization
+  removeUserFromOrganization,
+  updateUserRole
 }: OrganizationUserManagementSectionProps) => {
   return (
     <OrganizationUsers
       currentOrganization={currentOrganization}
       users={users}
-      fetchOrganizationUsers={fetchOrganizationUsers}
+      fetchOrganizationUsers={() => Promise.resolve()} // This is handled internally in the parent component now
       addUserToOrganization={addUserToOrganization}
       removeUserFromOrganization={removeUserFromOrganization}
+      onUpdateUserRole={updateUserRole}
     />
   );
 };

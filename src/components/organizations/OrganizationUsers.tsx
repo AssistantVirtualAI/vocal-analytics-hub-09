@@ -11,6 +11,7 @@ interface OrganizationUsersProps {
   fetchOrganizationUsers: (organizationId: string) => Promise<void>;
   addUserToOrganization: (email: string, organizationId: string) => Promise<void>;
   removeUserFromOrganization: (userId: string, organizationId: string) => Promise<void>;
+  onUpdateUserRole?: (userId: string, role: string) => Promise<void>;
 }
 
 export const OrganizationUsers = ({
@@ -18,7 +19,8 @@ export const OrganizationUsers = ({
   users,
   fetchOrganizationUsers,
   addUserToOrganization,
-  removeUserFromOrganization
+  removeUserFromOrganization,
+  onUpdateUserRole
 }: OrganizationUsersProps) => {
   const { pendingInvitations, cancelInvitation } = useOrganizationInvitations(currentOrganization?.id || null);
 
@@ -35,6 +37,12 @@ export const OrganizationUsers = ({
     if (currentOrganization) {
       await removeUserFromOrganization(userId, currentOrganization.id);
       await fetchOrganizationUsers(currentOrganization.id);
+    }
+  };
+
+  const handleUpdateRole = async (userId: string, role: string) => {
+    if (onUpdateUserRole && currentOrganization) {
+      await onUpdateUserRole(userId, role);
     }
   };
 
@@ -56,6 +64,7 @@ export const OrganizationUsers = ({
           pendingInvitations={pendingInvitations}
           onRemoveUser={handleRemoveUser}
           onCancelInvitation={cancelInvitation}
+          onUpdateRole={handleUpdateRole}
         />
       </CardContent>
     </Card>

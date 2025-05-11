@@ -72,9 +72,9 @@ export const useOrganizationUsersLoading = () => {
           
           return {
             id: item.user_id,
-            email: profile?.email || '',
-            displayName: profile?.display_name || '',
-            avatarUrl: profile?.avatar_url || '',
+            email: profile.email || '',
+            displayName: profile.display_name || '',
+            avatarUrl: profile.avatar_url || '',
             role: item.is_org_admin ? 'admin' : 'user',
             createdAt: new Date().toISOString(), // fallback
             isPending: false,

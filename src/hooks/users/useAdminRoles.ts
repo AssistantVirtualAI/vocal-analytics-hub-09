@@ -85,7 +85,7 @@ export const useAdminRoles = (
 
   // Check permissions when component mounts or dependencies change
   useEffect(() => {
-    if (!isInitialized && (userId || selectedOrg)) {
+    if (!isInitialized) {
       console.log("[useAdminRoles] Dependencies changed, checking permissions");
       
       // Add a slight delay for retries to prevent flooding

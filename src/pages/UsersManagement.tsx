@@ -20,10 +20,17 @@ export default function UsersManagement() {
   // Initialize organization selection
   useEffect(() => {
     if (organizations.length > 0 && !selectedOrg) {
-      console.log('Setting initial organization:', organizations[0].id);
+      console.log('[UsersManagement] Setting initial organization:', organizations[0].id);
       setSelectedOrg(organizations[0].id);
     }
   }, [organizations, selectedOrg]);
+
+  // Use the admin roles hook to check permissions
+  const {
+    currentUserIsOrgAdmin,
+    currentUserIsSuperAdmin,
+    loading: permissionsLoading
+  } = useAdminRoles(selectedOrg, user?.id);
 
   const {
     orgUsers,
@@ -34,45 +41,20 @@ export default function UsersManagement() {
     fetchUsers,
     loadAllUsers,
     addUserToOrg,
-    refreshAllData,
-    checkCurrentUserPermissions
+    refreshAllData
   } = useUsersManagement(selectedOrg);
-  
-  // User permission states
-  const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
-  const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
-
-  // Check admin permissions on mount and when organization changes
-  useEffect(() => {
-    const checkPermissions = async () => {
-      if (user?.id && selectedOrg) {
-        console.log("Checking admin permissions for user:", user.id);
-        const { isSuperAdmin, isOrgAdmin } = await checkCurrentUserPermissions();
-        setCurrentUserIsOrgAdmin(isOrgAdmin);
-        setCurrentUserIsSuperAdmin(isSuperAdmin);
-      }
-    };
-    
-    checkPermissions();
-  }, [user?.id, selectedOrg, checkCurrentUserPermissions]);
 
   // Debug logging
-  console.log('UsersManagement - Selected org:', selectedOrg);
-  console.log('UsersManagement - Organizations:', organizations);
-  console.log('UsersManagement - Org users:', orgUsers);
-  console.log('UsersManagement - Loading states:', { loading, orgUsersLoading, allUsersLoading });
-  console.log('UsersManagement - Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
+  console.log('[UsersManagement] Selected org:', selectedOrg);
+  console.log('[UsersManagement] Organizations:', organizations);
+  console.log('[UsersManagement] Org users:', orgUsers);
+  console.log('[UsersManagement] Loading states:', { loading, orgUsersLoading, allUsersLoading, permissionsLoading });
+  console.log('[UsersManagement] Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
 
   const handleRefresh = async () => {
     try {
       toast.info("Actualisation des données utilisateurs...");
       await refreshAllData();
-      
-      // Update permissions after refresh
-      const { isSuperAdmin, isOrgAdmin } = await checkCurrentUserPermissions();
-      setCurrentUserIsOrgAdmin(isOrgAdmin);
-      setCurrentUserIsSuperAdmin(isSuperAdmin);
-      
       toast.success("Données utilisateurs actualisées");
     } catch (error) {
       console.error("Error refreshing data:", error);
@@ -121,7 +103,7 @@ export default function UsersManagement() {
             fetchUsers={fetchUsers}
             onAddUser={addUserToOrg}
             loading={loading}
-            usersLoading={orgUsersLoading}
+            usersLoading={orgUsersLoading || permissionsLoading}
             currentUserIsOrgAdmin={currentUserIsOrgAdmin}
             currentUserIsSuperAdmin={currentUserIsSuperAdmin}
           />

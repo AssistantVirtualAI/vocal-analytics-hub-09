@@ -20,7 +20,7 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     // First, get user IDs in the organization
     const { data: userOrgData, error: userOrgError } = await supabase
       .from('user_organizations')
-      .select('user_id')
+      .select('user_id, is_org_admin')
       .eq('organization_id', organizationId);
 
     if (userOrgError) {
@@ -31,6 +31,12 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
     const userIds = userOrgData?.map(item => item.user_id) || [];
     console.log(`[fetchOrganizationUsers] Found ${userIds.length} users in organization:`, userIds);
     
+    // Create a map of user IDs to their org admin status
+    const orgAdminMap = new Map();
+    userOrgData?.forEach(item => {
+      orgAdminMap.set(item.user_id, item.is_org_admin);
+    });
+
     // If no users in the organization, just return pending invitations
     if (userIds.length === 0) {
       console.log('[fetchOrganizationUsers] No users found in organization, checking for pending invitations');
@@ -50,23 +56,19 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
       throw profilesError;
     }
 
+    // Check if any profiles were found
     if (!profilesData || profilesData.length === 0) {
       console.log('[fetchOrganizationUsers] No profile data found for user IDs');
-      // Check if the current user's profile exists even if it's not included in the organization
-      if (currentUser && userIds.includes(currentUser.id)) {
-        console.log('[fetchOrganizationUsers] Current user is in organization but profile data is missing');
-      }
       // Return pending invitations since no active users were found
       return await fetchPendingInvitations(organizationId);
     }
 
     console.log(`[fetchOrganizationUsers] Fetched ${profilesData.length} user profiles`);
 
-    // Get the user roles to determine admin status
+    // Get the user roles to determine super admin status
     const { data: rolesData, error: rolesError } = await supabase
       .from('user_roles')
-      .select('*')
-      .in('user_id', userIds);
+      .select('*');
 
     if (rolesError) {
       console.error('[fetchOrganizationUsers] Error fetching user roles:', rolesError);
@@ -75,34 +77,35 @@ export const fetchOrganizationUsers = async (organizationId: string): Promise<Or
 
     console.log(`[fetchOrganizationUsers] Fetched ${rolesData?.length || 0} user roles`);
 
+    // Create a map of user IDs to their super admin status
+    const superAdminMap = new Map();
+    rolesData?.forEach(role => {
+      if (role.role === 'admin') {
+        superAdminMap.set(role.user_id, true);
+      }
+    });
+
     // Format active users
     const activeUsers: OrganizationUser[] = [];
     
     if (profilesData) {
       for (const profile of profilesData) {
-        const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-        const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+        // Skip profiles that don't have an id (shouldn't happen, but just in case)
+        if (!profile.id) continue;
         
-        // Get the organization admin status from user_organizations table
-        const { data: orgAdminData } = await supabase
-          .from('user_organizations')
-          .select('is_org_admin')
-          .eq('user_id', profile.id)
-          .eq('organization_id', organizationId)
-          .single();
-        
-        // Check if user is a super admin (has admin role in user_roles)
-        const isSuperAdmin = role === 'admin';
+        // Get admin statuses from our maps
+        const isOrgAdmin = orgAdminMap.get(profile.id) || false;
+        const isSuperAdmin = superAdminMap.get(profile.id) || false;
         
         activeUsers.push({
           id: profile.id,
           email: profile.email || '',
           displayName: profile.display_name || profile.email?.split('@')[0] || '',
           avatarUrl: profile.avatar_url || '',
-          role: role as 'admin' | 'user',
+          role: isSuperAdmin ? 'admin' : 'user',
           createdAt: profile.created_at || new Date().toISOString(),
           isPending: false,
-          isOrgAdmin: orgAdminData?.is_org_admin || false,
+          isOrgAdmin: isOrgAdmin || isSuperAdmin, // Super admins are also org admins
           isSuperAdmin: isSuperAdmin
         });
       }

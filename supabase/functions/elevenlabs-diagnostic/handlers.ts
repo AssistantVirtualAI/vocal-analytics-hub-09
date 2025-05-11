@@ -1,7 +1,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getOrCreateAgent } from "../_shared/agent-resolver-improved.ts";
-import { fetchElevenLabsConversations } from "../_shared/elevenlabs-api.ts";
+import { fetchElevenLabsConversations } from "../_shared/elevenlabs/conversations.ts";
 import { DiagnosticResults } from "./types.ts";
 
 const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";

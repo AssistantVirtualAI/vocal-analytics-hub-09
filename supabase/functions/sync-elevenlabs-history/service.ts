@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   HistoryItem, 
@@ -6,6 +5,7 @@ import {
   CallData, 
   SyncResult 
 } from "./models.ts";
+import { fetchElevenLabsHistory, fetchElevenLabsHistoryItem } from "../_shared/elevenlabs/history.ts";
 
 /**
  * Convertit un élément d'historique en données d'appel pour la base de données

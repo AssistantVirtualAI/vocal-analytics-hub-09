@@ -1,4 +1,3 @@
-
 import { corsHeaders } from "../_shared/cors.ts";
 import { getElevenLabsEnvVars } from "../_shared/env.ts";
 import { fetchCallInfo, getAudioUrlFromId } from "./database.ts";
@@ -7,7 +6,7 @@ import {
   fetchElevenLabsConversation,
   fetchElevenLabsConversationTranscript,
   getElevenLabsConversationAudioUrl
-} from "../_shared/elevenlabs-api.ts";
+} from "../_shared/elevenlabs/conversations.ts";
 import { ErrorResponse, CallAudioRequest } from "./types.ts";
 import { createErrorResponse } from "../_shared/api-utils.ts";
 

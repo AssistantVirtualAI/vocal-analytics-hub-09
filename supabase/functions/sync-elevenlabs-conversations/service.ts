@@ -1,11 +1,14 @@
-
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
-  Conversation,
+  Conversation, 
   CallData, 
   SyncResult 
 } from "./models.ts";
-import { fetchElevenLabsConversationTranscript } from "../_shared/elevenlabs-api.ts";
+import { 
+  fetchElevenLabsConversations, 
+  fetchAllElevenLabsConversations, 
+  fetchElevenLabsConversationTranscript 
+} from "../_shared/elevenlabs/conversations.ts";
 
 /**
  * Convertit une conversation en données d'appel pour la base de données

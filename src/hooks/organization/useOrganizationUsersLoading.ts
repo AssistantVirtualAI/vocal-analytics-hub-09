@@ -31,9 +31,8 @@ export const useOrganizationUsersLoading = () => {
       
       if (data) {
         const formattedUsers: OrganizationUser[] = data.map(item => {
-          // First check if profiles exists at all before trying to check properties on it
+          // Handle case where profiles might be null or not an expected object
           if (!item.profiles) {
-            // If profiles is null or undefined, use empty values
             return {
               id: item.user_id,
               email: '',
@@ -46,9 +45,8 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Then check if it's the right type of object
+          // Handle case where profiles might not be the right type or has an error
           if (typeof item.profiles !== 'object' || 'error' in item.profiles) {
-            // If it's not a valid object or has an error property, use empty values
             return {
               id: item.user_id,
               email: '',
@@ -61,8 +59,7 @@ export const useOrganizationUsersLoading = () => {
             };
           }
           
-          // Now TypeScript knows item.profiles is a valid object at this point
-          // Use optional chaining to safely access properties and provide fallbacks
+          // Now TypeScript knows profiles is a valid object, but we still use optional chaining for safety
           const profile = item.profiles as {
             id?: string; 
             email?: string; 
@@ -82,6 +79,7 @@ export const useOrganizationUsersLoading = () => {
           };
         });
         
+        console.log('Formatted users:', formattedUsers);
         setUsers(formattedUsers);
       }
       

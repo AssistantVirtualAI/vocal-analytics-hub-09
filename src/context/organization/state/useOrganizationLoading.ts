@@ -9,6 +9,7 @@ export const useOrganizationLoading = (session: any) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   
   const STORAGE_KEY = 'current_organization_id';
   
@@ -18,6 +19,7 @@ export const useOrganizationLoading = (session: any) => {
     
     try {
       setIsLoading(true);
+      setError(null);
       // Pass false as the first argument to indicate not admin by default
       // and user ID as second argument
       const orgs = await fetchOrganizations(false, session.user.id);
@@ -52,8 +54,9 @@ export const useOrganizationLoading = (session: any) => {
       }
       
       return { orgs: [] };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load organizations:", error);
+      setError(error);
       toast({
         title: "Error",
         description: "Failed to load organizations",
@@ -89,6 +92,7 @@ export const useOrganizationLoading = (session: any) => {
     currentOrganization,
     setCurrentOrganization,
     isLoading,
+    error,
     loadOrganizations,
     changeOrganization
   };

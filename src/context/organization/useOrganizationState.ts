@@ -19,7 +19,8 @@ export function useOrganizationState() {
     setCurrentOrganization,
     isLoading: orgsLoading,
     loadOrganizations,
-    changeOrganization
+    changeOrganization,
+    error
   } = useOrganizationLoading(session);
   
   // Organization CRUD operations
@@ -91,6 +92,8 @@ export function useOrganizationState() {
     removeUser: adaptedRemoveUser,
     updateUser: adaptedUpdateUser,
     isLoading: orgsLoading || sessionLoading,
+    error,
+    loadOrganizations,
     userHasAdminAccessToCurrentOrg
   };
 }

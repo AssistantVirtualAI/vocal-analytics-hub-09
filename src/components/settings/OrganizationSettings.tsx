@@ -59,6 +59,11 @@ export function OrganizationSettings() {
     }
   };
 
+  // Create a handler function that converts the newOrg object to individual parameters
+  const handleAddOrganization = async (newOrg: { name: string; agentId: string; description: string; }) => {
+    await createOrganization(newOrg.name, newOrg.description, newOrg.agentId);
+  };
+
   return (
     <div className="space-y-6">
       <AIHeader 
@@ -71,7 +76,7 @@ export function OrganizationSettings() {
           organizations={organizations}
           currentOrganization={currentOrganization}
           isAdmin={userHasAdminAccessToCurrentOrg}
-          onAddOrganization={createOrganization}
+          onAddOrganization={handleAddOrganization}
           onUpdateOrganization={updateOrganization}
           onDeleteOrganization={deleteOrganization}
           onSelectOrganization={changeOrganization}

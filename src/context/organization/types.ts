@@ -13,6 +13,8 @@ export interface OrganizationContextType {
   removeUser: (userId: string) => Promise<void>;
   updateUser: (userId: string, role: string) => Promise<void>;
   isLoading: boolean;
+  error?: Error | null;
+  loadOrganizations: () => Promise<Organization[]>;
   userHasAdminAccessToCurrentOrg: boolean;
 }
 

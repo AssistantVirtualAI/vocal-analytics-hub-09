@@ -47,3 +47,21 @@ verify_jwt = false
 
 [edge_functions.sync-elevenlabs-history]
 verify_jwt = false
+
+[edge_functions.elevenlabs-call-audio]
+verify_jwt = false
+
+[edge_functions.get-elevenlabs-calls]
+verify_jwt = false
+
+[edge_functions.sync-calls-elevenlabs]
+verify_jwt = false
+
+[edge_functions.get-calls]
+verify_jwt = false
+
+[edge_functions.get-stats]
+verify_jwt = false
+
+[edge_functions.sync-elevenlabs-conversations]
+verify_jwt = false

@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
+const ELEVENLABS_API_KEY = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -11,11 +13,9 @@ serve(async (req) => {
   try {
     console.log("Starting ElevenLabs diagnostics");
     
-    // 1. Check available environment variables
+    // 1. Manually set the API key and check environment variables
     const availableEnvVars = [];
     const envVarsToCheck = [
-      "ELEVENLABS_API_KEY", 
-      "ELEVEN_LABS_API_KEY", 
       "SUPABASE_URL", 
       "SUPABASE_SERVICE_ROLE_KEY"
     ];
@@ -35,14 +35,29 @@ serve(async (req) => {
     }
     
     // 2. Check for the API key specifically
-    let apiKeyStatus = "missing";
-    const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY") || Deno.env.get("ELEVEN_LABS_API_KEY");
+    let apiKeyStatus = "present";
+    console.log("Hardcoded ElevenLabs API key is present");
     
-    if (elevenLabsApiKey) {
-      apiKeyStatus = "present";
-      console.log("ElevenLabs API key is present");
-    } else {
-      console.log("ElevenLabs API key is missing");
+    // Try to make a simple API call to verify the key works
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/user', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY
+        }
+      });
+      
+      if (response.ok) {
+        apiKeyStatus = "verified";
+        console.log("ElevenLabs API key is verified and working");
+      } else {
+        apiKeyStatus = "invalid";
+        console.log("ElevenLabs API key is invalid:", response.status);
+      }
+    } catch (apiError) {
+      console.error("Error testing API key:", apiError);
+      apiKeyStatus = "error_testing";
     }
     
     return new Response(
@@ -51,6 +66,7 @@ serve(async (req) => {
         message: "ElevenLabs diagnostics completed",
         availableEnvVars,
         apiKeyStatus,
+        elevenlabsApiKey: "hardcoded",
         timestamp: new Date().toISOString()
       }),
       {

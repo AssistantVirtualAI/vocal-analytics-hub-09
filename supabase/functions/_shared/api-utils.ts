@@ -1,68 +1,68 @@
 
 import { corsHeaders } from "./cors.ts";
 
-/**
- * Creates a standardized success response
- */
-export function createSuccessResponse(data: any, status = 200) {
+// Helper to create consistent success responses
+export function createSuccessResponse(data: any, status: number = 200) {
   return new Response(
     JSON.stringify(data),
     {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     }
   );
 }
 
-/**
- * Creates a standardized error response
- */
-export function createErrorResponse(options: { 
-  status: number;
-  message: string;
-  code: string;
-  details?: any;
+// Helper to create consistent error responses
+export function createErrorResponse({ 
+  message = "An unexpected error occurred", 
+  status = 500, 
+  code = "INTERNAL_SERVER_ERROR"
 }) {
-  const { status, message, code, details } = options;
+  console.error(`Error: ${code} - ${message}`);
   
   return new Response(
-    JSON.stringify({
+    JSON.stringify({ 
       error: {
         message,
-        code,
-        details
-      },
-      timestamp: new Date().toISOString()
+        code
+      } 
     }),
     {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
     }
   );
 }
 
-/**
- * Handles CORS preflight requests
- */
+// Helper function for handling CORS preflight requests
 export function handleCorsOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders
-  });
+  return new Response(null, { headers: corsHeaders });
 }
 
-/**
- * Reports API metrics for monitoring
- * This is a stub function that could be expanded to actually report metrics
- */
-export async function reportApiMetrics(
-  functionName: string, 
-  startTime: number,
-  status: number,
-  errorMessage?: string
-): Promise<void> {
-  // This is a stub function that could be expanded to actually report metrics
-  // For now, we just log the metrics
-  const duration = Date.now() - startTime;
-  console.log(`[METRICS] Function: ${functionName}, Duration: ${duration}ms, Status: ${status}${errorMessage ? `, Error: ${errorMessage}` : ''}`);
+// Helper for fetching with retry
+export async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delay = 1000) {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      console.log(`Fetch attempt ${i + 1} failed, retrying in ${delay}ms...`);
+      lastError = error;
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Increase delay for next retry (exponential backoff)
+      delay *= 2;
+    }
+  }
+  
+  throw lastError;
 }

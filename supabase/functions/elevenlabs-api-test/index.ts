@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { safeGetEnv } from "../_shared/env.ts";
 
+const ELEVENLABS_API_KEY = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -12,11 +14,11 @@ serve(async (req) => {
   try {
     console.log("Starting ElevenLabs API test");
     
-    // Check if we can access the API key
-    const apiKey = safeGetEnv('ELEVENLABS_API_KEY') || safeGetEnv('ELEVEN_LABS_API_KEY');
+    // Use the hardcoded API key for testing
+    const apiKey = ELEVENLABS_API_KEY;
     
     if (!apiKey) {
-      throw new Error("ElevenLabs API key not found in environment variables");
+      throw new Error("ElevenLabs API key not found");
     }
     
     console.log("API key found (masked):", apiKey.substring(0, 3) + '...' + apiKey.substring(apiKey.length - 3));

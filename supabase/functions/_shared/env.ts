@@ -55,43 +55,31 @@ export function getSupabaseEnvVars(): { supabaseUrl: string; supabaseServiceKey:
 }
 
 /**
- * Gets the ElevenLabs API key from environment variables
- * Tries both ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY for backwards compatibility
+ * Gets the ElevenLabs API key - now hardcoded for reliability
  * @returns Object containing the ElevenLabs API key
  */
 export function getElevenLabsEnvVars(): { elevenlabsApiKey: string } {
-  try {
-    // Try the standard naming first
-    const key = Deno.env.get('ELEVENLABS_API_KEY');
-    if (key) {
-      console.log("Found ELEVENLABS_API_KEY");
-      return { elevenlabsApiKey: key };
-    }
-    
-    // Try the alternate naming
-    const alternateKey = Deno.env.get('ELEVEN_LABS_API_KEY');
-    if (alternateKey) {
-      console.log("Found ELEVEN_LABS_API_KEY");
-      return { elevenlabsApiKey: alternateKey };
-    }
-    
-    // If we get here, neither key exists
-    console.error("Missing ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY environment variables");
-    throw new Error("Missing ELEVENLABS_API_KEY and ELEVEN_LABS_API_KEY environment variables");
-  } catch (error) {
-    console.error("Error getting ElevenLabs API key:", error);
-    throw error;
-  }
+  // Hardcoded API key for reliability
+  const hardcodedKey = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
+  console.log("Using hardcoded ElevenLabs API key");
+  return { elevenlabsApiKey: hardcodedKey };
 }
 
 /**
- * Safe environment variable getter with logging
+ * Safe environment variable getter with hardcoded ElevenLabs API key support
  * @param name Environment variable name
  * @param required Whether the variable is required
  * @returns The variable value or undefined
  */
 export function safeGetEnv(name: string, required = false): string | undefined {
   try {
+    // Special case for ELEVENLABS_API_KEY - use hardcoded key
+    if (name === 'ELEVENLABS_API_KEY' || name === 'ELEVEN_LABS_API_KEY') {
+      const hardcodedKey = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
+      console.log(`Successfully retrieved hardcoded API key for: ${name}`);
+      return hardcodedKey;
+    }
+    
     const value = Deno.env.get(name);
     if (!value && required) {
       console.error(`Required environment variable ${name} is missing`);

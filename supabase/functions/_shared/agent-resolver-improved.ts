@@ -1,94 +1,110 @@
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * Creates an agent resolver factory that can be reused across functions
+ * Gets the UUID of an agent by its external ID, used in ElevenLabs
+ * @param supabase Supabase client
+ * @param externalAgentId External agent ID (e.g., "QNdB45Jpgh06Hr67TzFO")
+ * @returns Internal UUID of the agent, or null if not found
  */
-export function createAgentResolver(supabase: SupabaseClient) {
-  /**
-   * Get a UUID for an agent by external ID
-   */
-  const getAgentUUIDByExternalId = async (externalId: string): Promise<string | null> => {
-    console.log(`Looking up agent with external_id matching: ${externalId}`);
-    
-    // First, check if the ID is already a UUID
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidPattern.test(externalId)) {
-      console.log(`Found agent directly with ID: ${externalId}`);
-      return externalId;
-    }
-    
-    // Otherwise, look it up in the agents table
-    const { data: agents, error } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('external_id', externalId)
-      .limit(1);
-    
-    if (error) {
-      console.error(`Error looking up agent by external_id: ${error.message}`);
-      return null;
-    }
-    
-    if (agents && agents.length > 0) {
-      console.log(`Found agent with external_id ${externalId}: ${agents[0].id}`);
-      return agents[0].id;
-    }
-    
-    // If not found by external_id, check if it's an organization's agent_id
-    // and return a special value to indicate we should not filter by agent
-    const { data: orgs, error: orgError } = await supabase
-      .from('organizations')
-      .select('id')
-      .eq('agent_id', externalId)
-      .limit(1);
-      
-    if (orgError) {
-      console.error(`Error checking for organization: ${orgError.message}`);
-    } else if (orgs && orgs.length > 0) {
-      console.log(`Found organization with agent_id ${externalId}, using no agent filter`);
-      return 'USE_NO_FILTER';
-    }
-    
-    console.log(`No agent found with external_id: ${externalId}`);
-    return null;
-  };
+export async function getAgentUUIDByExternalId(
+  supabase: SupabaseClient,
+  externalAgentId: string
+): Promise<string | null> {
+  console.log(`[agent-resolver] Looking up agent with external ID: ${externalAgentId}`);
   
-  /**
-   * Get an agent ID from an organization slug
-   */
-  const getAgentIdFromOrgSlug = async (slug: string): Promise<string | null> => {
-    console.log(`Looking up agent_id for org with slug: ${slug}`);
-    
-    const { data: orgs, error } = await supabase
-      .from('organizations')
-      .select('agent_id')
-      .eq('slug', slug)
-      .limit(1);
-    
-    if (error) {
-      console.error(`Error looking up org by slug: ${error.message}`);
-      return null;
-    }
-    
-    if (orgs && orgs.length > 0) {
-      console.log(`Found organization with slug ${slug}, agent_id: ${orgs[0].agent_id}`);
-      return orgs[0].agent_id;
-    }
-    
-    console.log(`No organization found with slug: ${slug}`);
-    return null;
-  };
+  // First, try to find by ID directly (in case externalAgentId is actually a UUID)
+  const { data: directAgent } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("id", externalAgentId)
+    .maybeSingle();
   
-  return {
-    getAgentUUIDByExternalId,
-    getAgentIdFromOrgSlug
-  };
+  if (directAgent) {
+    console.log(`[agent-resolver] Found agent directly with ID: ${directAgent.id}`);
+    return directAgent.id;
+  }
+  
+  // If not found, try to find by name/external_id
+  const { data: agent } = await supabase
+    .from("agents")
+    .select("id")
+    .eq("name", externalAgentId)
+    .maybeSingle();
+  
+  if (agent) {
+    console.log(`[agent-resolver] Found agent by name/external_id: ${agent.id}`);
+    return agent.id;
+  }
+
+  // If still not found, check organizations table for agent_id
+  const { data: organization } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("agent_id", externalAgentId)
+    .maybeSingle();
+  
+  if (organization) {
+    console.log(`[agent-resolver] Found organization with agent_id: ${externalAgentId}, using default agent`);
+    return "USE_NO_FILTER"; // Special flag to indicate we should not filter by agent
+  }
+  
+  console.log(`[agent-resolver] Agent not found for external ID: ${externalAgentId}`);
+  return null;
 }
 
 /**
- * Creates a Supabase client for service role operations
+ * Check if a user has access to an organization
  */
-export function createServiceClient(supabaseUrl: string, supabaseServiceKey: string) {
-  return createClient(supabaseUrl, supabaseServiceKey);
+export async function checkUserOrganizationAccess(
+  supabase: SupabaseClient,
+  userId: string,
+  organizationId?: string,
+  agentId?: string
+): Promise<boolean> {
+  // If no organizationId or agentId provided, user has no access restrictions
+  if (!organizationId && !agentId) {
+    return true;
+  }
+
+  // Check if user is a member of the specified organization
+  if (organizationId) {
+    const { data: userOrg, error } = await supabase
+      .from('user_organizations')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (userOrg) {
+      return true;
+    }
+  }
+
+  // If agentId is provided, check if user has access to any organization with this agent
+  if (agentId) {
+    // Get all organizations this user belongs to
+    const { data: userOrgs } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', userId);
+      
+    if (!userOrgs || userOrgs.length === 0) {
+      return false;
+    }
+    
+    const orgIds = userOrgs.map(org => org.organization_id);
+    
+    // Check if any of these organizations has the specified agent
+    const { data: orgWithAgent } = await supabase
+      .from('organizations')
+      .select('id')
+      .in('id', orgIds)
+      .eq('agent_id', agentId)
+      .maybeSingle();
+      
+    return !!orgWithAgent;
+  }
+
+  return false;
 }

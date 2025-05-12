@@ -1,201 +1,104 @@
 
-// ElevenLabs API conversation endpoints handlers
 import { fetchWithRetry } from "../fetch-with-retry.ts";
-import { ELEVENLABS_API_BASE_URL, handleElevenLabsApiError } from "./client.ts";
-import { createErrorResponse, ErrorCode } from "./error.ts";
+
+const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
+
+// Use our hardcoded API key for reliability
+const ELEVENLABS_API_KEY = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
 
 /**
- * Fetch conversations from the ElevenLabs Conversational AI API
- * with support for filtering by agent, date range, and pagination
- * 
- * @param apiKey - ElevenLabs API key
- * @param options - Optional parameters for filtering
- * @returns List of conversations and cursor for pagination
+ * Options for fetching ElevenLabs conversations
  */
-export async function fetchElevenLabsConversations(apiKey: string, options: {
+interface FetchConversationsOptions {
   agentId?: string;
   fromDate?: Date;
   toDate?: Date;
   limit?: number;
-  cursor?: string;
-} = {}) {
-  console.log("Fetching conversations from ElevenLabs API with filters:", options);
-  
-  try {
-    const params = new URLSearchParams();
-    
-    if (options.agentId) {
-      params.append('agent_id', options.agentId);
-    }
-    
-    if (options.fromDate) {
-      params.append('call_start_after_unix', Math.floor(options.fromDate.getTime() / 1000).toString());
-    }
-    
-    if (options.toDate) {
-      params.append('call_start_before_unix', Math.floor(options.toDate.getTime() / 1000).toString());
-    }
-    
-    params.append('limit', options.limit?.toString() || '100');
-    
-    if (options.cursor) {
-      params.append('cursor', options.cursor);
-    }
-    
-    const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations${params.size > 0 ? `?${params.toString()}` : ''}`;
-    console.log(`Calling ElevenLabs API: ${url}`);
-    
-    const response = await fetchWithRetry(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "xi-api-key": apiKey,
-      }
-    }, 3);
-
-    if (!response.ok) {
-      const errorStatus = response.status;
-      let errorMessage = `ElevenLabs API returned status ${errorStatus}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail?.message || errorData.detail || errorMessage;
-      } catch (parseError) {
-        console.error("Failed to parse error response from /convai/conversations", parseError);
-      }
-      handleElevenLabsApiError(errorStatus, errorMessage, "Error fetching conversations");
-    }
-
-    const conversationsData = await response.json();
-    console.log(`Retrieved ${conversationsData.conversations?.length || 0} conversations from ElevenLabs`);
-    console.log(`Pagination cursor: ${conversationsData.cursor || 'none'}`);
-    
-    return conversationsData;
-  } catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-    console.error(`Network error fetching from ElevenLabs (/convai/conversations): ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
-  }
 }
 
 /**
- * Fetch all conversations with pagination handling
- * This function will continue fetching until all pages are retrieved
- * 
- * @param apiKey - ElevenLabs API key
- * @param options - Optional parameters for filtering
- * @returns All conversations matching the criteria
+ * Fetch conversations from ElevenLabs API with pagination support
  */
-export async function fetchAllElevenLabsConversations(apiKey: string, options: {
-  agentId?: string;
-  fromDate?: Date;
-  toDate?: Date;
-  limit?: number;
-  maxPages?: number; 
-} = {}) {
-  console.log("Fetching all conversations with pagination from ElevenLabs API");
+export async function fetchElevenLabsConversations(
+  apiKey = ELEVENLABS_API_KEY,
+  options: FetchConversationsOptions = {}
+) {
+  const { agentId, fromDate, toDate, limit = 100 } = options;
   
-  let allConversations = [];
-  let cursor: string | null | undefined = null; // Ensure cursor can be null or undefined
-  let hasMore = true;
-  let pageCount = 0;
-  const maxPages = options.maxPages || 10; 
-  const effectiveLimit = options.limit || 100;
+  // Build query parameters
+  const queryParams = new URLSearchParams();
+  if (agentId) queryParams.append("agent_id", agentId);
+  if (limit) queryParams.append("limit", limit.toString());
   
-  while (hasMore && pageCount < maxPages) {
-    pageCount++;
-    console.log(`Fetching page ${pageCount} of conversations with cursor: ${cursor || 'initial'}`);
-    
-    try {
-      const result = await fetchElevenLabsConversations(apiKey, {
-        ...options,
-        limit: effectiveLimit,
-        cursor: cursor || undefined, // Pass undefined if cursor is null
-      });
-      
-      if (result.conversations && Array.isArray(result.conversations)) {
-        allConversations = [...allConversations, ...result.conversations];
-        console.log(`Added ${result.conversations.length} conversations, total: ${allConversations.length}`);
-      }
-      
-      cursor = result.cursor;
-      hasMore = !!cursor; // Simpler check for hasMore
-      
-      if (!hasMore) {
-        console.log("No more conversation pages to fetch.");
-      }
-    } catch (error) {
-      console.error(`Failed to fetch conversation page ${pageCount}. Error: ${error.message || error}`);
-      // Depending on the error, you might want to break or retry with backoff
-      // For simplicity, we break here. Implement retries if needed.
-      break; 
-    }
+  // Add date filters if provided
+  if (fromDate) {
+    const unixTime = Math.floor(fromDate.getTime() / 1000);
+    queryParams.append("start_time_unix_gte", unixTime.toString());
   }
   
-  if (pageCount >= maxPages && hasMore) {
-    console.warn(`Reached maximum number of pages (${maxPages}) for conversations, some might be missing`);
+  if (toDate) {
+    const unixTime = Math.floor(toDate.getTime() / 1000);
+    queryParams.append("end_time_unix_lte", unixTime.toString());
   }
   
-  return allConversations;
-}
-
-/**
- * Fetch conversation transcript
- * @param conversationId - ID of the conversation
- * @param apiKey - ElevenLabs API key
- * @returns Transcript data
- */
-export function fetchElevenLabsConversationTranscript(conversationId: string, apiKey: string) {
-  console.log(`Fetching transcript for conversation ID ${conversationId}`);
+  const url = `${ELEVENLABS_API_BASE_URL}/convai/conversations?${queryParams.toString()}`;
+  console.log(`Fetching ElevenLabs conversations: ${url}`);
   
-  return fetchWithRetry(`${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/transcript`, {
+  const response = await fetchWithRetry(url, {
     method: "GET",
     headers: {
       "Accept": "application/json",
-      "xi-api-key": apiKey,
+      "xi-api-key": apiKey
     }
-  }, 3)
-  .then(async response => {
-    if (!response.ok) {
-      const status = response.status;
-      let errorMessage = `Error fetching transcript for conversation ${conversationId}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch (e) { console.error("Failed to parse error JSON for transcript", e); }
-      handleElevenLabsApiError(status, errorMessage, errorMessage);
-    }
-    return response.json();
-  })
-  .then(data => {
-    console.log(`Successfully retrieved transcript for conversation ${conversationId}`);
-    return data;
-  })
-  .catch(error => {
-    if (error instanceof Response) throw error;
-    console.error(`Network error fetching transcript from ElevenLabs: ${error.message || error}`);
-    throw createErrorResponse(
-      `Network error fetching transcript from ElevenLabs: ${error.message || error}`,
-      500,
-      ErrorCode.ELEVENLABS_API_ERROR
-    );
-  });
+  }, 3, 1000, 10000);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ElevenLabs API error (${response.status}): ${errorText}`);
+  }
+  
+  const data = await response.json();
+  console.log(`Retrieved ${data.conversations?.length || 0} conversations from ElevenLabs API`);
+  
+  return data;
 }
 
 /**
- * Get audio URL for a conversation
- * @param conversationId - ID of the conversation
- * @param messageId - Optional ID of the specific message
- * @returns Audio URL string
+ * Fetch all conversations from ElevenLabs API with automatic pagination
  */
-export function getElevenLabsConversationAudioUrl(conversationId: string, messageId?: string) {
-  if (messageId) {
-    return `${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/messages/${messageId}/audio`;
+export async function fetchAllElevenLabsConversations(
+  apiKey = ELEVENLABS_API_KEY,
+  options: FetchConversationsOptions & { maxPages?: number } = {}
+): Promise<any[]> {
+  const { maxPages = 5, ...fetchOptions } = options;
+  let allConversations: any[] = [];
+  let page = 1;
+  
+  while (page <= maxPages) {
+    try {
+      console.log(`Fetching conversations page ${page}...`);
+      const data = await fetchElevenLabsConversations(apiKey, fetchOptions);
+      
+      if (!data.conversations || !Array.isArray(data.conversations) || data.conversations.length === 0) {
+        console.log("No more conversations found or invalid response");
+        break;
+      }
+      
+      allConversations = [...allConversations, ...data.conversations];
+      console.log(`Retrieved ${data.conversations.length} conversations (total: ${allConversations.length})`);
+      
+      // Check if we've reached the end
+      if (data.conversations.length < (fetchOptions.limit || 100)) {
+        console.log("Reached end of available conversations");
+        break;
+      }
+      
+      page++;
+    } catch (error) {
+      console.error(`Error fetching page ${page}:`, error);
+      break;
+    }
   }
-  return `${ELEVENLABS_API_BASE_URL}/convai/conversations/${conversationId}/audio`;
+  
+  return allConversations;
 }

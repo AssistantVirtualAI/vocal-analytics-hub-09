@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getOrCreateAgent } from "../_shared/agent-resolver-improved.ts";
+import { createAgentResolver } from "../_shared/agent-resolver-improved.ts";
 import { fetchElevenLabsConversations } from "../_shared/elevenlabs/conversations.ts";
 import { DiagnosticResults } from "./types.ts";
 
@@ -18,7 +18,8 @@ export async function runDiagnostics(
   
   // Check agent resolver
   console.log("Testing agent resolver with ID:", agentId);
-  const resolvedAgentId = await getOrCreateAgent(supabase, agentId);
+  const { getAgentUUIDByExternalId } = createAgentResolver(supabase);
+  const resolvedAgentId = await getAgentUUIDByExternalId(agentId);
   console.log("Resolved agent ID:", resolvedAgentId || "None (using original ID)");
   const effectiveAgentId = resolvedAgentId || agentId;
 

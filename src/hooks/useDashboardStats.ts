@@ -57,10 +57,10 @@ export function useDashboardStats() {
   };
 
   return {
-    callStats,
+    callStats: callStats || { totalCalls: 0, avgDuration: 0, avgSatisfaction: 0, callsPerDay: {}, lastUpdated: new Date().toISOString(), topCustomers: [] },
     customerStats: customerStatsData || [],
-    recentCalls,
-    chartData,
+    recentCalls: recentCalls || [],
+    chartData: chartData || [],
     lastUpdated,
     isLoading,
     hasError,

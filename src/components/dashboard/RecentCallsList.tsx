@@ -1,94 +1,63 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
-import { Star } from "lucide-react";
+import { DataWrapper } from "./DataWrapper";
 import { Link } from "react-router-dom";
-import type { Call } from "@/types";
-import { EmptyDataState } from "@/components/stats/EmptyDataState";
+import { BadgeCheck, Calendar, Clock, Phone } from "lucide-react";
+import type { Call } from '@/types';
 
 interface RecentCallsListProps {
   calls: Call[];
   isLoading: boolean;
   formatDuration: (seconds: number) => string;
-  onRefresh?: () => void;
 }
 
-export function RecentCallsList({ calls, isLoading, formatDuration, onRefresh }: RecentCallsListProps) {
+export function RecentCallsList({ calls, isLoading, formatDuration }: RecentCallsListProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Appels récents</CardTitle>
+        <CardTitle className="text-lg">Appels récents</CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array(5).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center justify-between p-4 border rounded-md">
-                <div className="space-y-1">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-4 w-40" />
-                </div>
-                <div>
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : calls.length === 0 ? (
-          <EmptyDataState
-            title="Aucun appel récent"
-            description="Aucun appel récent n'a été trouvé dans le système."
-            onAction={onRefresh}
-            height="200px"
-          />
-        ) : (
-          <div className="space-y-4">
-            {calls.map(call => (
-              <div 
-                key={call.id} 
-                className="flex items-center justify-between p-4 border rounded-md hover:bg-accent cursor-pointer transition-colors duration-200"
-              >
-                <div className="space-y-1">
-                  <div className="font-medium">{call.customerName}</div>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span>{formatDistanceToNow(new Date(call.date), { addSuffix: true, locale: fr })}</span>
-                    <span className="mx-2">•</span>
-                    <span>{formatDuration(call.duration)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="flex">
-                    {Array(5)
-                      .fill(0)
-                      .map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          className={i < (call.satisfactionScore || 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}
-                        />
-                      ))}
-                  </div>
-                  <Link 
-                    to={`/calls/${call.id}`} 
-                    className="text-primary hover:underline text-sm"
-                  >
-                    Voir détails
+        <DataWrapper isLoading={isLoading} error={null} refetch={() => {}}>
+          {calls && calls.length > 0 ? (
+            <div className="space-y-4">
+              {calls.map((call) => (
+                <div key={call.id} className="border-b pb-3 last:pb-0 last:border-0">
+                  <Link to={`/calls/${call.id}`} className="flex items-start space-x-3 hover:bg-accent p-2 rounded-md transition-colors">
+                    <div className="flex-shrink-0">
+                      <div className="bg-primary/10 p-2 rounded-full">
+                        <Phone className="h-5 w-5 text-primary" />
+                      </div>
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium truncate">{call.customerName || "Client inconnu"}</h4>
+                        {call.satisfactionScore > 3 && (
+                          <BadgeCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center space-x-3">
+                        <span className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {new Date(call.date).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatDuration(call.duration)}
+                        </span>
+                      </div>
+                    </div>
                   </Link>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="mt-4 text-center">
-          <Link 
-            to="/calls"
-            className="text-primary hover:underline"
-          >
-            Voir tous les appels
-          </Link>
-        </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-10 text-center text-muted-foreground">
+              <p>Aucun appel récent</p>
+              <p className="text-sm mt-1">Les nouveaux appels apparaîtront ici</p>
+            </div>
+          )}
+        </DataWrapper>
       </CardContent>
     </Card>
   );

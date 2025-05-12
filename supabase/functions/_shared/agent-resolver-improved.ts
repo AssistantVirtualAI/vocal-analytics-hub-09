@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
@@ -32,6 +33,21 @@ export function createAgentResolver(supabase: SupabaseClient) {
     if (agents && agents.length > 0) {
       console.log(`Found agent with external_id ${externalId}: ${agents[0].id}`);
       return agents[0].id;
+    }
+    
+    // If not found by external_id, check if it's an organization's agent_id
+    // and return a special value to indicate we should not filter by agent
+    const { data: orgs, error: orgError } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('agent_id', externalId)
+      .limit(1);
+      
+    if (orgError) {
+      console.error(`Error checking for organization: ${orgError.message}`);
+    } else if (orgs && orgs.length > 0) {
+      console.log(`Found organization with agent_id ${externalId}, using no agent filter`);
+      return 'USE_NO_FILTER';
     }
     
     console.log(`No agent found with external_id: ${externalId}`);

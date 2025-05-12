@@ -1,9 +1,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createSuccessResponse, createErrorResponse } from "../_shared/api-utils.ts";
-import { getCustomers, getCalls, calculateCustomerStats } from "./service.ts";
 import { CustomerStatsRequest, CustomerStats } from "./models.ts";
+import { getCustomers, getCalls, calculateCustomerStats } from "./service.ts";
 
 // Simple in-memory cache for demonstration
 // In production, use a distributed cache like Redis
@@ -11,11 +10,6 @@ const cache = new Map<string, { data: any, timestamp: number }>();
 const CACHE_TTL = 60 * 1000; // 1 minute cache
 
 export async function handleGetCustomerStats(req: Request): Promise<Response> {
-  // Handle CORS preflight request
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-  
   const requestStartTime = Date.now();
   const logger = {
     info: (message: string, metadata?: Record<string, any>) => {
@@ -42,11 +36,16 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
       logger.info(`Received agentId: ${agentId}`);
     } catch (error) {
       logger.error('Error parsing request body', error);
-      return createErrorResponse({
-        status: 400,
-        message: "The request body could not be parsed as JSON",
-        code: "INVALID_REQUEST"
-      });
+      return new Response(
+        JSON.stringify({
+          error: "The request body could not be parsed as JSON",
+          code: "INVALID_REQUEST"
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Check cache for this agentId
@@ -77,7 +76,13 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
 
       if (!customers || customers.length === 0) {
         logger.info("No customers found in database");
-        return createSuccessResponse([]);
+        return new Response(
+          JSON.stringify([]),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+          }
+        );
       }
 
       // Get calls filtered by agent if applicable
@@ -130,21 +135,29 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Error in get-customer-stats function', error);
-      return createErrorResponse({
-        status: 500,
-        message: "Failed to retrieve customer statistics",
-        code: "SERVER_ERROR"
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to retrieve customer statistics",
+          details: error instanceof Error ? error.message : String(error)
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
   } catch (unhandledError) {
-    const errorMessage = unhandledError instanceof Error ? unhandledError.message : String(unhandledError);
     console.error('Unhandled error in get-customer-stats function:', unhandledError);
-    return createErrorResponse({
-      status: 500,
-      message: "An unexpected error occurred",
-      code: "INTERNAL_SERVER_ERROR"
-    });
+    return new Response(
+      JSON.stringify({
+        error: "An unexpected error occurred",
+        details: unhandledError instanceof Error ? unhandledError.message : String(unhandledError)
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 }

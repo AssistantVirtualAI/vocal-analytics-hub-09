@@ -1,101 +1,100 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CustomerStats } from "./models.ts";
+import { Customer, Call, CustomerStats } from "./models.ts";
+import { createAgentResolver } from "../_shared/agent-resolver-improved.ts";
 
-export async function getCustomers(supabase: SupabaseClient) {
-  const { data: customers, error } = await supabase
+export async function getCustomers(supabase: SupabaseClient): Promise<Customer[]> {
+  const { data, error } = await supabase
     .from('customers')
-    .select('*');
-  
+    .select('id, name');
+
   if (error) {
     console.error("Error fetching customers:", error);
     throw error;
   }
-  
-  return customers || [];
+
+  return data || [];
 }
 
-export async function getCalls(supabase: SupabaseClient, agentId?: string) {
-  let query = supabase
-    .from('calls')
-    .select(`
-      id,
-      customer_id,
-      date,
-      duration,
-      satisfaction_score,
-      customers(name)
-    `)
-    .order('date', { ascending: false });
-  
-  // Filter by agent if provided
-  if (agentId) {
-    query = query.eq('agent_id', agentId);
+export async function getCalls(supabase: SupabaseClient, agentId: string): Promise<Call[]> {
+  try {
+    // Use the agent resolver to convert from external ID to UUID if needed
+    const agentResolver = createAgentResolver(supabase);
+    let agentUUID = await agentResolver.getAgentUUIDByExternalId(agentId);
+    
+    if (!agentUUID) {
+      console.warn(`No agent found with ID: ${agentId}`);
+      return [];
+    }
+
+    // Now fetch calls with the resolved UUID
+    let query = supabase
+      .from('calls')
+      .select('id, customer_id, date, duration, satisfaction_score');
+    
+    // Only add the agent filter if we have a valid UUID and it's not the special "no filter" value
+    if (agentUUID !== 'USE_NO_FILTER') {
+      query = query.eq('agent_id', agentUUID);
+    }
+    
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching calls:", error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("Error in getCalls:", err);
+    return [];
   }
-  
-  const { data: calls, error } = await query;
-  
-  if (error) {
-    console.error("Error fetching calls:", error);
-    throw error;
-  }
-  
-  return calls || [];
 }
 
-export function calculateCustomerStats(customers: any[], calls: any[]): CustomerStats[] {
-  // Create a map to store statistics for each customer
-  const customerStatsMap = new Map();
+export function calculateCustomerStats(customers: Customer[], calls: Call[]): CustomerStats[] {
+  // Group calls by customer
+  const callsByCustomer = calls.reduce((acc, call) => {
+    if (!acc[call.customer_id]) {
+      acc[call.customer_id] = [];
+    }
+    acc[call.customer_id].push(call);
+    return acc;
+  }, {} as Record<string, Call[]>);
   
-  // Initialize customer stats with basic info
-  customers.forEach(customer => {
-    customerStatsMap.set(customer.id, {
-      customerId: customer.id,
-      customerName: customer.name || "Unknown Customer",
-      totalCalls: 0,
-      totalDuration: 0,
-      totalSatisfaction: 0,
-      lastCallDate: null
-    });
-  });
-  
-  // Process calls to calculate statistics
-  calls.forEach(call => {
-    const customerId = call.customer_id;
-    if (!customerStatsMap.has(customerId)) return;
+  // Calculate stats for each customer
+  return customers.map(customer => {
+    const customerCalls = callsByCustomer[customer.id] || [];
+    const totalCalls = customerCalls.length;
     
-    const stats = customerStatsMap.get(customerId);
-    stats.totalCalls++;
-    stats.totalDuration += call.duration || 0;
-    
-    if (call.satisfaction_score) {
-      stats.totalSatisfaction += call.satisfaction_score;
+    if (totalCalls === 0) {
+      return {
+        customerId: customer.id,
+        customerName: customer.name,
+        totalCalls: 0,
+        avgDuration: 0,
+        avgSatisfaction: 0,
+        lastCallDate: null
+      };
     }
     
-    // Update last call date if this call is more recent
-    const callDate = new Date(call.date);
-    if (!stats.lastCallDate || callDate > new Date(stats.lastCallDate)) {
-      stats.lastCallDate = call.date;
-    }
+    // Calculate total duration and satisfaction
+    const totalDuration = customerCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
+    const callsWithSatisfaction = customerCalls.filter(call => call.satisfaction_score !== undefined && call.satisfaction_score !== null);
+    const totalSatisfaction = callsWithSatisfaction.reduce((sum, call) => sum + (call.satisfaction_score || 0), 0);
     
-    // Update customer name from the joined customers record if available
-    if (call.customers && call.customers.name) {
-      stats.customerName = call.customers.name;
-    }
-  });
-  
-  // Calculate averages and format final stats
-  return Array.from(customerStatsMap.values()).map(stats => {
-    const avgDuration = stats.totalCalls > 0 ? stats.totalDuration / stats.totalCalls : 0;
-    const avgSatisfaction = stats.totalCalls > 0 ? stats.totalSatisfaction / stats.totalCalls : 0;
+    // Find the most recent call
+    const sortedCalls = [...customerCalls].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    const lastCallDate = sortedCalls.length > 0 ? sortedCalls[0].date : null;
     
     return {
-      customerId: stats.customerId,
-      customerName: stats.customerName,
-      totalCalls: stats.totalCalls,
-      avgDuration,
-      avgSatisfaction,
-      lastCallDate: stats.lastCallDate
+      customerId: customer.id,
+      customerName: customer.name,
+      totalCalls,
+      avgDuration: totalDuration / totalCalls,
+      avgSatisfaction: callsWithSatisfaction.length > 0 ? totalSatisfaction / callsWithSatisfaction.length : 0,
+      lastCallDate
     };
   });
 }

@@ -1,13 +1,5 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleCorsOptions } from "../_shared/cors-utils.ts";
-
-// Define CORS headers directly in this file to avoid import issues
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+import { corsHeaders, handleCorsOptions } from "../_shared/index.ts";
 
 // OpenAPI specification for our API
 const openApiSpec = {
@@ -358,73 +350,44 @@ const openApiSpec = {
   ]
 };
 
-// Serve the OpenAPI documentation
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders
-    });
+    return handleCorsOptions();
   }
 
   const url = new URL(req.url);
-  const format = url.searchParams.get('format') || 'json';
+  const path = url.pathname.split('/').pop();
   
-  if (format === 'html') {
-    // Return Swagger UI HTML for interactive documentation
-    const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>API Documentation</title>
-      <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" >
-      <style>
-        body { margin: 0; padding: 0; }
-        .swagger-ui .topbar { display: none; }
-      </style>
-    </head>
-    <body>
-      <div id="swagger-ui"></div>
-      <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-      <script>
-        window.onload = function() {
-          const ui = SwaggerUIBundle({
-            spec: ${JSON.stringify(openApiSpec)},
-            dom_id: '#swagger-ui',
-            deepLinking: true,
-            presets: [
-              SwaggerUIBundle.presets.apis,
-              SwaggerUIBundle.SwaggerUIStandalonePreset
-            ],
-            layout: "BaseLayout",
-            supportedSubmitMethods: []
-          });
-          window.ui = ui;
-        }
-      </script>
-    </body>
-    </html>
-    `;
-    
-    return new Response(html, {
-      status: 200,
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'text/html',
-        'Cache-Control': 'public, max-age=3600'
+  // Return HTML documentation for browser requests
+  if (req.headers.get('accept')?.includes('text/html')) {
+    return new Response(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>API Documentation</title>
+          <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+        </head>
+        <body>
+          <div id="redoc"></div>
+          <script>
+            Redoc.init(${JSON.stringify(openApiSpec)}, {}, document.getElementById('redoc'));
+          </script>
+        </body>
+      </html>
+    `, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/html'
       }
     });
   }
   
-  // Default: return JSON format
+  // Return JSON OpenAPI spec for API requests
   return new Response(JSON.stringify(openApiSpec), {
-    status: 200,
-    headers: { 
-      ...corsHeaders, 
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600'
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
     }
   });
 });

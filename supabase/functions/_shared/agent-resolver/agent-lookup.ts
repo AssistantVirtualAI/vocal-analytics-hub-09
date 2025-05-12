@@ -36,8 +36,24 @@ export async function getAgentUUIDByExternalId(
       return directAgent.id;
     }
     
-    // If not found, try to find by name/external_id
-    const { data: agent, error: nameError } = await supabase
+    // If not found, try to find by external_id or name
+    const { data: agent, error: externalIdError } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("external_id", externalAgentId)
+      .maybeSingle();
+    
+    if (externalIdError) {
+      logError(`Error looking up agent by external_id: ${externalIdError.message}`);
+    }
+    
+    if (agent) {
+      logInfo(`Found agent by external_id: ${agent.id}`);
+      return agent.id;
+    }
+    
+    // Try by name as fallback
+    const { data: nameAgent, error: nameError } = await supabase
       .from("agents")
       .select("id")
       .eq("name", externalAgentId)
@@ -47,26 +63,43 @@ export async function getAgentUUIDByExternalId(
       logError(`Error looking up agent by name: ${nameError.message}`);
     }
     
-    if (agent) {
-      logInfo(`Found agent by name/external_id: ${agent.id}`);
-      return agent.id;
+    if (nameAgent) {
+      logInfo(`Found agent by name: ${nameAgent.id}`);
+      return nameAgent.id;
     }
 
-    // If still not found, check organizations table for agent_id
+    // Check if this is an organization's agent_id
+    // This should be refactored if organizations.agent_id is changed to store UUIDs
     const { data: organization, error: orgError } = await supabase
       .from("organizations")
-      .select("id")
+      .select("agent_id")
       .eq("agent_id", externalAgentId)
       .maybeSingle();
     
     if (orgError) {
-      logError(`Error looking up organization by agent_id: ${orgError.message}`);
+      logError(`Error checking organization with agent_id: ${orgError.message}`);
     }
     
     if (organization) {
+      // Try to find the agent referenced by the organization
+      if (organization.agent_id && organization.agent_id !== externalAgentId) {
+        // If agent_id is a UUID, use it directly
+        const { data: orgAgent } = await supabase
+          .from("agents")
+          .select("id")
+          .eq("id", organization.agent_id)
+          .maybeSingle();
+          
+        if (orgAgent) {
+          logInfo(`Found agent through organization reference: ${orgAgent.id}`);
+          return orgAgent.id;
+        }
+      }
+      
+      // If we can't resolve to a specific agent, use the default agent
       const defaultAgentId = "2df8e9d7-0939-4bd8-9da1-c99ac86eb2f8";
-      logInfo(`Found organization with agent_id: ${externalAgentId}, using default agent: ${defaultAgentId}`);
-      return defaultAgentId; // Use actual UUID instead of special flag
+      logInfo(`Using default agent ID for organization reference: ${defaultAgentId}`);
+      return defaultAgentId;
     }
     
     logInfo(`Agent not found for external ID: ${externalAgentId}`);

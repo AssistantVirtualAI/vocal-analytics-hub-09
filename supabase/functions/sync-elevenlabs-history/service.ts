@@ -27,13 +27,14 @@ export function mapHistoryItemToCallData(
   return {
     id: item.history_item_id,
     audio_url: audioUrl,
-    agent_id: agentId,
+    agent_id: agentId, // This should be the internal UUID
     date: new Date(item.created_at || (item.date_unix ? item.date_unix * 1000 : Date.now())).toISOString(),
     customer_id: null,
     customer_name: "Client inconnu",
     satisfaction_score: 0,
     duration: 0,
     transcript: item.text || "",
+    elevenlabs_history_item_id: item.history_item_id // Store the original history item ID
   };
 }
 
@@ -129,11 +130,11 @@ export async function syncHistoryItems(
   console.log(`Looking up internal UUID for external agent ID: ${externalAgentId}`);
   let internalAgentId = await getAgentUUIDByExternalId(supabase, externalAgentId);
   
-  // If no agent is found, check if we need to create one
+  // If no agent is found, create one
   if (!internalAgentId) {
     console.log(`No agent found for external ID: ${externalAgentId}, creating one`);
     try {
-      // Create a new agent with the external ID as the name
+      // Create a new agent with the external ID as the name and external_id
       const { data: newAgent, error } = await supabase
         .from("agents")
         .insert({

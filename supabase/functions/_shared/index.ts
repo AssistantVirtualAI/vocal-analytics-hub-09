@@ -17,3 +17,7 @@ export { reportApiMetrics } from "./metrics.ts";
 
 // Fetch with retry
 export { fetchWithRetry } from "./fetch-with-retry.ts";
+
+// Agent resolver (maintaining compatibility with improved version)
+export { getAgentUUIDByExternalId, checkUserOrganizationAccess, createAgentResolver } from "./agent-resolver-improved.ts";
+

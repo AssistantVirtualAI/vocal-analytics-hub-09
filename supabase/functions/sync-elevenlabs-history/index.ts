@@ -1,7 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleCorsOptions } from "../_shared/index.ts";
+import { handleCorsOptions, corsHeaders } from "../_shared/index.ts";
 import { handleHistorySyncRequest } from "./handlers.ts";
-import { corsHeaders } from "../_shared/index.ts";
 
 serve(async (req) => {
   const startTime = Date.now();
@@ -21,8 +21,7 @@ serve(async (req) => {
   
   // Handle CORS preflight requests with explicit status 200
   if (req.method === 'OPTIONS') {
-    console.log(`[${functionName}] Handling OPTIONS request`);
-    return new Response(null, { status: 200, headers: corsHeaders });
+    return handleCorsOptions();
   }
   
   try {

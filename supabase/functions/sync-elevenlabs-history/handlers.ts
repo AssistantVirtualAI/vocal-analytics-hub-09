@@ -1,148 +1,135 @@
 
-import { corsHeaders } from "../_shared/cors.ts";
-import { syncHistoryItems } from "./service.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchElevenLabsHistory } from "../_shared/elevenlabs/history.ts";
-import { validateEnvironment, validateRequestParams } from "./validation.ts";
-import { verifyUserAccess, createErrorResponse } from "./auth.ts";
-import { 
-  createSuccessResponse, 
-  createElevenLabsErrorResponse, 
-  createEmptyResultResponse,
-  createGenericErrorResponse
-} from "./responses.ts";
+import { syncHistoryItems } from "./service.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-// Handle the history sync request
+/**
+ * Handle history sync request
+ */
 export async function handleHistorySyncRequest(req: Request): Promise<Response> {
+  console.log("Edge function sync-elevenlabs-history called");
+  
   try {
-    // Validate environment variables
-    const envValidation = validateEnvironment();
-    if (!envValidation.success) {
-      const errorMsg = `Missing required environment variables: ${envValidation.missingVars?.join(', ')}`;
-      console.error(`[handleHistorySyncRequest] ${errorMsg}`);
-      return createErrorResponse(errorMsg, "MISSING_ENV_VARIABLES", 500);
-    }
+    // Get environment variables
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const elevenlabsApiKey = Deno.env.get("ELEVENLABS_API_KEY") || "";
     
-    const { supabaseUrl, supabaseServiceKey, elevenLabsApiKey } = envValidation;
-
-    // Parse the body to get the agentId
-    let body;
-    try {
-      body = await req.json();
-    } catch (error) {
-      return createErrorResponse("Invalid request body", "INVALID_REQUEST", 400);
-    }
-    
-    // Validate request parameters
-    const paramsValidation = validateRequestParams(body);
-    if (!paramsValidation.success) {
-      return createErrorResponse(
-        paramsValidation.error?.message || "Invalid parameters", 
-        paramsValidation.error?.code || "INVALID_PARAMETERS",
-        400
+    // Check for required env vars
+    if (!elevenlabsApiKey) {
+      console.error("ELEVENLABS_API_KEY environment variable is not set");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "MISSING_API_KEY",
+            message: "Missing ElevenLabs API key. Please configure ELEVENLABS_API_KEY in your environment."
+          }
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
       );
     }
     
-    const { agentId } = paramsValidation;
+    // Parse request body
+    const { agentId } = await req.json();
     
-    // Verify user access
-    const accessResult = await verifyUserAccess(
-      req.headers.get("Authorization"),
-      supabaseUrl,
-      supabaseServiceKey,
-      agentId
+    if (!agentId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "MISSING_AGENT_ID",
+            message: "Missing agent ID in request"
+          }
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    console.log(`Fetching ElevenLabs history for agent ID: ${agentId}`);
+    
+    // Fetch history from ElevenLabs
+    const historyResult = await fetchElevenLabsHistory(elevenlabsApiKey, agentId);
+    
+    if (!historyResult.success) {
+      console.error("Error fetching ElevenLabs history:", historyResult.error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "ELEVENLABS_FETCH_ERROR",
+            message: historyResult.error
+          }
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    const historyItems = historyResult.data || [];
+    
+    if (historyItems.length === 0) {
+      console.log("No history items found");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          results: [],
+          summary: { total: 0, success: 0, error: 0 }
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    console.log(`Retrieved ${historyItems.length} history items from ElevenLabs`);
+    
+    // Sync history items with database
+    const results = await syncHistoryItems(supabaseUrl, supabaseServiceKey, historyItems, agentId);
+    
+    // Generate summary statistics
+    const successCount = results.filter(r => r.success).length;
+    const errorCount = results.filter(r => !r.success).length;
+    
+    return new Response(
+      JSON.stringify({
+        success: errorCount === 0,
+        results,
+        summary: {
+          total: historyItems.length,
+          success: successCount,
+          error: errorCount
+        }
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
-    
-    if (!accessResult.success) {
-      return createErrorResponse(
-        accessResult.error?.message || "Access denied",
-        accessResult.error?.code || "ACCESS_DENIED",
-        accessResult.error?.status || 403
-      );
-    }
-
-    console.log(`[handleHistorySyncRequest] Fetching ElevenLabs history for agent ${agentId}`);
-    
-    // Check if we have a valid API key
-    if (!elevenLabsApiKey) {
-      console.error("[handleHistorySyncRequest] Missing ElevenLabs API key");
-      return createErrorResponse(
-        "ElevenLabs API key not configured",
-        "MISSING_API_KEY",
-        500
-      );
-    }
-    
-    // Try to fetch history with enhanced error handling
-    try {
-      // Mask key for logging purposes
-      const maskedKey = elevenLabsApiKey.substring(0, 4) + "..." + 
-                       elevenLabsApiKey.substring(elevenLabsApiKey.length - 4);
-      console.log(`[handleHistorySyncRequest] Using ElevenLabs API key: ${maskedKey}`);
-
-      // Pass agentId (voice_id) to fetchElevenLabsHistory to filter results
-      console.log(`[handleHistorySyncRequest] Filtering history by voice_id: ${agentId}`);
-      let historyResult = await fetchElevenLabsHistory(elevenLabsApiKey, agentId);
-      
-      // If that fails, try with alternate key but still use the voice_id filter
-      if (!historyResult.success && Deno.env.get("ELEVEN_LABS_API_KEY")) {
-        console.log("[handleHistorySyncRequest] First API key failed, trying alternate key");
-        const alternateKey = Deno.env.get("ELEVEN_LABS_API_KEY");
-        historyResult = await fetchElevenLabsHistory(alternateKey, agentId);
+  } catch (error) {
+    console.error("Error in sync-elevenlabs-history:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          code: "UNEXPECTED_ERROR",
+          message: error instanceof Error ? error.message : String(error)
+        }
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
-      
-      if (!historyResult.success) {
-        const errorDetails = typeof historyResult.error === 'object' ? 
-          JSON.stringify(historyResult.error) : historyResult.error;
-        console.error(`[handleHistorySyncRequest] Error fetching ElevenLabs history: ${errorDetails}`);
-        return createElevenLabsErrorResponse(historyResult.error || "Unknown error occurred");
-      }
-      
-      // Check if we have any history items
-      if (!historyResult.data || historyResult.data.length === 0) {
-        console.log("[handleHistorySyncRequest] No history items found to sync");
-        return createEmptyResultResponse();
-      }
-
-      // Process the history items
-      console.log(`[handleHistorySyncRequest] Syncing ${historyResult.data.length} history items`);
-      
-      const results = await syncHistoryItems(
-        supabaseUrl,
-        supabaseServiceKey,
-        historyResult.data,
-        agentId
-      );
-      
-      // Generate summary statistics
-      const summary = {
-        total: results.length,
-        success: results.filter(r => r.success).length,
-        error: results.filter(r => !r.success).length
-      };
-      
-      console.log(`[handleHistorySyncRequest] Sync completed: ${summary.success}/${summary.total} successful, ${summary.error} errors`);
-
-      return createSuccessResponse(results, summary);
-    } catch (elevenLabsError: any) {
-      // Enhanced error logging
-      console.error("[handleHistorySyncRequest] Error fetching history from ElevenLabs:", {
-        message: elevenLabsError.message,
-        stack: elevenLabsError.stack,
-        details: elevenLabsError
-      });
-      
-      return createErrorResponse(
-        `Error fetching history from ElevenLabs: ${elevenLabsError instanceof Error ? elevenLabsError.message : String(elevenLabsError)}`,
-        "ELEVENLABS_FETCH_ERROR",
-        500
-      );
-    }
-  } catch (error: any) {
-    console.error(`[handleHistorySyncRequest] Error processing request:`, {
-      message: error.message,
-      stack: error.stack,
-      details: error
-    });
-    return createGenericErrorResponse(error);
+    );
   }
 }

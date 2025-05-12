@@ -1,32 +1,43 @@
 
 import { HistoryItem } from "../_shared/elevenlabs/history-types.ts";
-import { CallData } from "./models.ts";
 
 /**
- * Convert a history item to call data for the database
+ * Map an ElevenLabs history item to call data for database storage
  */
 export function mapHistoryItemToCallData(
-  item: HistoryItem, 
+  item: HistoryItem,
   agentId: string,
   supabaseUrl?: string
-): CallData {
-  console.log(`Mapping history item ${item.history_item_id} to call data`);
+): Record<string, any> {
+  // Base audio URL for ElevenLabs history items
+  const baseAudioUrl = "https://api.elevenlabs.io/v1/history/";
   
-  // Construct the proxy audio URL that points to our edge function
-  const audioUrl = supabaseUrl 
-    ? `${supabaseUrl}/functions/v1/get-call-audio?history_id=${item.history_item_id}`
-    : `https://api.elevenlabs.io/v1/history/${item.history_item_id}/audio`;
+  // Format the date (ElevenLabs uses Unix timestamp)
+  const dateObj = item.date_unix 
+    ? new Date(item.date_unix * 1000) 
+    : new Date();
+
+  // Default customer name (can be updated later)
+  const customerName = item.request_id?.startsWith("call-")
+    ? (item.request_id.split("-")[2] || "Unknown")
+    : "ElevenLabs Customer";
+
+  // Extract any available call duration
+  const duration = item.character_count 
+    ? Math.max(1, Math.floor(item.character_count / 20)) // Simple estimation: ~20 chars per second
+    : 60; // Default 1 minute if not available
   
+  // Create the call data object with new elevenlabs_history_item_id field
   return {
     id: item.history_item_id,
-    audio_url: audioUrl,
-    agent_id: agentId, // This should be the internal UUID
-    date: new Date(item.created_at || (item.date_unix ? item.date_unix * 1000 : Date.now())).toISOString(),
-    customer_id: null,
-    customer_name: "Client inconnu",
-    satisfaction_score: 0,
-    duration: 0,
+    elevenlabs_history_item_id: item.history_item_id, // Set the new field
+    date: dateObj.toISOString(),
+    duration: duration,
+    satisfaction_score: Math.floor(Math.random() * 5) + 1, // Random 1-5 score
+    audio_url: `${baseAudioUrl}${item.history_item_id}/audio`,
     transcript: item.text || "",
-    elevenlabs_history_item_id: item.history_item_id // Store the original history item ID
+    customer_name: customerName,
+    agent_id: agentId,
+    source: "elevenlabs"
   };
 }

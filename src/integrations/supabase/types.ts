@@ -50,6 +50,7 @@ export type Database = {
           customer_id: string
           date: string
           duration: number
+          elevenlabs_history_item_id: string | null
           id: string
           raw_data: Json | null
           satisfaction_score: number | null
@@ -64,6 +65,7 @@ export type Database = {
           customer_id: string
           date?: string
           duration: number
+          elevenlabs_history_item_id?: string | null
           id?: string
           raw_data?: Json | null
           satisfaction_score?: number | null
@@ -78,6 +80,7 @@ export type Database = {
           customer_id?: string
           date?: string
           duration?: number
+          elevenlabs_history_item_id?: string | null
           id?: string
           raw_data?: Json | null
           satisfaction_score?: number | null
@@ -169,7 +172,7 @@ export type Database = {
       }
       organizations: {
         Row: {
-          agent_id: string
+          agent_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -177,7 +180,7 @@ export type Database = {
           slug: string | null
         }
         Insert: {
-          agent_id: string
+          agent_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -185,14 +188,22 @@ export type Database = {
           slug?: string | null
         }
         Update: {
-          agent_id?: string
+          agent_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
           name?: string
           slug?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useUserOrganizationManagement } from './useUserOrganizationManagement';
 
 interface UseOrganizationUsersActionsProps {
-  fetchUsers: () => Promise<void> | void;
+  fetchUsers: () => Promise<void>; // Updated type signature to always expect Promise<void>
   organizationId: string;
 }
 

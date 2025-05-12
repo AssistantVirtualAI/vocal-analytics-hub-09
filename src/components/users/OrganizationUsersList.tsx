@@ -12,7 +12,7 @@ import { useOrganizationUsersActions } from '@/hooks/users/useOrganizationUsersA
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
-  fetchUsers: () => Promise<void> | void;
+  fetchUsers: () => Promise<void> | void; // Original type signature
   organizationId: string;
   loading?: boolean;
   currentUserIsOrgAdmin?: boolean;
@@ -29,6 +29,13 @@ export const OrganizationUsersList = ({
 }: OrganizationUsersListProps) => {
   const { user } = useAuth();
   
+  // Wrap fetchUsers to ensure it always returns a Promise
+  const wrappedFetchUsers = async (): Promise<void> => {
+    const result = fetchUsers();
+    // If fetchUsers returns void, convert it to a resolved Promise
+    return result instanceof Promise ? result : Promise.resolve();
+  };
+  
   // Use our custom hook for all user actions
   const {
     actionLoading,
@@ -42,7 +49,10 @@ export const OrganizationUsersList = ({
     handleResetPassword,
     handleToggleOrgAdmin,
     handleToggleSuperAdmin
-  } = useOrganizationUsersActions({ fetchUsers, organizationId });
+  } = useOrganizationUsersActions({ 
+    fetchUsers: wrappedFetchUsers, 
+    organizationId 
+  });
   
   // Debug log when users change
   useEffect(() => {

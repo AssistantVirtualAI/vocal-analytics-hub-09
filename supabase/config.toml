@@ -41,3 +41,9 @@ verify_jwt = false
 
 [edge_functions.elevenlabs-diagnostic]
 verify_jwt = false
+
+[edge_functions.elevenlabs-api-test]
+verify_jwt = false
+
+[edge_functions.sync-elevenlabs-history]
+verify_jwt = false

@@ -34,7 +34,7 @@ export async function fetchElevenLabsHistory(
   maxItems = 1000
 ): Promise<{success: boolean; data?: HistoryItem[]; error?: string}> {
   try {
-    // Double-check API key value - log masked version for debugging
+    // Double-check API key value
     if (!apiKey) {
       console.error("Missing ElevenLabs API key");
       return { 
@@ -80,7 +80,7 @@ export async function fetchElevenLabsHistory(
         console.log(`Response status: ${response.status}, URL: ${paginationUrl}`);
         
         if (!response.ok) {
-          // Handle API errors
+          // Handle API errors with more detailed logging
           const statusCode = response.status;
           const statusText = response.statusText || '';
           
@@ -98,48 +98,61 @@ export async function fetchElevenLabsHistory(
               } else {
                 return {
                   success: false,
-                  error: `ElevenLabs API error (${statusCode}): ${errorData.detail.message || 'Unknown error'}`
+                  error: `ElevenLabs API error (${statusCode}): ${errorData.detail || errorData.message || 'Unknown error'}`
                 };
               }
             }
           } catch (jsonError) {
             // If JSON parsing fails, try to get the error as text
-            try {
-              const errorText = await response.clone().text();
-              console.error(`Error response (${response.status}): ${statusText}`);
-              console.error(`Error response text: ${errorText}`);
-              
-              return {
-                success: false,
-                error: `ElevenLabs API error (${statusCode}): ${errorText || statusText}`
-              };
-            } catch (textError) {
-              console.error(`Failed to parse error response from /history`, textError);
-              return {
-                success: false,
-                error: `ElevenLabs API error (${statusCode}): ${statusText || 'Unknown error'}`
-              };
-            }
+            const errorText = await response.clone().text().catch(() => statusText);
+            console.error(`Error response text: ${errorText}`);
+            
+            return {
+              success: false,
+              error: `ElevenLabs API error (${statusCode}): ${errorText || statusText}`
+            };
           }
         }
         
-        let data: ElevenLabsHistoryResponse;
+        // Parse response data
+        let data: any;
         try {
           data = await response.json();
         } catch (jsonError) {
-          console.error(`Error during fetchElevenLabsHistory JSON parsing:`, jsonError);
+          console.error(`Error parsing JSON response from ElevenLabs history API:`, jsonError);
           return {
             success: false,
             error: `Error parsing response from ElevenLabs API: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`
           };
         }
         
-        if (!data.history || !Array.isArray(data.history)) {
-          console.error(`Invalid response format from ElevenLabs API:`, data);
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+          console.error(`Invalid response from ElevenLabs API (not an object):`, data);
           return {
             success: false,
-            error: "Invalid response format from ElevenLabs API"
+            error: "Invalid response format from ElevenLabs API (not an object)"
           };
+        }
+        
+        // Check if history field exists and is an array
+        if (!data.history || !Array.isArray(data.history)) {
+          console.error(`Invalid response format from ElevenLabs API (missing history array):`, data);
+          
+          // If we're getting a different structure than expected, let's log what fields we did get
+          const availableFields = Object.keys(data).join(', ');
+          console.error(`Available fields in response: ${availableFields}`);
+          
+          // Check if we might be hitting a different endpoint structure
+          if (data.results && Array.isArray(data.results)) {
+            console.log("Found 'results' array instead of 'history' array, trying to adapt...");
+            data.history = data.results; // Adapt to different format
+          } else {
+            return {
+              success: false,
+              error: `Invalid response format from ElevenLabs API (missing history array). Got fields: ${availableFields}`
+            };
+          }
         }
         
         // Add items to our collection

@@ -38,6 +38,14 @@ export function useSyncElevenLabsHistory() {
     try {
       console.log("Calling sync-elevenlabs-history function with agentId:", agentId);
       
+      // First try diagnostic to check connection
+      try {
+        const diagnosticResult = await supabase.functions.invoke('elevenlabs-diagnostic');
+        console.log("Diagnostic result:", diagnosticResult);
+      } catch (diagError) {
+        console.log("Diagnostic check failed, continuing anyway:", diagError);
+      }
+      
       const { data, error } = await supabase.functions.invoke<SyncResult>(
         'sync-elevenlabs-history', 
         {

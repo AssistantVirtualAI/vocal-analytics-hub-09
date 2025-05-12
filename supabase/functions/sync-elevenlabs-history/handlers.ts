@@ -79,8 +79,14 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
                        elevenLabsApiKey.substring(elevenLabsApiKey.length - 4);
       console.log(`[handleHistorySyncRequest] Using ElevenLabs API key: ${maskedKey}`);
 
-      // Fetch the history from ElevenLabs
-      const historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
+      // First try with the primary API key
+      let historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
+      
+      // If that fails, try with alternate key format
+      if (!historyResult.success && Deno.env.get("ELEVEN_LABS_API_KEY")) {
+        console.log("[handleHistorySyncRequest] First API key failed, trying alternate key");
+        historyResult = await fetchElevenLabsHistory(Deno.env.get("ELEVEN_LABS_API_KEY"));
+      }
       
       if (!historyResult.success) {
         const errorDetails = typeof historyResult.error === 'object' ? 

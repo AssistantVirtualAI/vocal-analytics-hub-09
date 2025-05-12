@@ -1,35 +1,51 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getAgentUUIDByExternalId, checkUserOrganizationAccess } from "../_shared/agent-resolver/index.ts";
 import { logInfo, logError } from "../_shared/agent-resolver/logger.ts";
+import { getAgentUUIDByExternalId } from "../_shared/agent-resolver/index.ts";
 
 /**
- * Process agent ID from request and get internal UUID
- * @param supabase Supabase client
- * @param externalAgentId External agent ID
- * @param userId User ID
- * @param isSuperAdmin Boolean indicating if user is a super admin
- * @returns Internal agent UUID or null
+ * Process and validate agent ID
  */
 export async function processAgentId(
-  supabase: SupabaseClient, 
-  externalAgentId: string, 
-  userId: string, 
+  supabase: SupabaseClient,
+  externalAgentIdFromRequest: string,
+  userId: string,
   isSuperAdmin: boolean
 ): Promise<string | null> {
-  if (!externalAgentId) return null;
+  if (!externalAgentIdFromRequest) {
+    return null;
+  }
   
-  logInfo(`externalAgentIdFromRequest is '${externalAgentId}', attempting to get internal UUID.`);
-  const agentUUIDForQuery = await getAgentUUIDByExternalId(supabase, externalAgentId);
+  logInfo(`externalAgentIdFromRequest is '${externalAgentIdFromRequest}', attempting to get internal UUID.`);
+  const agentUUIDForQuery = await getAgentUUIDByExternalId(supabase, externalAgentIdFromRequest);
   logInfo(`Result from getAgentUUIDByExternalId: '${agentUUIDForQuery}'`);
-
+  
   if (!agentUUIDForQuery) {
     return null;
   }
   
-  // Verify user has access to this agent
+  // Verify user has access to this agent if they're not a super admin
   if (!isSuperAdmin) {
-    const hasAccess = await checkUserOrganizationAccess(supabase, userId, undefined, agentUUIDForQuery);
+    const { data: userOrgAgents } = await supabase
+      .from('user_organizations')
+      .select('organizations!inner(agent_id)')
+      .eq('user_id', userId);
+      
+    const userAgentIds = userOrgAgents?.map(record => 
+      record.organizations?.agent_id
+    ).filter(Boolean) || [];
+    
+    const { data: agentExternalIds } = await supabase
+      .from('agent_identifiers')
+      .select('external_id')
+      .eq('agent_id', agentUUIDForQuery);
+      
+    const externalIds = agentExternalIds?.map(record => record.external_id) || [];
+    
+    const hasAccess = userAgentIds.some(id => 
+      id === agentUUIDForQuery || externalIds.includes(id)
+    );
+    
     if (!hasAccess) {
       logError(`User ${userId} does not have access to agent ${agentUUIDForQuery}`);
       return null;

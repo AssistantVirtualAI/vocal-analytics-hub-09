@@ -1,25 +1,11 @@
 
-/**
- * Error handling utilities for ElevenLabs history API
- */
+import { HistoryFetchResult } from "./history-types.ts";
 
 /**
- * Format error messages related to history fetching
+ * Create a standardized error response for history operations
  */
-export function formatHistoryError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-}
-
-/**
- * Create an error result for history fetch operations
- */
-export function createHistoryError(message: string): {
-  success: false;
-  error: string;
-} {
+export function createHistoryError(message: string): HistoryFetchResult {
+  console.error(message);
   return {
     success: false,
     error: message
@@ -27,22 +13,14 @@ export function createHistoryError(message: string): {
 }
 
 /**
- * Handle API errors from ElevenLabs history endpoints
+ * Handle standard API errors from the ElevenLabs history API
  */
-export function handleHistoryApiError(
-  status: number, 
-  responseText: string, 
-  defaultMessage = "Unknown ElevenLabs API error"
-): {success: false, error: string} {
-  let errorMessage = defaultMessage;
-
-  if (status === 401) {
+export function handleHistoryApiError(statusCode: number, errorText: string): HistoryFetchResult {
+  let errorMessage = `ElevenLabs API error (${statusCode}): ${errorText || 'Unknown error'}`;
+  
+  if (statusCode === 401) {
     errorMessage = "Invalid ElevenLabs API key. Please check your API key configuration.";
-  } else if (status === 429) {
-    errorMessage = "ElevenLabs API rate limit exceeded. Please try again later.";
-  } else if (responseText) {
-    errorMessage = `ElevenLabs API error (${status}): ${responseText}`;
   }
-
+  
   return createHistoryError(errorMessage);
 }

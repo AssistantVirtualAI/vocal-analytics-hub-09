@@ -1,7 +1,6 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { logInfo, logError } from "../_shared/agent-resolver/logger.ts";
-import { buildCallsQuery } from "./query-builder.ts";
+import { logInfo } from "../_shared/agent-resolver/logger.ts";
 import { formatCallsResults } from "./result-formatter.ts";
 
 interface QueryCallsParams {
@@ -19,9 +18,6 @@ interface QueryCallsParams {
   endDate: string;
 }
 
-/**
- * Query calls from the database
- */
 export async function queryCalls({
   supabase,
   user,
@@ -36,7 +32,23 @@ export async function queryCalls({
   startDate,
   endDate
 }: QueryCallsParams) {
-  if (!isSuperAdmin) {
+  let query = supabase.from("calls_view").select("*", { count: "exact" });
+
+  // Apply date filters
+  if (startDate) query = query.gte('date', startDate);
+  if (endDate) query = query.lte('date', endDate);
+  
+  // Apply customer filter
+  if (customerId) query = query.eq('customer_id', customerId);
+  
+  // Apply agent filter if provided
+  if (agentUUIDForQuery) {
+    logInfo(`Applying filter: query.eq("agent_id", "${agentUUIDForQuery}")`);
+    query = query.eq('agent_id', agentUUIDForQuery);
+  }
+  
+  // For non-super admins, restrict to organizations they belong to
+  if (!isSuperAdmin && !agentUUIDForQuery) {
     // Get list of organizations the user belongs to
     const { data: userOrgs } = await supabase
       .from('user_organizations')
@@ -58,71 +70,30 @@ export async function queryCalls({
           .filter(Boolean); // Remove any null/undefined values
           
         if (agentIds.length > 0) {
-          // If no specific agent was requested, filter by all the user's organization agents
-          if (!agentUUIDForQuery) {
-            // Build and execute query with user's organization agents
-            logInfo("Executing query on calls_view with organization agent filters.");
-            const query = buildCallsQuery({
-              supabase,
-              agentUUIDForQuery,
-              limit,
-              offset,
-              sort,
-              order,
-              search,
-              customerId,
-              startDate,
-              endDate,
-              userOrgAgentIds: agentIds
-            });
-            
-            const { data: callsData, error: queryError, count: totalCount } = await query;
-
-            if (queryError) {
-              logError(`Database query error occurred on calls_view: ${queryError.message}`);
-              throw queryError;
-            }
-            
-            return formatCallsResults(callsData, totalCount);
-          }
-        } else {
-          // User has organization access but no agents are set
-          logInfo(`User's organizations have no agents configured`);
-          return { calls: [], totalCount: 0 };
+          logInfo(`Restricting to user's organization agents`);
+          query = query.in('agent_id', agentIds);
         }
-      } else {
-        // User has no organizations with agents
-        logInfo(`User's organizations not found or have no agents`);
-        return { calls: [], totalCount: 0 };
       }
-    } else {
-      // User doesn't belong to any organizations
-      logInfo(`User doesn't belong to any organizations`);
-      return { calls: [], totalCount: 0 };
     }
   }
 
-  // Build and execute query (either for superadmin or for specific agent request)
-  logInfo("Executing final query on calls_view.");
-  const query = buildCallsQuery({
-    supabase,
-    agentUUIDForQuery,
-    limit,
-    offset,
-    sort,
-    order,
-    search,
-    customerId,
-    startDate,
-    endDate
-  });
+  // Apply search filter
+  if (search) {
+    query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%`);
+  }
   
+  // Apply sorting and pagination
+  query = query.order(sort, { ascending: order === 'asc' });
+  query = query.range(offset, offset + limit - 1);
+  
+  logInfo("Executing final query on calls_view.");
   const { data: callsData, error: queryError, count: totalCount } = await query;
 
   if (queryError) {
-    logError(`Database query error occurred on calls_view: ${queryError.message}`);
     throw queryError;
   }
+
+  logInfo(`Retrieved ${callsData?.length || 0} calls. Total count: ${totalCount}`);
   
   return formatCallsResults(callsData, totalCount);
 }

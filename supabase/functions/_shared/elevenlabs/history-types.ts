@@ -1,6 +1,6 @@
 
 /**
- * Type definitions for ElevenLabs history data
+ * Types for the ElevenLabs History API
  */
 
 export interface HistoryItem {
@@ -19,14 +19,7 @@ export interface ElevenLabsHistoryResponse {
   has_more?: boolean;
 }
 
-export interface HistoryFetchOptions {
-  pageSize?: number;
-  maxItems?: number;
-  filterByVoiceId?: boolean;
-}
-
 export interface HistoryFetchResult {
   success: boolean;
-  data?: HistoryItem[];
   error?: string;
 }

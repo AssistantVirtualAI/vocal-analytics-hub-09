@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleCorsOptions, handleApiError } from "../_shared/api-utils.ts";
+import { handleCorsOptions, handleApiError } from "../_shared/index.ts";
 import { handleGetCall } from "./handlers.ts";
 
 serve(async (req) => {

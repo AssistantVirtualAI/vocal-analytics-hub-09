@@ -1,45 +1,12 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { 
-  HistoryItem, 
-  ElevenLabsHistoryResponse, 
-  CallData, 
-  SyncResult 
-} from "./models.ts";
-import { fetchElevenLabsHistory, fetchElevenLabsHistoryItem } from "../_shared/elevenlabs/history.ts";
+import { HistoryItem } from "../_shared/elevenlabs/history-types.ts";
 import { getAgentUUIDByExternalId } from "../_shared/agent-resolver-improved.ts";
+import { SyncResult } from "./models.ts";
+import { mapHistoryItemToCallData } from "./mapper.ts";
 
 /**
- * Convertit un élément d'historique en données d'appel pour la base de données
- */
-export function mapHistoryItemToCallData(
-  item: HistoryItem, 
-  agentId: string,
-  supabaseUrl?: string
-): CallData {
-  console.log(`Mapping history item ${item.history_item_id} to call data`);
-  
-  // Construct the proxy audio URL that points to our edge function
-  const audioUrl = supabaseUrl 
-    ? `${supabaseUrl}/functions/v1/get-call-audio?history_id=${item.history_item_id}`
-    : `https://api.elevenlabs.io/v1/history/${item.history_item_id}/audio`;
-  
-  return {
-    id: item.history_item_id,
-    audio_url: audioUrl,
-    agent_id: agentId, // This should be the internal UUID
-    date: new Date(item.created_at || (item.date_unix ? item.date_unix * 1000 : Date.now())).toISOString(),
-    customer_id: null,
-    customer_name: "Client inconnu",
-    satisfaction_score: 0,
-    duration: 0,
-    transcript: item.text || "",
-    elevenlabs_history_item_id: item.history_item_id // Store the original history item ID
-  };
-}
-
-/**
- * Synchronise un élément d'historique avec la base de données
+ * Synchronize a history item with the database
  */
 export async function syncHistoryItem(
   supabase: SupabaseClient,
@@ -50,7 +17,7 @@ export async function syncHistoryItem(
   try {
     console.log(`Syncing history item ${item.history_item_id}`);
     
-    // Vérifier si l'appel existe déjà
+    // Check if the call exists already
     const { data: existingCall, error: queryError } = await supabase
       .from("calls")
       .select("id")
@@ -62,12 +29,12 @@ export async function syncHistoryItem(
       throw queryError;
     }
     
-    // Préparer les données de l'appel
+    // Prepare the call data
     const callData = mapHistoryItemToCallData(item, agentId, supabaseUrl);
     
     if (existingCall) {
       console.log(`Call ${item.history_item_id} exists, updating`);
-      // Mettre à jour l'appel existant
+      // Update existing call
       const { error } = await supabase
         .from("calls")
         .update(callData)
@@ -81,7 +48,7 @@ export async function syncHistoryItem(
       return { id: item.history_item_id, success: true, action: "updated" };
     } else {
       console.log(`Call ${item.history_item_id} does not exist, creating`);
-      // Insérer un nouvel appel
+      // Insert new call
       const { error } = await supabase
         .from("calls")
         .insert(callData);
@@ -104,7 +71,7 @@ export async function syncHistoryItem(
 }
 
 /**
- * Synchronise plusieurs éléments d'historique avec la base de données
+ * Synchronize multiple history items with the database
  */
 export async function syncHistoryItems(
   supabaseUrl: string, 
@@ -112,7 +79,7 @@ export async function syncHistoryItems(
   historyItems: HistoryItem[],
   externalAgentId: string
 ): Promise<SyncResult[]> {
-  // Vérifier que les variables nécessaires sont présentes
+  // Check required environment variables
   if (!supabaseUrl || !supabaseServiceKey) {
     const missingVars = [];
     if (!supabaseUrl) missingVars.push('SUPABASE_URL');
@@ -126,7 +93,7 @@ export async function syncHistoryItems(
   console.log(`Creating Supabase client with URL: ${supabaseUrl}`);
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  // IMPROVED: Resolve the external agent ID (voice_id) to internal UUID
+  // Resolve the external agent ID (voice_id) to internal UUID
   console.log(`Looking up internal UUID for external agent ID: ${externalAgentId}`);
   let internalAgentId = await getAgentUUIDByExternalId(supabase, externalAgentId);
   

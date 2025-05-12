@@ -88,13 +88,6 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
         console.log("[handleHistorySyncRequest] First API key failed, trying alternate key");
         const alternateKey = Deno.env.get("ELEVEN_LABS_API_KEY");
         historyResult = await fetchElevenLabsHistory(alternateKey, agentId);
-        
-        // If still failing with the alternate key, try one more time with the recommended key
-        if (!historyResult.success) {
-          console.log("[handleHistorySyncRequest] Both keys failed, trying with recommended key");
-          const recommendedKey = "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
-          historyResult = await fetchElevenLabsHistory(recommendedKey, agentId);
-        }
       }
       
       if (!historyResult.success) {

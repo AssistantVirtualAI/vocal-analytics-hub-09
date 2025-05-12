@@ -1,21 +1,7 @@
 
-export interface SyncRequest {
-  agentId: string;
-}
-
-export interface HistoryItem {
-  history_item_id: string;
-  voice_id?: string;
-  model_id?: string;
-  text?: string;
-  created_at?: string;
-  date_unix?: number;
-  [key: string]: any;
-}
-
-export interface ElevenLabsHistoryResponse {
-  history: HistoryItem[];
-}
+/**
+ * Define interfaces for the sync-elevenlabs-history function
+ */
 
 export interface SyncResult {
   id: string;
@@ -24,26 +10,29 @@ export interface SyncResult {
   error?: string;
 }
 
-export interface SyncSummary {
-  total: number;
-  success: number;
-  error: number;
-}
-
-export interface SyncResponse {
-  success: boolean;
-  results: SyncResult[];
-  summary: SyncSummary;
-}
-
 export interface CallData {
   id: string;
-  audio_url: string;
   agent_id: string;
   date: string;
-  customer_id?: string | null;
-  customer_name?: string;
-  satisfaction_score?: number;
   duration: number;
-  transcript?: string;
+  satisfaction_score: number;
+  audio_url: string;
+  transcript: string;
+  customer_id: string | null;
+  customer_name: string;
+  elevenlabs_history_item_id?: string;
+  [key: string]: any;
+}
+
+export interface ElevenLabsHistoryResponse {
+  history: Array<{
+    history_item_id: string;
+    request_id: string;
+    text: string;
+    voice_id: string;
+    date_unix: number;
+    [key: string]: any;
+  }>;
+  last_history_item_id?: string;
+  has_more?: boolean;
 }

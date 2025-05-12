@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Star, Phone } from 'lucide-react';
@@ -27,7 +28,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { mockCustomerStats, mockCustomers } from '@/mockData';
 import { useAuth } from '@/context/AuthContext';
-import { SecurityIssuesFixer } from '@/components/security/SecurityIssuesFixer';
 
 const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
@@ -53,8 +53,7 @@ export default function Customers() {
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
         <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl -z-10"></div>
         
-        {/* Add the security fixer component only for admins */}
-        {isAdmin && <SecurityIssuesFixer />}
+        {/* Security issues fixer has been removed */}
         
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
           <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-300">Clients</h1>

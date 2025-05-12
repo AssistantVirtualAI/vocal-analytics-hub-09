@@ -25,6 +25,7 @@ export const OrganizationUsers = ({
 }: OrganizationUsersProps) => {
   const { pendingInvitations, cancelInvitation } = useOrganizationInvitations(currentOrganization?.id || null);
   const fetchInitiated = useRef(false);
+  const currentOrgId = useRef<string | null>(null);
 
   // Fetch users only once when the component mounts or when the organization changes
   useEffect(() => {
@@ -33,16 +34,13 @@ export const OrganizationUsers = ({
       return;
     }
     
-    if (!fetchInitiated.current) {
+    // Only fetch if the organization has changed or we haven't fetched yet
+    if (!fetchInitiated.current || currentOrgId.current !== currentOrganization.id) {
       console.log(`OrganizationUsers: Initial fetch for org ${currentOrganization.id}`);
       fetchOrganizationUsers(currentOrganization.id);
       fetchInitiated.current = true;
+      currentOrgId.current = currentOrganization.id;
     }
-    
-    return () => {
-      // Reset when component unmounts or org changes
-      fetchInitiated.current = false;
-    };
   }, [currentOrganization, fetchOrganizationUsers]);
 
   const handleAddUser = async (newUserEmail: string) => {

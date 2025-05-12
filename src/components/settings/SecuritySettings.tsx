@@ -1,4 +1,3 @@
-import { SecurityIssuesFixer } from '../security/SecurityIssuesFixer';
 
 export function SecuritySettings() {
   return (
@@ -9,8 +8,6 @@ export function SecuritySettings() {
           Gérez vos paramètres de sécurité et vos préférences
         </p>
       </div>
-
-      <SecurityIssuesFixer />
       
       <div className="p-4 border rounded-lg">
         <h3 className="font-medium">Paramètres d'authentification</h3>

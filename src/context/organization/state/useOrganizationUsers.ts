@@ -1,5 +1,5 @@
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { useOrganizationUsersLoading } from '@/hooks/organization/useOrganizationUsersLoading';
 import { useUserAddition } from '@/hooks/organization/useUserAddition';
 import { useUserRemoval } from '@/hooks/organization/useUserRemoval';
@@ -9,6 +9,7 @@ export const useOrganizationUsers = () => {
   // Keep track of the last loaded organization to prevent unnecessary reloads
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const operationInProgressRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
   
   // Load user data
   const { 
@@ -65,10 +66,14 @@ export const useOrganizationUsers = () => {
     }
   }, [updateUserRole, loadOrganizationUsers]);
 
-  // Safe version of loadOrganizationUsers that prevents redundant calls
+  // Memoized version of loadOrganizationUsers that prevents redundant calls
   const safeLoadOrganizationUsers = useCallback((orgId: string) => {
-    if (!orgId) return;
+    if (!orgId) {
+      console.log('No organization ID provided for loading users');
+      return;
+    }
     
+    // Only load if this is a different org or we have no users yet
     if (orgId !== currentOrgId || users.length === 0) {
       console.log(`Loading users for organization: ${orgId} (current: ${currentOrgId})`);
       loadOrganizationUsers(orgId);
@@ -77,6 +82,14 @@ export const useOrganizationUsers = () => {
       console.log(`Skipping load - already loaded users for org: ${orgId}`);
     }
   }, [currentOrgId, loadOrganizationUsers, users.length]);
+
+  // Cleanup function for when the component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('useOrganizationUsers hook cleanup');
+      isInitialLoadRef.current = true;
+    };
+  }, []);
 
   const loading = usersLoading || addLoading || removeLoading || updateLoading;
 

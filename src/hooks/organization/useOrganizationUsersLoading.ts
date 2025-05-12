@@ -22,17 +22,30 @@ export const useOrganizationUsersLoading = () => {
   const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
   const lastFetchedOrgIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load organization users
   const loadOrganizationUsers = useCallback(async (orgId: string) => {
     try {
-      if (!orgId) return;
+      if (!orgId) {
+        console.log('No organization ID provided');
+        return;
+      }
       
       // Skip if we're already loading users for this organization
       if (loadingRef.current && lastFetchedOrgIdRef.current === orgId) {
         console.log(`Already loading users for organization: ${orgId}`);
         return;
       }
+      
+      // Cancel previous request if there was one
+      if (abortControllerRef.current) {
+        console.log('Cancelling previous request');
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
       
       setLoading(true);
       loadingRef.current = true;
@@ -84,11 +97,16 @@ export const useOrganizationUsersLoading = () => {
           };
         });
         
-        console.log('Formatted users:', formattedUsers);
+        console.log(`Loaded ${formattedUsers.length} users for org ${orgId}`);
         setUsers(formattedUsers);
       }
       
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Request was aborted');
+        return;
+      }
+      
       console.error(`Error loading users for organization ${orgId}:`, error);
       toast({
         title: "Error", 
@@ -98,6 +116,7 @@ export const useOrganizationUsersLoading = () => {
     } finally {
       setLoading(false);
       loadingRef.current = false;
+      abortControllerRef.current = null;
     }
   }, []);
 

@@ -1,19 +1,13 @@
 
 import { DashboardLayout } from "@/components/dashboard/Layout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useOrg } from "@/context/OrgContext";
-import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
-import { cn } from "@/lib/utils";
-import { StatsOverview } from "@/components/dashboard/StatsOverview";
-import { CallsChart } from "@/components/dashboard/CallsChart";
+import { DiagnosticPanel } from "@/components/dashboard/DiagnosticPanel";
 import { CallsList } from "@/components/dashboard/CallsList";
 import { CustomerStatsList } from "@/components/dashboard/CustomerStatsList";
-import { ElevenLabsDiagnosticsButton } from "@/components/dashboard/ElevenLabsDiagnosticsButton";
-import { DiagnosticPanel } from "@/components/dashboard/DiagnosticPanel";
-import { TimeRangeButtonGroup, TimeRange } from "@/components/dashboard/TimeRangeSelector";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { OverviewTabContent } from "@/components/dashboard/OverviewTabContent";
 
 // Import our specialized hooks
 import { 
@@ -106,34 +100,14 @@ export default function Index() {
   return (
     <DashboardLayout>
       <div className="container p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-          <h1 className="text-2xl sm:text-3xl font-bold">
-            Tableau de bord {currentOrg ? `- ${currentOrg.name}` : ""}
-          </h1>
-          <div className="flex items-center space-x-2">
-            <ElevenLabsDiagnosticsButton 
-              variant="outline" 
-              size="sm" 
-              className="mr-2" 
-              onClick={() => setShowDiagnostics(!showDiagnostics)} 
-            />
-            <TimeRangeButtonGroup
-              value={timeRange}
-              onChange={setTimeRange}
-              className="mr-2"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleRefreshOverview}
-              disabled={isLoadingStats || isLoadingChartData}
-            >
-              <RefreshCw
-                className={cn("h-4 w-4", (isLoadingStats || isLoadingChartData) && "animate-spin")}
-              />
-            </Button>
-          </div>
-        </div>
+        <DashboardHeader
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
+          isLoading={isLoadingStats || isLoadingChartData}
+          onRefresh={handleRefreshOverview}
+          showDiagnostics={showDiagnostics}
+          setShowDiagnostics={setShowDiagnostics}
+        />
 
         {/* Diagnostic Panel - conditionally shown */}
         {showDiagnostics && (
@@ -142,32 +116,23 @@ export default function Index() {
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full sm:w-auto grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="calls">Appels</TabsTrigger>
-            <TabsTrigger value="customers">Clients</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab Content */}
-          <TabsContent value="overview" className="space-y-4">
-            <StatsOverview 
-              data={statsData} 
-              isLoading={isLoadingStats} 
-              error={errorStats} 
-              refetch={refetchStats} 
-            />
-            <CallsChart 
-              data={statsData?.callsPerDay || {}} 
-              isLoading={isLoadingChartData} 
-              error={errorChartData} 
-              refetch={refetchChartData} 
+        <DashboardTabs
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          overviewContent={
+            <OverviewTabContent
+              statsData={statsData}
+              isLoadingStats={isLoadingStats}
+              errorStats={errorStats}
+              refetchStats={refetchStats}
+              callsPerDayData={statsData?.callsPerDay || {}}
+              isLoadingChartData={isLoadingChartData}
+              errorChartData={errorChartData}
+              refetchChartData={refetchChartData}
               timeRange={timeRange}
             />
-          </TabsContent>
-
-          {/* Calls Tab Content */}
-          <TabsContent value="calls" className="space-y-4">
+          }
+          callsContent={
             <CallsList 
               calls={callsList}
               totalCount={callsTotalCount}
@@ -176,17 +141,15 @@ export default function Index() {
               sortBy={callsSortBy}
               sortOrder={callsSortOrder}
               isLoading={isLoadingCallsList}
-              error={errorCallsList}
-              orgSlug={orgSlug}
+              error={errorCallsList as Error}
+              orgSlug={orgSlug || ""}
               onPageChange={setCallsPage}
               onSortChange={handleSortChange}
               refetch={refetchCallsList}
               timeRange={timeRange}
             />
-          </TabsContent>
-
-          {/* Customers Tab Content */}
-          <TabsContent value="customers" className="space-y-4">
+          }
+          customersContent={
             <CustomerStatsList 
               customerStats={customerStats}
               isLoading={isLoadingCustomerStats}
@@ -195,8 +158,8 @@ export default function Index() {
               refetch={refetchCustomerStats}
               timeRange={timeRange}
             />
-          </TabsContent>
-        </Tabs>
+          }
+        />
       </div>
     </DashboardLayout>
   );

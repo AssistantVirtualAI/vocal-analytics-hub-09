@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
 interface OrganizationUsersProps {
   currentOrganization: Organization | null;
   users: OrganizationUser[];
-  fetchOrganizationUsers: (organizationId: string) => Promise<void>;
+  fetchOrganizationUsers: (organizationId: string) => Promise<void> | void;
   addUserToOrganization: (email: string, organizationId: string) => Promise<void>;
   removeUserFromOrganization: (userId: string, organizationId: string) => Promise<void>;
   onUpdateUserRole?: (userId: string, role: string) => Promise<void>;
@@ -28,7 +28,13 @@ export const OrganizationUsers = ({
 
   // Fetch users only once when the component mounts or when the organization changes
   useEffect(() => {
-    if (currentOrganization && !fetchInitiated.current) {
+    if (!currentOrganization) {
+      fetchInitiated.current = false;
+      return;
+    }
+    
+    if (!fetchInitiated.current) {
+      console.log(`OrganizationUsers: Initial fetch for org ${currentOrganization.id}`);
       fetchOrganizationUsers(currentOrganization.id);
       fetchInitiated.current = true;
     }
@@ -40,24 +46,34 @@ export const OrganizationUsers = ({
   }, [currentOrganization, fetchOrganizationUsers]);
 
   const handleAddUser = async (newUserEmail: string) => {
-    if (currentOrganization && newUserEmail) {
+    if (!currentOrganization || !newUserEmail) return;
+    
+    try {
       await addUserToOrganization(newUserEmail, currentOrganization.id);
-      if (currentOrganization) {
-        await fetchOrganizationUsers(currentOrganization.id);
-      }
+      // Don't need to fetch again as addUserToOrganization already does this
+    } catch (error) {
+      console.error("Error adding user:", error);
     }
   };
 
   const handleRemoveUser = async (userId: string) => {
-    if (currentOrganization) {
+    if (!currentOrganization) return;
+    
+    try {
       await removeUserFromOrganization(userId, currentOrganization.id);
-      await fetchOrganizationUsers(currentOrganization.id);
+      // Don't need to fetch again as removeUserFromOrganization already does this
+    } catch (error) {
+      console.error("Error removing user:", error);
     }
   };
 
   const handleUpdateRole = async (userId: string, role: string) => {
-    if (onUpdateUserRole && currentOrganization) {
+    if (!onUpdateUserRole || !currentOrganization) return;
+    
+    try {
       await onUpdateUserRole(userId, role);
+    } catch (error) {
+      console.error("Error updating role:", error);
     }
   };
 

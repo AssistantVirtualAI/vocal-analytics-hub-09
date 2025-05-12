@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
 import { AllUsersSection } from '@/components/users/AllUsersSection';
@@ -17,15 +17,16 @@ export default function UsersManagement() {
   const { user } = useAuth();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const initialSetupDone = useRef(false);
+  const refreshRequestedRef = useRef(false);
   
   // Initialize organization selection only once
   useEffect(() => {
-    if (organizations.length > 0 && !selectedOrg && !initialSetupDone.current) {
+    if (!initialSetupDone.current && organizations.length > 0) {
       console.log('[UsersManagement] Setting initial organization:', organizations[0].id);
       setSelectedOrg(organizations[0].id);
       initialSetupDone.current = true;
     }
-  }, [organizations, selectedOrg]);
+  }, [organizations]);
 
   // Use the admin roles hook to check permissions
   const {
@@ -34,6 +35,9 @@ export default function UsersManagement() {
     loading: permissionsLoading
   } = useAdminRoles(selectedOrg, user?.id);
 
+  // Only load user management if an organization is selected
+  const orgIdToUse = useMemo(() => selectedOrg, [selectedOrg]);
+  
   const {
     orgUsers,
     allUsers,
@@ -44,7 +48,7 @@ export default function UsersManagement() {
     loadAllUsers,
     addUserToOrg,
     refreshAllData
-  } = useUsersManagement(selectedOrg);
+  } = useUsersManagement(orgIdToUse);
 
   // Debug logging
   console.log('[UsersManagement] Selected org:', selectedOrg);
@@ -54,13 +58,21 @@ export default function UsersManagement() {
   console.log('[UsersManagement] Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
 
   const handleRefresh = async () => {
+    if (refreshRequestedRef.current) {
+      console.log("Refresh already in progress, ignoring request");
+      return;
+    }
+    
     try {
+      refreshRequestedRef.current = true;
       toast.info("Actualisation des données utilisateurs...");
       await refreshAllData();
       toast.success("Données utilisateurs actualisées");
     } catch (error) {
       console.error("Error refreshing data:", error);
       toast.error("Erreur lors de l'actualisation des données");
+    } finally {
+      refreshRequestedRef.current = false;
     }
   };
 
@@ -85,9 +97,10 @@ export default function UsersManagement() {
               variant="outline" 
               size="sm"
               onClick={handleRefresh} 
+              disabled={refreshRequestedRef.current || loading}
               className="ml-auto border-blue-200/50 dark:border-blue-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm"
             >
-              <RefreshCw className="h-4 w-4 mr-2 text-blue-500 dark:text-blue-400" />
+              <RefreshCw className={`h-4 w-4 mr-2 text-blue-500 dark:text-blue-400 ${(refreshRequestedRef.current || loading) ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
           </div>

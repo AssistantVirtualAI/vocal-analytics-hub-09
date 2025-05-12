@@ -14,36 +14,51 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   const [loading, setLoading] = useState(false);
   const [orgUsersLoading, setOrgUsersLoading] = useState(false);
   const [allUsersLoading, setAllUsersLoading] = useState(false);
-  const lastFetchedOrg = useRef<string | null>(null);
+  const lastFetchedOrgRef = useRef<string | null>(null);
+  const fetchingOrgUsersRef = useRef(false);
+  const fetchingAllUsersRef = useRef(false);
 
   const fetchUsers = useCallback(async () => {
     if (!selectedOrg) return;
+    if (fetchingOrgUsersRef.current) {
+      console.log("Already fetching org users, skipping duplicate request");
+      return;
+    }
     
-    // Skip if we're already loading for this org
-    if (orgUsersLoading && lastFetchedOrg.current === selectedOrg) {
-      console.log(`Already loading users for org: ${selectedOrg}`);
+    // Skip if we just fetched this org's users
+    if (lastFetchedOrgRef.current === selectedOrg && orgUsers.length > 0) {
+      console.log(`Already have users for org ${selectedOrg}, skipping fetch`);
       return;
     }
     
     setOrgUsersLoading(true);
-    lastFetchedOrg.current = selectedOrg;
+    fetchingOrgUsersRef.current = true;
     
     try {
+      console.log(`Fetching users for organization: ${selectedOrg}`);
       const users = await fetchOrganizationUsers(selectedOrg);
       setOrgUsers(users);
+      lastFetchedOrgRef.current = selectedOrg;
     } catch (error: any) {
       console.error('Error fetching organization users:', error);
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
       setOrgUsersLoading(false);
+      fetchingOrgUsersRef.current = false;
     }
-  }, [selectedOrg, orgUsersLoading]);
+  }, [selectedOrg, orgUsers.length]);
 
   const fetchAllUsers = useCallback(async () => {
-    if (allUsersLoading) return;
+    if (fetchingAllUsersRef.current) {
+      console.log("Already fetching all users, skipping duplicate request");
+      return;
+    }
     
     setAllUsersLoading(true);
+    fetchingAllUsersRef.current = true;
+    
     try {
+      console.log("Fetching all users");
       const { data, error } = await supabase
         .from('profiles')
         .select('*');
@@ -80,18 +95,27 @@ export const useUsersManagement = (selectedOrg: string | null) => {
       toast("Erreur lors de la récupération des utilisateurs: " + error.message);
     } finally {
       setAllUsersLoading(false);
+      fetchingAllUsersRef.current = false;
     }
-  }, [allUsersLoading]);
+  }, []);
 
+  // Fetch org users when selectedOrg changes
   useEffect(() => {
-    if (selectedOrg && selectedOrg !== lastFetchedOrg.current) {
-      fetchUsers();
+    if (selectedOrg) {
+      if (selectedOrg !== lastFetchedOrgRef.current) {
+        console.log(`Organization changed from ${lastFetchedOrgRef.current} to ${selectedOrg}, fetching users`);
+        fetchUsers();
+      }
+    } else {
+      // Clear org users if no org is selected
+      setOrgUsers([]);
+      lastFetchedOrgRef.current = null;
     }
   }, [selectedOrg, fetchUsers]);
 
   // Only fetch all users when explicitly requested, not automatically on mount
   const loadAllUsers = useCallback(() => {
-    if (allUsers.length === 0 && !allUsersLoading) {
+    if (allUsers.length === 0 && !allUsersLoading && !fetchingAllUsersRef.current) {
       fetchAllUsers();
     }
   }, [allUsers.length, allUsersLoading, fetchAllUsers]);
@@ -112,11 +136,20 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   };
 
   const refreshAllData = useCallback(async () => {
+    const promises = [];
+    
     if (selectedOrg) {
-      await fetchUsers();
+      // Reset the lastFetchedOrgRef to force a fresh fetch
+      lastFetchedOrgRef.current = null;
+      promises.push(fetchUsers());
     }
-    await fetchAllUsers();
-  }, [selectedOrg, fetchUsers, fetchAllUsers]);
+    
+    if (allUsers.length > 0) {
+      promises.push(fetchAllUsers());
+    }
+    
+    await Promise.all(promises);
+  }, [selectedOrg, fetchUsers, fetchAllUsers, allUsers.length]);
 
   return {
     orgUsers,

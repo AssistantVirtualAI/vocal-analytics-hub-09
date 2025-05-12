@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Table } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -20,7 +20,7 @@ import {
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
-  fetchUsers: () => Promise<void>;
+  fetchUsers: () => Promise<void> | void;
   organizationId: string;
   loading?: boolean;
   currentUserIsOrgAdmin?: boolean;
@@ -38,21 +38,27 @@ export const OrganizationUsersList = ({
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
   const [resendingFor, setResendingFor] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Debug log when users change
   console.log("OrganizationUsersList - Current users:", users);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    
     try {
+      setIsRefreshing(true);
       await fetchUsers();
       toast.success("Liste des utilisateurs actualisée");
     } catch (error: any) {
       toast.error("Erreur lors de l'actualisation: " + error.message);
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [fetchUsers, isRefreshing]);
 
   const handleRemoveUserFromOrg = async (userId: string) => {
-    if (!organizationId) {
+    if (!organizationId || actionLoading) {
       toast.error("ID d'organisation non spécifié");
       return;
     }
@@ -70,6 +76,8 @@ export const OrganizationUsersList = ({
   };
 
   const handleCancelInvitation = async (invitationId: string) => {
+    if (actionLoading) return;
+    
     setActionLoading(true);
     try {
       console.log(`Attempting to cancel invitation ${invitationId}`);
@@ -83,7 +91,7 @@ export const OrganizationUsersList = ({
   };
 
   const handleResendInvitation = async (email: string) => {
-    if (!organizationId) {
+    if (!organizationId || actionLoading) {
       toast.error("ID d'organisation non spécifié");
       return;
     }
@@ -103,6 +111,8 @@ export const OrganizationUsersList = ({
   };
 
   const handleResetPassword = async (email: string) => {
+    if (actionLoading) return;
+    
     setActionLoading(true);
     try {
       console.log(`Attempting to reset password for ${email}`);
@@ -115,7 +125,7 @@ export const OrganizationUsersList = ({
   };
 
   const handleToggleOrgAdmin = async (userId: string, makeAdmin: boolean) => {
-    if (!organizationId) {
+    if (!organizationId || actionLoading) {
       toast.error("ID d'organisation non spécifié");
       return;
     }
@@ -132,6 +142,8 @@ export const OrganizationUsersList = ({
   };
 
   const handleToggleSuperAdmin = async (userId: string, makeAdmin: boolean) => {
+    if (actionLoading) return;
+    
     setActionLoading(true);
     try {
       await setSuperAdminStatus(userId, makeAdmin);
@@ -145,7 +157,7 @@ export const OrganizationUsersList = ({
 
   return (
     <div>
-      <UsersListHeader onRefresh={handleRefresh} loading={loading} />
+      <UsersListHeader onRefresh={handleRefresh} loading={loading || isRefreshing} />
       
       <Table>
         <UserTableHeader showAdminColumns={currentUserIsOrgAdmin || currentUserIsSuperAdmin} />

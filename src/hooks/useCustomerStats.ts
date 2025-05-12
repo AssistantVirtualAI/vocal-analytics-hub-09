@@ -2,10 +2,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerStats } from '@/types';
-import { useOrgContext } from '@/context/OrgContext';
+import { useOrg } from '@/context/OrgContext';
 
 export function useCustomerStats(enabled = true) {
-  const { currentOrg } = useOrgContext();
+  const { currentOrg } = useOrg();
   const agentId = currentOrg?.agentId;
 
   return useQuery({

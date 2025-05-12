@@ -42,7 +42,7 @@ export function createErrorResponse({
 
 // Helper function for handling CORS preflight requests
 export function handleCorsOptions() {
-  return new Response(null, { headers: corsHeaders });
+  return new Response(null, { status: 200, headers: corsHeaders }); // Updated to explicitly use status 200
 }
 
 // Helper for fetching with retry

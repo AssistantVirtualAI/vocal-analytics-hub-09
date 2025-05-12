@@ -12,9 +12,9 @@ interface EmailPayload {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight request
+  // Handle CORS preflight request with explicit status 200
   if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {

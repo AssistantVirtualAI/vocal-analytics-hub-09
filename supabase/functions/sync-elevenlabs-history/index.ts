@@ -20,10 +20,10 @@ serve(async (req) => {
     console.error(`[${functionName}] Error checking environment variables:`, error);
   }
   
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests with explicit status 200
   if (req.method === 'OPTIONS') {
     console.log(`[${functionName}] Handling OPTIONS request`);
-    return handleCorsOptions();
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
   
   try {

@@ -4,9 +4,15 @@ import { handleCorsOptions } from "../_shared/api-utils.ts";
 import { handleMonitorRequest } from "./handlers.ts";
 
 serve(async (req) => {
-  // Gestion des requêtes CORS preflight
+  // Gestion des requêtes CORS preflight avec status 200 explicite
   if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+    return new Response(null, { 
+      status: 200, 
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      }
+    });
   }
   
   try {

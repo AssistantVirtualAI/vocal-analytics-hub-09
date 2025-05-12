@@ -7,9 +7,16 @@ serve(async (req) => {
   const startTime = Date.now();
   const functionName = "get-call";
 
-  // Gestion des requêtes CORS preflight
+  // Gestion des requêtes CORS preflight avec status 200 explicite
   if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+    return new Response(null, { 
+      status: 200, 
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      }
+    });
   }
 
   try {

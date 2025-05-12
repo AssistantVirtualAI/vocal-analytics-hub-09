@@ -79,13 +79,13 @@ export async function handleHistorySyncRequest(req: Request): Promise<Response> 
                        elevenLabsApiKey.substring(elevenLabsApiKey.length - 4);
       console.log(`[handleHistorySyncRequest] Using ElevenLabs API key: ${maskedKey}`);
 
-      // First try with the primary API key
-      let historyResult = await fetchElevenLabsHistory(elevenLabsApiKey);
+      // IMPROVED: Pass agentId (voice_id) to fetchElevenLabsHistory to filter results
+      let historyResult = await fetchElevenLabsHistory(elevenLabsApiKey, agentId);
       
-      // If that fails, try with alternate key format
+      // If that fails, try with alternate key format but still use the voice_id filter
       if (!historyResult.success && Deno.env.get("ELEVEN_LABS_API_KEY")) {
         console.log("[handleHistorySyncRequest] First API key failed, trying alternate key");
-        historyResult = await fetchElevenLabsHistory(Deno.env.get("ELEVEN_LABS_API_KEY"));
+        historyResult = await fetchElevenLabsHistory(Deno.env.get("ELEVEN_LABS_API_KEY"), agentId);
       }
       
       if (!historyResult.success) {

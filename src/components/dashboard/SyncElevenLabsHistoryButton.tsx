@@ -44,7 +44,7 @@ export function SyncElevenLabsHistoryButton({
   return (
     <Button 
       onClick={handleSync} 
-      disabled={isSyncing}
+      disabled={isSyncing || !effectiveAgentId}
       variant={variant}
       className={cn("gap-2", className)}
     >

@@ -7,6 +7,7 @@ import {
   SyncResult 
 } from "./models.ts";
 import { fetchElevenLabsHistory, fetchElevenLabsHistoryItem } from "../_shared/elevenlabs/history.ts";
+import { getAgentUUIDByExternalId } from "../_shared/agent-resolver-improved.ts";
 
 /**
  * Convertit un élément d'historique en données d'appel pour la base de données
@@ -108,7 +109,7 @@ export async function syncHistoryItems(
   supabaseUrl: string, 
   supabaseServiceKey: string,
   historyItems: HistoryItem[],
-  agentId: string
+  externalAgentId: string
 ): Promise<SyncResult[]> {
   // Vérifier que les variables nécessaires sont présentes
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -124,11 +125,50 @@ export async function syncHistoryItems(
   console.log(`Creating Supabase client with URL: ${supabaseUrl}`);
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  console.log(`Starting sync of ${historyItems.length} history items`);
+  // IMPROVED: Resolve the external agent ID (voice_id) to internal UUID
+  console.log(`Looking up internal UUID for external agent ID: ${externalAgentId}`);
+  let internalAgentId = await getAgentUUIDByExternalId(supabase, externalAgentId);
+  
+  // If no agent is found, check if we need to create one
+  if (!internalAgentId) {
+    console.log(`No agent found for external ID: ${externalAgentId}, creating one`);
+    try {
+      // Create a new agent with the external ID as the name
+      const { data: newAgent, error } = await supabase
+        .from("agents")
+        .insert({
+          name: externalAgentId,
+          external_id: externalAgentId,
+          role: "assistant",
+          provider: "elevenlabs"
+        })
+        .select("id")
+        .single();
+      
+      if (error) {
+        console.error(`Error creating new agent: ${error.message}`);
+        throw error;
+      }
+      
+      internalAgentId = newAgent.id;
+      console.log(`Created new agent with internal UUID: ${internalAgentId}`);
+    } catch (error) {
+      console.error(`Failed to create agent: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  } else {
+    console.log(`Found internal agent UUID: ${internalAgentId} for external ID: ${externalAgentId}`);
+  }
+  
+  if (!internalAgentId) {
+    throw new Error(`Could not determine internal agent ID for external ID: ${externalAgentId}`);
+  }
+  
+  console.log(`Starting sync of ${historyItems.length} history items for agent ${internalAgentId}`);
   const results: SyncResult[] = [];
   
   for (const item of historyItems) {
-    const result = await syncHistoryItem(supabase, item, agentId, supabaseUrl);
+    const result = await syncHistoryItem(supabase, item, internalAgentId, supabaseUrl);
     results.push(result);
   }
   

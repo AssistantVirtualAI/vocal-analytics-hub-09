@@ -74,3 +74,7 @@ port = 54321
 [functions.get-call-audio]
 # Verify JWT in incoming requests. Default is true.
 verify_jwt = false
+
+[functions.get_calls_per_day]
+# Ensure the edge function doesn't need JWT verification
+verify_jwt = false

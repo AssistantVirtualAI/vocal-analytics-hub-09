@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAgentUUIDByExternalId } from "../_shared/agent-resolver-improved.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -32,7 +33,7 @@ serve(async (req) => {
     }
     
     // Check if agentId is provided
-    const agentId = body.agentId || 'QNdB45Jpgh06Hr67TzFO'; // Default to QNdB45Jpgh06Hr67TzFO if not provided
+    const agentId = body.agentId;
     
     if (!agentId) {
       return new Response(
@@ -50,7 +51,41 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ error: "Missing Supabase credentials" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Resolve the agent ID to an internal UUID if needed
+    console.log(`Resolving agent ID: ${agentId}`);
+    const internalAgentId = await getAgentUUIDByExternalId(supabase, agentId);
+    
+    if (!internalAgentId) {
+      console.log(`Could not resolve agent ID: ${agentId}, creating a default response`);
+      return new Response(
+        JSON.stringify({
+          callsPerDay: {},
+          timeRange: {
+            from: startDate || new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            to: endDate || new Date().toISOString().split('T')[0],
+            days
+          },
+          total: 0,
+          agentId
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log(`Resolved agent ID ${agentId} to internal UUID: ${internalAgentId}`);
     
     // Set up dates for filtering
     const now = new Date();
@@ -71,14 +106,13 @@ serve(async (req) => {
     const fromDateStr = fromDate.toISOString().split('T')[0];
     const toDateStr = toDate.toISOString().split('T')[0];
     
-    console.log(`Fetching calls from ${fromDateStr} to ${toDateStr} for agent ${agentId}`);
+    console.log(`Fetching calls from ${fromDateStr} to ${toDateStr} for agent ${internalAgentId}`);
     
     // Prepare query
     let query = supabase.from('calls').select('date');
     
-    // Always apply agent filter
-    console.log(`Filtering by agent ID: ${agentId}`);
-    query = query.eq('agent_id', agentId);
+    // Apply agent filter
+    query = query.eq('agent_id', internalAgentId);
     
     // Apply date filter
     query = query.gte('date', fromDateStr).lte('date', toDateStr);

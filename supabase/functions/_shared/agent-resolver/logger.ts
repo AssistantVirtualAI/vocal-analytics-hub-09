@@ -1,15 +1,17 @@
 
 /**
- * Log an informational message with the agent-resolver prefix
- * @param message Message to log
+ * Utility functions for consistent logging in the agent resolver
+ */
+
+/**
+ * Log informational message with agent-resolver prefix
  */
 export function logInfo(message: string): void {
   console.log(`[agent-resolver] ${message}`);
 }
 
 /**
- * Log an error message with the agent-resolver prefix
- * @param message Error message to log
+ * Log error message with agent-resolver prefix
  */
 export function logError(message: string): void {
   console.error(`[agent-resolver] ${message}`);

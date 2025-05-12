@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -17,7 +16,7 @@ interface PlayerControlsProps {
   maxRetries?: number;
 }
 
-export const PlayerControls = ({
+export function PlayerControls({
   audioUrl,
   isLoading,
   error,
@@ -26,7 +25,14 @@ export const PlayerControls = ({
   isRetrying = false,
   retryCount = 0,
   maxRetries = 3
-}: PlayerControlsProps) => {
+}: PlayerControlsProps) {
+  // Process audioUrl to ensure it works with our new proxy function
+  const effectiveAudioUrl = audioUrl?.includes('history_id=') 
+    ? audioUrl // Already using our proxy function
+    : audioUrl?.includes('/history/') && callId 
+      ? `/api/functions/v1/get-call-audio?history_id=${callId}` // Convert ElevenLabs direct URL to our proxy
+      : audioUrl; // Keep as is if it doesn't match any pattern
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -34,8 +40,8 @@ export const PlayerControls = ({
   const [volume, setVolume] = useState(0.75);
 
   useEffect(() => {
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
+    if (effectiveAudioUrl) {
+      const audio = new Audio(effectiveAudioUrl);
       audioRef.current = audio;
       
       audio.addEventListener('loadedmetadata', () => {
@@ -70,7 +76,7 @@ export const PlayerControls = ({
         audioRef.current = null;
       };
     }
-  }, [audioUrl]);
+  }, [effectiveAudioUrl]);
   
   const togglePlayback = () => {
     if (!audioRef.current) return;
@@ -113,7 +119,7 @@ export const PlayerControls = ({
     );
   }
   
-  if (error || !audioUrl) {
+  if (error || !effectiveAudioUrl) {
     return (
       <div className="flex flex-col items-center justify-center py-6 space-y-4">
         <p className="text-center text-sm text-gray-500">
@@ -184,5 +190,4 @@ export const PlayerControls = ({
       </div>
     </div>
   );
-};
-
+}

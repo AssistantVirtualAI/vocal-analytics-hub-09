@@ -13,13 +13,19 @@ import { fetchElevenLabsHistory, fetchElevenLabsHistoryItem } from "../_shared/e
  */
 export function mapHistoryItemToCallData(
   item: HistoryItem, 
-  agentId: string
+  agentId: string,
+  supabaseUrl?: string
 ): CallData {
   console.log(`Mapping history item ${item.history_item_id} to call data`);
   
+  // Construct the proxy audio URL that points to our edge function
+  const audioUrl = supabaseUrl 
+    ? `${supabaseUrl}/functions/v1/get-call-audio?history_id=${item.history_item_id}`
+    : `https://api.elevenlabs.io/v1/history/${item.history_item_id}/audio`;
+  
   return {
     id: item.history_item_id,
-    audio_url: `https://api.elevenlabs.io/v1/history/${item.history_item_id}/audio`,
+    audio_url: audioUrl,
     agent_id: agentId,
     date: new Date(item.created_at || (item.date_unix ? item.date_unix * 1000 : Date.now())).toISOString(),
     customer_id: null,
@@ -36,7 +42,8 @@ export function mapHistoryItemToCallData(
 export async function syncHistoryItem(
   supabase: SupabaseClient,
   item: HistoryItem,
-  agentId: string
+  agentId: string,
+  supabaseUrl?: string
 ): Promise<SyncResult> {
   try {
     console.log(`Syncing history item ${item.history_item_id}`);
@@ -54,7 +61,7 @@ export async function syncHistoryItem(
     }
     
     // Préparer les données de l'appel
-    const callData = mapHistoryItemToCallData(item, agentId);
+    const callData = mapHistoryItemToCallData(item, agentId, supabaseUrl);
     
     if (existingCall) {
       console.log(`Call ${item.history_item_id} exists, updating`);
@@ -121,7 +128,7 @@ export async function syncHistoryItems(
   const results: SyncResult[] = [];
   
   for (const item of historyItems) {
-    const result = await syncHistoryItem(supabase, item, agentId);
+    const result = await syncHistoryItem(supabase, item, agentId, supabaseUrl);
     results.push(result);
   }
   

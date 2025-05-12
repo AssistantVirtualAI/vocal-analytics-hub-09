@@ -66,7 +66,7 @@ export const ElevenLabsAudioPlayer = ({
         toast({
           title: "Échec de la tentative",
           description: "Impossible de récupérer l'audio. Nouvelle tentative dans quelques secondes.",
-          variant: "destructive" // Changed from "warning" to "destructive" to match allowed variants
+          variant: "destructive"
         });
         
         // Auto-retry with exponential backoff
@@ -81,12 +81,19 @@ export const ElevenLabsAudioPlayer = ({
     }
   };
 
+  // Process audioUrl to ensure it works with our new proxy function
+  const processedAudioUrl = audioUrl?.includes('history_id=') 
+    ? audioUrl // Already using our proxy function
+    : audioUrl?.includes('/history/') && callId 
+      ? `/api/functions/v1/get-call-audio?history_id=${callId}` // Convert ElevenLabs direct URL to our proxy
+      : audioUrl; // Keep as is if it doesn't match any pattern
+
   return (
     <Card>
       <PlayerHeader isLoading={isLoading} error={error} retryCount={retryCount} />
       <CardContent>
         <PlayerControls 
-          audioUrl={audioUrl}
+          audioUrl={processedAudioUrl}
           isLoading={isLoading}
           error={error}
           callId={callId}

@@ -28,6 +28,18 @@ export const OrganizationUsers = ({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const fetchInProgressRef = useRef(false);
   const orgIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      console.log("OrganizationUsers: Cleaning up");
+      isMountedRef.current = false;
+      fetchInProgressRef.current = false;
+      hasInitiallyLoaded.current = false;
+      orgIdRef.current = null;
+    };
+  }, []);
 
   // Only fetch users once when the component mounts or when the organization changes
   useEffect(() => {
@@ -56,25 +68,17 @@ export const OrganizationUsers = ({
       } catch (error) {
         console.error("Error fetching organization users:", error);
       } finally {
-        hasInitiallyLoaded.current = true;
-        setIsInitialLoad(false);
-        fetchInProgressRef.current = false;
-        orgIdRef.current = orgId;
+        if (isMountedRef.current) {
+          hasInitiallyLoaded.current = true;
+          setIsInitialLoad(false);
+          fetchInProgressRef.current = false;
+          orgIdRef.current = orgId;
+        }
       }
     };
     
     fetchData();
   }, [currentOrganization, fetchOrganizationUsers]);
-
-  // Reset the loading state when unmounting
-  useEffect(() => {
-    return () => {
-      console.log("OrganizationUsers: Cleaning up");
-      fetchInProgressRef.current = false;
-      hasInitiallyLoaded.current = false;
-      orgIdRef.current = null;
-    };
-  }, []);
 
   const handleAddUser = async (newUserEmail: string) => {
     if (!currentOrganization || !newUserEmail) return;

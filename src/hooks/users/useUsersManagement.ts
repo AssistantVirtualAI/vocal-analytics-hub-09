@@ -17,6 +17,18 @@ export const useUsersManagement = (selectedOrg: string | null) => {
   const lastFetchedOrgRef = useRef<string | null>(null);
   const fetchingOrgUsersRef = useRef(false);
   const fetchingAllUsersRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Set up cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     if (!selectedOrg) return;
@@ -25,11 +37,11 @@ export const useUsersManagement = (selectedOrg: string | null) => {
       return;
     }
     
-    // Skip if we just fetched this org's users
-    if (lastFetchedOrgRef.current === selectedOrg && orgUsers.length > 0) {
-      console.log(`Already have users for org ${selectedOrg}, skipping fetch`);
-      return;
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
+    abortControllerRef.current = new AbortController();
     
     setOrgUsersLoading(true);
     fetchingOrgUsersRef.current = true;
@@ -37,16 +49,27 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     try {
       console.log(`Fetching users for organization: ${selectedOrg}`);
       const users = await fetchOrganizationUsers(selectedOrg);
-      setOrgUsers(users);
-      lastFetchedOrgRef.current = selectedOrg;
+      
+      if (isMountedRef.current) {
+        setOrgUsers(users);
+        lastFetchedOrgRef.current = selectedOrg;
+      }
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Fetch operation was aborted');
+        return;
+      }
       console.error('Error fetching organization users:', error);
-      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+      if (isMountedRef.current) {
+        toast.error("Erreur lors de la récupération des utilisateurs: " + (error.message || "Erreur inconnue"));
+      }
     } finally {
-      setOrgUsersLoading(false);
+      if (isMountedRef.current) {
+        setOrgUsersLoading(false);
+      }
       fetchingOrgUsersRef.current = false;
     }
-  }, [selectedOrg, orgUsers.length]);
+  }, [selectedOrg]);
 
   const fetchAllUsers = useCallback(async () => {
     if (fetchingAllUsersRef.current) {
@@ -71,30 +94,36 @@ export const useUsersManagement = (selectedOrg: string | null) => {
 
       if (rolesError) throw rolesError;
 
-      const formattedUsers: OrganizationUser[] = (data || [])
-        .map(profile => {
-          const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
-          const role = userRoles.length > 0 ? userRoles[0].role : 'user';
-          
-          return {
-            id: profile.id || '',
-            email: profile.email || '',
-            displayName: profile.display_name || profile.email?.split('@')[0] || '',
-            avatarUrl: profile.avatar_url || '', 
-            role: (role as 'admin' | 'user'),
-            createdAt: profile.created_at || new Date().toISOString(),
-            isPending: false,
-            isOrgAdmin: false,
-            isSuperAdmin: false
-          };
-        });
+      if (isMountedRef.current) {
+        const formattedUsers: OrganizationUser[] = (data || [])
+          .map(profile => {
+            const userRoles = rolesData?.filter(r => r.user_id === profile.id) || [];
+            const role = userRoles.length > 0 ? userRoles[0].role : 'user';
+            
+            return {
+              id: profile.id || '',
+              email: profile.email || '',
+              displayName: profile.display_name || profile.email?.split('@')[0] || '',
+              avatarUrl: profile.avatar_url || '', 
+              role: (role as 'admin' | 'user'),
+              createdAt: profile.created_at || new Date().toISOString(),
+              isPending: false,
+              isOrgAdmin: false,
+              isSuperAdmin: false
+            };
+          });
 
-      setAllUsers(formattedUsers);
+        setAllUsers(formattedUsers);
+      }
     } catch (error: any) {
       console.error('Error fetching all users:', error);
-      toast("Erreur lors de la récupération des utilisateurs: " + error.message);
+      if (isMountedRef.current) {
+        toast.error("Erreur lors de la récupération des utilisateurs: " + (error.message || "Erreur inconnue"));
+      }
     } finally {
-      setAllUsersLoading(false);
+      if (isMountedRef.current) {
+        setAllUsersLoading(false);
+      }
       fetchingAllUsersRef.current = false;
     }
   }, []);
@@ -126,12 +155,15 @@ export const useUsersManagement = (selectedOrg: string | null) => {
     setLoading(true);
     try {
       await addUserToOrganization(email, selectedOrg);
-      await fetchUsers(); // Refresh the user list
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error: any) {
       console.error('Error adding user to organization:', error);
-      // Don't toast here, the function already does it
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

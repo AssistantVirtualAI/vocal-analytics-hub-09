@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
 import { fetchOrganizationUsers } from '@/services/organization/users/fetchUsers';
@@ -12,6 +13,20 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
   const [loading, setLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+  const fetchInProgressRef = useRef(false);
+  const lastOrgIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     if (!organizationId) {
@@ -21,12 +36,32 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
       return;
     }
     
-    setLoading(true);
-    setError(null);
+    // Skip if already fetching for this org
+    if (fetchInProgressRef.current && lastOrgIdRef.current === organizationId) {
+      console.log(`[useOrganizationUsersFetching] Already fetching users for org ${organizationId}, skipping duplicate fetch`);
+      return;
+    }
+    
+    // Cancel previous fetch if there was one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
+    fetchInProgressRef.current = true;
+    lastOrgIdRef.current = organizationId;
+    
+    if (isMountedRef.current) {
+      setLoading(true);
+      setError(null);
+    }
     
     try {
       console.log(`[useOrganizationUsersFetching] Fetching users for organization: ${organizationId}`);
       const fetchedUsers = await fetchOrganizationUsers(organizationId);
+      
+      if (!isMountedRef.current) return;
+      
       console.log(`[useOrganizationUsersFetching] Fetched ${fetchedUsers.length} users:`, fetchedUsers);
       
       // Reset retry count on success
@@ -36,6 +71,7 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
         console.log('[useOrganizationUsersFetching] No users found for organization');
         setUsers([]);
         setLoading(false);
+        fetchInProgressRef.current = false;
         return;
       }
       
@@ -65,47 +101,47 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
         })
       );
       
-      setUsers(enhancedUsers);
-      setError(null);
+      if (isMountedRef.current) {
+        setUsers(enhancedUsers);
+        setError(null);
+      }
     } catch (error: any) {
-      console.error('[useOrganizationUsersFetching] Error fetching organization users:', error);
-      setError(error);
-      
-      // Only show toast after multiple failures to avoid spamming
-      if (retryCount > 1) {
-        toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
+      if (error.name === 'AbortError') {
+        console.log('[useOrganizationUsersFetching] Fetch was aborted');
+        return;
       }
       
-      // Increment retry count
-      setRetryCount(prev => prev + 1);
+      console.error('[useOrganizationUsersFetching] Error fetching organization users:', error);
       
-      // Keep existing users on error
+      if (isMountedRef.current) {
+        setError(error);
+        
+        // Only show toast after multiple failures to avoid spamming
+        if (retryCount > 1) {
+          toast.error("Erreur lors de la récupération des utilisateurs: " + error.message);
+        }
+        
+        // Increment retry count
+        setRetryCount(prev => prev + 1);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+      fetchInProgressRef.current = false;
     }
   }, [organizationId, retryCount]);
 
-  // Automatically retry when there's an error
-  useEffect(() => {
-    if (error && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`[useOrganizationUsersFetching] Retrying fetch (${retryCount + 1}/3)...`);
-        fetchUsers();
-      }, 1000 * retryCount); // Increasing delay between retries
-      
-      return () => clearTimeout(timer);
-    }
-  }, [error, retryCount, fetchUsers]);
-
   // Automatically fetch users when organizationId changes
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && organizationId !== lastOrgIdRef.current) {
       console.log('[useOrganizationUsersFetching] Organization ID changed, fetching users for:', organizationId);
       fetchUsers();
-    } else {
+    } else if (!organizationId) {
       // Clear users if no organization is selected
       console.log('[useOrganizationUsersFetching] No organization selected, clearing users');
       setUsers([]);
+      lastOrgIdRef.current = null;
     }
   }, [organizationId, fetchUsers]);
 

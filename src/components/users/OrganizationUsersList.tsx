@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Table } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -42,6 +42,15 @@ export const OrganizationUsersList = ({
   const [resendingFor, setResendingFor] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+  const refreshInProgressRef = useRef(false);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Debug log when users change
   useEffect(() => {
@@ -49,21 +58,32 @@ export const OrganizationUsersList = ({
   }, [users]);
 
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing) return;
+    if (isRefreshing || refreshInProgressRef.current || !organizationId) return;
+    
+    refreshInProgressRef.current = true;
+    setIsRefreshing(true);
     
     try {
-      setIsRefreshing(true);
       setError(null);
+      console.log("OrganizationUsersList - Refreshing users for org:", organizationId);
       await fetchUsers();
-      toast.success("Liste des utilisateurs actualisée");
+      
+      if (isMountedRef.current) {
+        toast.success("Liste des utilisateurs actualisée");
+      }
     } catch (error: any) {
       console.error("Error refreshing users:", error);
-      setError(error);
-      toast.error("Erreur lors de l'actualisation: " + error.message);
+      if (isMountedRef.current) {
+        setError(error);
+        toast.error("Erreur lors de l'actualisation: " + error.message);
+      }
     } finally {
-      setIsRefreshing(false);
+      if (isMountedRef.current) {
+        setIsRefreshing(false);
+      }
+      refreshInProgressRef.current = false;
     }
-  }, [fetchUsers, isRefreshing]);
+  }, [fetchUsers, isRefreshing, organizationId]);
 
   const handleRemoveUserFromOrg = async (userId: string) => {
     if (!organizationId || actionLoading) {
@@ -75,11 +95,15 @@ export const OrganizationUsersList = ({
     try {
       console.log(`Attempting to remove user ${userId} from org ${organizationId}`);
       await removeUserFromOrganization(userId, organizationId);
-      await fetchUsers();
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error) {
       console.error("Error removing user from org:", error);
     } finally {
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -90,11 +114,15 @@ export const OrganizationUsersList = ({
     try {
       console.log(`Attempting to cancel invitation ${invitationId}`);
       await cancelInvitation(invitationId);
-      await fetchUsers();
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error) {
       console.error("Error cancelling invitation:", error);
     } finally {
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -109,12 +137,16 @@ export const OrganizationUsersList = ({
     try {
       console.log(`Attempting to resend invitation to ${email} for org ${organizationId}`);
       await resendInvitation(email, organizationId);
-      await fetchUsers();
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error) {
       console.error("Error resending invitation:", error);
     } finally {
-      setResendingFor(null);
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setResendingFor(null);
+        setActionLoading(false);
+      }
     }
   };
 
@@ -128,7 +160,9 @@ export const OrganizationUsersList = ({
     } catch (error) {
       console.error("Error resetting password:", error);
     } finally {
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -141,11 +175,15 @@ export const OrganizationUsersList = ({
     setActionLoading(true);
     try {
       await setOrganizationAdminStatus(userId, organizationId, makeAdmin);
-      await fetchUsers();
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error) {
       console.error("Error toggling org admin status:", error);
     } finally {
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -155,11 +193,15 @@ export const OrganizationUsersList = ({
     setActionLoading(true);
     try {
       await setSuperAdminStatus(userId, makeAdmin);
-      await fetchUsers();
+      if (isMountedRef.current) {
+        await fetchUsers();
+      }
     } catch (error) {
       console.error("Error toggling super admin status:", error);
     } finally {
-      setActionLoading(false);
+      if (isMountedRef.current) {
+        setActionLoading(false);
+      }
     }
   };
 

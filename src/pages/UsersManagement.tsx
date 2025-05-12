@@ -18,8 +18,16 @@ export default function UsersManagement() {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const initialSetupDone = useRef(false);
   const refreshRequestedRef = useRef(false);
+  const isMountedRef = useRef(true);
   
   console.log("UsersManagement - Organizations:", organizations);
+  
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Initialize organization selection only once
   useEffect(() => {
@@ -67,12 +75,20 @@ export default function UsersManagement() {
       refreshRequestedRef.current = true;
       toast.info("Actualisation des données utilisateurs...");
       await refreshAllData();
-      toast.success("Données utilisateurs actualisées");
+      
+      if (isMountedRef.current) {
+        toast.success("Données utilisateurs actualisées");
+      }
     } catch (error) {
       console.error("Error refreshing data:", error);
-      toast.error("Erreur lors de l'actualisation des données");
+      
+      if (isMountedRef.current) {
+        toast.error("Erreur lors de l'actualisation des données");
+      }
     } finally {
-      refreshRequestedRef.current = false;
+      if (isMountedRef.current) {
+        refreshRequestedRef.current = false;
+      }
     }
   };
 

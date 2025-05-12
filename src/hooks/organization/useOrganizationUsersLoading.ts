@@ -23,10 +23,12 @@ export const useOrganizationUsersLoading = () => {
   const loadingRef = useRef(false);
   const lastFetchedOrgIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Cleanup function to cancel any pending requests when the component unmounts
+  // Set up cleanup on unmount
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -57,7 +59,9 @@ export const useOrganizationUsersLoading = () => {
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
       
-      setLoading(true);
+      if (isMountedRef.current) {
+        setLoading(true);
+      }
       loadingRef.current = true;
       lastFetchedOrgIdRef.current = orgId;
       console.log(`[useOrganizationUsersLoading] Fetching users for organization: ${orgId}`);
@@ -72,6 +76,8 @@ export const useOrganizationUsersLoading = () => {
           profiles:user_id(id, email, display_name, avatar_url)
         `)
         .eq('organization_id', orgId);
+      
+      if (!isMountedRef.current) return;
       
       if (error) throw error;
       
@@ -108,10 +114,15 @@ export const useOrganizationUsersLoading = () => {
         });
         
         console.log(`[useOrganizationUsersLoading] Loaded ${formattedUsers.length} users for org ${orgId}`);
-        setUsers(formattedUsers);
+        
+        if (isMountedRef.current) {
+          setUsers(formattedUsers);
+        }
       } else {
         console.log('[useOrganizationUsersLoading] No data returned for org users query');
-        setUsers([]);
+        if (isMountedRef.current) {
+          setUsers([]);
+        }
       }
       
     } catch (error) {
@@ -121,16 +132,18 @@ export const useOrganizationUsersLoading = () => {
       }
       
       console.error(`[useOrganizationUsersLoading] Error loading users for organization ${orgId}:`, error);
-      toast({
-        title: "Error", 
-        description: "Failed to load organization users",
-        variant: "destructive"
-      });
+      if (isMountedRef.current) {
+        toast({
+          title: "Error", 
+          description: "Failed to load organization users",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
       loadingRef.current = false;
-      
-      // Don't reset the abort controller here to allow for cleanup on unmount
     }
   }, []);
 

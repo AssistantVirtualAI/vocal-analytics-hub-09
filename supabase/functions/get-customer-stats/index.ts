@@ -4,8 +4,22 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { handleGetCustomerStats } from "./handlers.ts";
 
 serve(async (req) => {
+  console.log("[get-customer-stats] Edge function started");
+  
+  // Logging environment variable availability for debugging
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log(`[get-customer-stats] Environment check - SUPABASE_URL: ${supabaseUrl ? 'Present' : 'Missing'}`);
+    console.log(`[get-customer-stats] Environment check - SUPABASE_SERVICE_ROLE_KEY: ${supabaseKey ? 'Present' : 'Missing'}`);
+  } catch (envError) {
+    console.error('[get-customer-stats] Error checking environment variables:', envError);
+  }
+
   // Handle CORS preflight requests with explicit status 200
   if (req.method === "OPTIONS") {
+    console.log('[get-customer-stats] Handling OPTIONS request with status 200');
     return new Response(null, { 
       status: 200,
       headers: corsHeaders 

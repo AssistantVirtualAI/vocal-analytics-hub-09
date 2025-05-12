@@ -5,8 +5,21 @@ import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
 import { safeGetEnv } from "../_shared/env.ts";
 
 serve(async (req) => {
+  console.log("[elevenlabs-tts] Edge function started");
+  
+  // Logging environment variable availability for debugging
+  try {
+    const elevenlabsKey1 = Deno.env.get('ELEVENLABS_API_KEY');
+    const elevenlabsKey2 = Deno.env.get('ELEVEN_LABS_API_KEY');
+    console.log(`[elevenlabs-tts] Environment check - ELEVENLABS_API_KEY: ${elevenlabsKey1 ? 'Present' : 'Missing'}`);
+    console.log(`[elevenlabs-tts] Environment check - ELEVEN_LABS_API_KEY: ${elevenlabsKey2 ? 'Present' : 'Missing'}`);
+  } catch (envError) {
+    console.error('[elevenlabs-tts] Error checking environment variables:', envError);
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('[elevenlabs-tts] Handling OPTIONS request with status 200');
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 

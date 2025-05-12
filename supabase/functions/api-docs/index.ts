@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, handleCorsOptions } from "../_shared/index.ts";
 
 // OpenAPI specification for our API
 const openApiSpec = {
@@ -355,7 +355,7 @@ const openApiSpec = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   const url = new URL(req.url);

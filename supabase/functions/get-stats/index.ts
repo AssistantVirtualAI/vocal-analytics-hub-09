@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { handleRequest } from "./handlers.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, handleCorsOptions } from "../_shared/index.ts";
 
 // Main entry point for the edge function
 serve(async (req) => {
@@ -19,11 +19,7 @@ serve(async (req) => {
   
   // Handle CORS preflight requests with explicit status 200
   if (req.method === 'OPTIONS') {
-    console.log('[get-stats] Handling OPTIONS request with explicit status 200');
-    return new Response(null, { 
-      status: 200, 
-      headers: corsHeaders 
-    });
+    return handleCorsOptions();
   }
 
   try {

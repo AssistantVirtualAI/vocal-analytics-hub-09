@@ -8,6 +8,7 @@ export function validateEnvironment():
   
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // Check for both possible API key environment variable names
   const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY") || Deno.env.get("ELEVEN_LABS_API_KEY");
   
   const missingVars: string[] = [];
@@ -56,6 +57,9 @@ export function validateRequestParams(body: any):
       }
     };
   }
+  
+  // Log successful validation
+  console.log(`[validateRequestParams] Valid request with agentId: ${agentId}`);
   
   return {
     success: true,

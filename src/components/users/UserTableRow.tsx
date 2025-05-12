@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { OrganizationUser } from '@/types/organization';
 import { UserStatus } from './UserStatus';
@@ -34,19 +34,14 @@ export const UserTableRow = ({
   currentUserIsOrgAdmin,
   currentUserIsSuperAdmin
 }: UserTableRowProps) => {
-  // Add logging for debugging
-  useEffect(() => {
-    console.log("UserTableRow - Rendering user:", user);
-    console.log("UserTableRow - isResendingFor:", isResendingFor, "user email:", user.email);
-  }, [user, isResendingFor]);
-
   // Calculate if this specific row is in resending state
   const isResendingThisRow = isResendingFor === user.email;
+  const displayName = user.displayName || (user.email?.split('@')[0]) || '-';
 
   return (
     <TableRow>
-      <TableCell>{user.email}</TableCell>
-      <TableCell>{user.displayName || (user.email?.split('@')[0]) || '-'}</TableCell>
+      <TableCell className="font-medium">{user.email}</TableCell>
+      <TableCell>{displayName}</TableCell>
       <TableCell>
         <UserStatus isPending={user.isPending} />
       </TableCell>

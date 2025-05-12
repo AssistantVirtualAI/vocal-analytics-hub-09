@@ -1,17 +1,7 @@
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { OrganizationUser } from '@/types/organization';
-import { 
-  setOrganizationAdminStatus, 
-  setSuperAdminStatus 
-} from '@/services/organization/users/adminRoles';
-import { 
-  removeUserFromOrganization, 
-  cancelInvitation, 
-  resendInvitation, 
-  resetUserPassword 
-} from '@/services/organization/userManagement';
+import { useUserOrganizationManagement } from './useUserOrganizationManagement';
 
 interface UseOrganizationUsersActionsProps {
   fetchUsers: () => Promise<void> | void;
@@ -19,170 +9,100 @@ interface UseOrganizationUsersActionsProps {
 }
 
 export const useOrganizationUsersActions = ({ 
-  fetchUsers, 
-  organizationId 
+  fetchUsers,
+  organizationId
 }: UseOrganizationUsersActionsProps) => {
-  const [actionLoading, setActionLoading] = useState(false);
-  const [resendingFor, setResendingFor] = useState<string | null>(null);
+  // State management
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const isMountedRef = useRef(true);
-  const refreshInProgressRef = useRef(false);
   
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  // User organization management hook
+  const {
+    loading: actionLoading,
+    resendingFor,
+    removeUserFromOrg,
+    cancelInvitation,
+    resendInvitation,
+    resetPassword,
+    toggleOrganizationAdmin,
+    toggleSuperAdmin,
+    currentUserIsOrgAdmin,
+    currentUserIsSuperAdmin,
+  } = useUserOrganizationManagement(organizationId, fetchUsers);
 
+  // Handle refreshing the users list
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing || refreshInProgressRef.current || !organizationId) return;
-    
-    refreshInProgressRef.current = true;
-    setIsRefreshing(true);
-    
     try {
+      setIsRefreshing(true);
       setError(null);
-      console.log("OrganizationUsersActions - Refreshing users for org:", organizationId);
       await fetchUsers();
-      
-      if (isMountedRef.current) {
-        toast.success("Liste des utilisateurs actualisée");
-      }
-    } catch (error: any) {
-      console.error("Error refreshing users:", error);
-      if (isMountedRef.current) {
-        setError(error);
-        toast.error("Erreur lors de l'actualisation: " + error.message);
-      }
+    } catch (err: any) {
+      setError(err);
+      toast.error("Error refreshing users: " + (err.message || "Unknown error"));
     } finally {
-      if (isMountedRef.current) {
-        setIsRefreshing(false);
-      }
-      refreshInProgressRef.current = false;
+      setIsRefreshing(false);
     }
-  }, [fetchUsers, isRefreshing, organizationId]);
+  }, [fetchUsers]);
 
-  const handleRemoveUserFromOrg = async (userId: string) => {
-    if (!organizationId || actionLoading) {
-      toast.error("ID d'organisation non spécifié");
-      return;
-    }
-    
-    setActionLoading(true);
+  // Handle removing a user from organization
+  const handleRemoveUserFromOrg = useCallback(async (userId: string) => {
     try {
-      console.log(`Attempting to remove user ${userId} from org ${organizationId}`);
-      await removeUserFromOrganization(userId, organizationId);
-      if (isMountedRef.current) {
-        await fetchUsers();
-      }
+      await removeUserFromOrg(userId);
+      toast.success("User removed successfully");
     } catch (error) {
-      console.error("Error removing user from org:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setActionLoading(false);
-      }
+      console.error("Error removing user:", error);
     }
-  };
+  }, [removeUserFromOrg]);
 
-  const handleCancelInvitation = async (invitationId: string) => {
-    if (actionLoading) return;
-    
-    setActionLoading(true);
+  // Handle canceling an invitation
+  const handleCancelInvitation = useCallback(async (invitationId: string) => {
     try {
-      console.log(`Attempting to cancel invitation ${invitationId}`);
       await cancelInvitation(invitationId);
-      if (isMountedRef.current) {
-        await fetchUsers();
-      }
+      toast.success("Invitation canceled");
     } catch (error) {
-      console.error("Error cancelling invitation:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setActionLoading(false);
-      }
+      console.error("Error canceling invitation:", error);
     }
-  };
+  }, [cancelInvitation]);
 
-  const handleResendInvitation = async (email: string) => {
-    if (!organizationId || actionLoading) {
-      toast.error("ID d'organisation non spécifié");
-      return;
-    }
-    
-    setResendingFor(email);
-    setActionLoading(true);
+  // Handle resending an invitation
+  const handleResendInvitation = useCallback(async (email: string) => {
     try {
-      console.log(`Attempting to resend invitation to ${email} for org ${organizationId}`);
-      await resendInvitation(email, organizationId);
-      if (isMountedRef.current) {
-        await fetchUsers();
-      }
+      await resendInvitation(email);
+      toast.success("Invitation resent to " + email);
     } catch (error) {
       console.error("Error resending invitation:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setResendingFor(null);
-        setActionLoading(false);
-      }
     }
-  };
+  }, [resendInvitation]);
 
-  const handleResetPassword = async (email: string) => {
-    if (actionLoading) return;
-    
-    setActionLoading(true);
+  // Handle resetting a user's password
+  const handleResetPassword = useCallback(async (email: string) => {
     try {
-      console.log(`Attempting to reset password for ${email}`);
-      await resetUserPassword(email);
+      await resetPassword(email);
+      toast.success("Password reset link sent to " + email);
     } catch (error) {
       console.error("Error resetting password:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setActionLoading(false);
-      }
     }
-  };
+  }, [resetPassword]);
 
-  const handleToggleOrgAdmin = async (userId: string, makeAdmin: boolean) => {
-    if (!organizationId || actionLoading) {
-      toast.error("ID d'organisation non spécifié");
-      return;
-    }
-    
-    setActionLoading(true);
+  // Handle toggling a user's org admin status
+  const handleToggleOrgAdmin = useCallback(async (userId: string, makeAdmin: boolean) => {
     try {
-      await setOrganizationAdminStatus(userId, organizationId, makeAdmin);
-      if (isMountedRef.current) {
-        await fetchUsers();
-      }
+      await toggleOrganizationAdmin(userId, makeAdmin);
+      toast.success(`User ${makeAdmin ? 'promoted to' : 'demoted from'} organization admin`);
     } catch (error) {
-      console.error("Error toggling org admin status:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setActionLoading(false);
-      }
+      console.error("Error toggling org admin:", error);
     }
-  };
+  }, [toggleOrganizationAdmin]);
 
-  const handleToggleSuperAdmin = async (userId: string, makeAdmin: boolean) => {
-    if (actionLoading) return;
-    
-    setActionLoading(true);
+  // Handle toggling a user's super admin status
+  const handleToggleSuperAdmin = useCallback(async (userId: string, makeAdmin: boolean) => {
     try {
-      await setSuperAdminStatus(userId, makeAdmin);
-      if (isMountedRef.current) {
-        await fetchUsers();
-      }
+      await toggleSuperAdmin(userId, makeAdmin);
+      toast.success(`User ${makeAdmin ? 'promoted to' : 'demoted from'} super admin`);
     } catch (error) {
-      console.error("Error toggling super admin status:", error);
-    } finally {
-      if (isMountedRef.current) {
-        setActionLoading(false);
-      }
+      console.error("Error toggling super admin:", error);
     }
-  };
+  }, [toggleSuperAdmin]);
 
   return {
     actionLoading,
@@ -195,6 +115,8 @@ export const useOrganizationUsersActions = ({
     handleResendInvitation,
     handleResetPassword,
     handleToggleOrgAdmin,
-    handleToggleSuperAdmin
+    handleToggleSuperAdmin,
+    currentUserIsOrgAdmin,
+    currentUserIsSuperAdmin
   };
 };

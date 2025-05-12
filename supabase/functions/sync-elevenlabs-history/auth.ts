@@ -55,28 +55,41 @@ export async function verifyUserAccess(
   // Use the agent resolver to check user access to the agent/organization
   const agentResolver = createAgentResolver(supabaseAdmin);
   
-  const hasAccess = await agentResolver.checkUserOrganizationAccess(
-    user.id, 
-    undefined, // We'll check based on agent instead of org
-    agentId
-  );
+  try {
+    // Make sure we're using the checkUserOrganizationAccess method from the resolver object
+    const hasAccess = await agentResolver.checkUserOrganizationAccess(
+      user.id, 
+      undefined, // We'll check based on agent instead of org
+      agentId
+    );
 
-  if (!hasAccess) {
-    console.error(`[verifyUserAccess] User ${user.id} does not have access to agent ${agentId}`);
+    if (!hasAccess) {
+      console.error(`[verifyUserAccess] User ${user.id} does not have access to agent ${agentId}`);
+      return {
+        success: false,
+        error: {
+          message: "You do not have access to this agent",
+          code: "FORBIDDEN",
+          status: 403
+        }
+      };
+    }
+    
+    return {
+      success: true,
+      userId: user.id
+    };
+  } catch (error) {
+    console.error(`[verifyUserAccess] Error checking user access:`, error);
     return {
       success: false,
       error: {
-        message: "You do not have access to this agent",
-        code: "FORBIDDEN",
-        status: 403
+        message: "Error verifying user access",
+        code: "SERVER_ERROR",
+        status: 500
       }
     };
   }
-  
-  return {
-    success: true,
-    userId: user.id
-  };
 }
 
 /**

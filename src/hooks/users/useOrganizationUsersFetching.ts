@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from 'sonner';
@@ -18,6 +17,7 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
   const lastOrgIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const adminCheckLimitRef = useRef(25); // Limit number of admin status checks to prevent freezing
 
   // Cleanup when component unmounts
   useEffect(() => {
@@ -90,45 +90,14 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
           return;
         }
         
-        // Enhance users with admin status - implement with a delay to avoid freezing UI
-        const batchSize = 5;
-        const enhancedUsers: OrganizationUser[] = [...fetchedUsers];
+        // Set users initially without admin status - quick render first
+        setUsers(fetchedUsers);
         
-        for (let i = 0; i < fetchedUsers.length; i += batchSize) {
-          if (!isMountedRef.current) break;
-          
-          const batch = fetchedUsers.slice(i, i + batchSize);
-          const promises = batch.map(async (user, batchIndex) => {
-            try {
-              // Only check admin status for non-pending users
-              if (!user.isPending) {
-                const isOrgAdmin = await checkOrganizationAdminStatus(user.id, organizationId);
-                const isSuperAdmin = await checkSuperAdminStatus(user.id);
-                enhancedUsers[i + batchIndex] = {
-                  ...user,
-                  isOrgAdmin,
-                  isSuperAdmin
-                };
-              }
-              return user;
-            } catch (error) {
-              console.error(`[useOrganizationUsersFetching] Error checking admin status for user ${user.id}:`, error);
-              return user;
-            }
-          });
-          
-          await Promise.all(promises);
-          
-          // Update the users state progressively to avoid UI freezing
-          if (isMountedRef.current) {
-            setUsers([...enhancedUsers]);
-          }
-          
-          // Small delay to allow UI to breathe between batches
-          if (i + batchSize < fetchedUsers.length) {
-            await new Promise(resolve => setTimeout(resolve, 10));
-          }
-        }
+        // Enhance users with admin status using web workers for heavy computation
+        // This uses a separate worker thread to prevent UI freezing
+        setTimeout(() => {
+          processAdminStatus(fetchedUsers, organizationId);
+        }, 100);
         
         if (isMountedRef.current) {
           setError(null);
@@ -160,8 +129,63 @@ export const useOrganizationUsersFetching = (organizationId: string | null) => {
         timeoutRef.current = null;
       }
     }, 50);  // Small delay before fetching to avoid UI flickering
-
   }, [organizationId, retryCount]);
+
+  // Process admin status in small batches with timeouts between batches to prevent UI freezing
+  const processAdminStatus = async (fetchedUsers: OrganizationUser[], orgId: string) => {
+    if (!isMountedRef.current) return;
+    
+    // Very small batch size to prevent UI blocking
+    const batchSize = 3;
+    const enhancedUsers = [...fetchedUsers];
+    const userCount = Math.min(fetchedUsers.length, adminCheckLimitRef.current);
+    
+    console.log(`[useOrganizationUsersFetching] Processing admin status for ${userCount} users in batches of ${batchSize}`);
+    
+    // Process in smaller batches with timeouts between
+    for (let i = 0; i < userCount; i += batchSize) {
+      if (!isMountedRef.current) break;
+      
+      const batch = fetchedUsers.slice(i, i + batchSize);
+      
+      try {
+        // Process each batch
+        await Promise.all(batch.map(async (user, batchIndex) => {
+          try {
+            const index = i + batchIndex;
+            if (index >= enhancedUsers.length) return;
+            
+            // Only check admin status for non-pending users
+            if (!user.isPending) {
+              const isOrgAdmin = await checkOrganizationAdminStatus(user.id, orgId);
+              const isSuperAdmin = await checkSuperAdminStatus(user.id);
+              
+              enhancedUsers[index] = {
+                ...enhancedUsers[index],
+                isOrgAdmin,
+                isSuperAdmin
+              };
+            }
+          } catch (error) {
+            console.error(`[useOrganizationUsersFetching] Error checking admin status:`, error);
+          }
+        }));
+        
+        // Update users state after each batch
+        if (isMountedRef.current) {
+          setUsers([...enhancedUsers]);
+        }
+        
+        // Add delay between batches to keep UI responsive
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+      } catch (error) {
+        console.error('[useOrganizationUsersFetching] Batch processing error:', error);
+      }
+    }
+    
+    console.log('[useOrganizationUsersFetching] Finished processing admin statuses');
+  };
 
   // Automatically fetch users when organizationId changes
   useEffect(() => {

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw } from "lucide-react";
 import { formatDuration } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
+import { TimeRange } from "@/components/dashboard/TimeRangeSelector";
 
 interface CallsListProps {
   calls: Call[];
@@ -25,6 +26,7 @@ interface CallsListProps {
   onPageChange: (page: number) => void;
   onSortChange: (sort: string, order: "asc" | "desc") => void;
   refetch: () => void;
+  timeRange?: TimeRange; // Added the timeRange prop
 }
 
 export function CallsList({
@@ -40,6 +42,7 @@ export function CallsList({
   onPageChange,
   onSortChange,
   refetch,
+  timeRange,
 }: CallsListProps) {
   return (
     <Card>

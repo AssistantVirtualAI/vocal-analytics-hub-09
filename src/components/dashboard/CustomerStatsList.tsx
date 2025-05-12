@@ -5,6 +5,7 @@ import { CustomerStats } from "@/types";
 import { Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDuration } from "@/utils/formatters";
+import { TimeRange } from "@/components/dashboard/TimeRangeSelector";
 
 interface CustomerStatsListProps {
   customerStats: CustomerStats[];
@@ -12,6 +13,7 @@ interface CustomerStatsListProps {
   error: Error | null;
   orgSlug?: string;
   refetch: () => void;
+  timeRange?: TimeRange; // Added the timeRange prop
 }
 
 export function CustomerStatsList({
@@ -20,6 +22,7 @@ export function CustomerStatsList({
   error,
   orgSlug,
   refetch,
+  timeRange,
 }: CustomerStatsListProps) {
   return (
     <Card>

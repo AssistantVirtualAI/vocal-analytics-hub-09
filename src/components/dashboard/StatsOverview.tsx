@@ -4,8 +4,7 @@ import { CallStats } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration } from './utils/formatters';
-import { AlertCircle, RefreshCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { DataLoadingError } from '@/components/stats/DataLoadingError';
 
 export interface StatsOverviewProps {
   data?: CallStats;  // Changed from callStats to data to match usage in Index.tsx
@@ -26,29 +25,15 @@ export function StatsOverview({
 }: StatsOverviewProps) {
   // Check if there's an error from either source
   const hasAnyError = hasError || !!error;
+  const handleRetry = onRetry || refetch;
   
   if (hasAnyError) {
     return (
       <div className="grid grid-cols-1 gap-4">
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center space-y-3 text-center">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <div>
-                <p className="text-lg font-medium">Erreur de chargement des statistiques</p>
-                <p className="text-sm text-muted-foreground">
-                  Impossible de récupérer les données des appels.
-                </p>
-              </div>
-              {(onRetry || refetch) && (
-                <Button onClick={onRetry || refetch} variant="outline" className="gap-2">
-                  <RefreshCcw className="h-4 w-4" />
-                  Réessayer
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <DataLoadingError 
+          onRetry={handleRetry || (() => {})} 
+          message={error?.message || "Impossible de récupérer les données des appels."}
+        />
       </div>
     );
   }

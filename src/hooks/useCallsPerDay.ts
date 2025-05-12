@@ -5,15 +5,17 @@ import { useOrganization } from "@/context/OrganizationContext";
 import { useAuth } from "@/context/AuthContext";
 import { AGENT_ID } from "@/config/agent";
 import { mockCalls } from "@/mockData";
+import { TimeRange } from "@/components/dashboard/TimeRangeSelector";
 
 interface UseCallsPerDayOptions {
   orgSlug?: string;
   startDate?: string;
   endDate?: string;
+  timeRange?: TimeRange;
 }
 
 export const useCallsPerDay = (
-  days = 14, 
+  daysOrTimeRange: number | TimeRange = 14, 
   enabled = true, 
   orgSlug?: string,
   startDate?: string,
@@ -24,14 +26,23 @@ export const useCallsPerDay = (
   // Use organization's agent ID if available, otherwise fall back to the default
   const agentId = currentOrganization?.agentId || AGENT_ID;
   
+  // Convert timeRange to days if string is provided
+  const days = typeof daysOrTimeRange === 'string' 
+    ? convertTimeRangeToDays(daysOrTimeRange)
+    : daysOrTimeRange;
+  
+  const timeRange = typeof daysOrTimeRange === 'string' 
+    ? daysOrTimeRange 
+    : convertDaysToTimeRange(daysOrTimeRange);
+  
   return useQuery({
-    queryKey: ["callsPerDay", days, agentId, startDate, endDate, orgSlug],
+    queryKey: ["callsPerDay", days, agentId, startDate, endDate, orgSlug, timeRange],
     queryFn: async () => {
       if (!user) {
         throw new Error("Authentication required");
       }
       
-      console.log(`Fetching calls per day for agent ${agentId} (last ${days} days)`);
+      console.log(`Fetching calls per day for agent ${agentId} (last ${days} days / ${timeRange})`);
       
       // If we have an orgSlug, get the org's agent_id first
       let effectiveAgentId = agentId;
@@ -56,7 +67,8 @@ export const useCallsPerDay = (
           days, 
           agentId: effectiveAgentId,
           startDate,
-          endDate
+          endDate,
+          timeRange
         })
       });
 
@@ -98,3 +110,25 @@ export const useCallsPerDay = (
     retry: 2,
   });
 };
+
+// Helper function to convert TimeRange to days
+function convertTimeRangeToDays(timeRange: TimeRange): number {
+  switch (timeRange) {
+    case '24h': return 1;
+    case '7d': return 7;
+    case '14d': return 14;
+    case '30d': return 30;
+    case 'all': return 365;
+    default: return 14;
+  }
+}
+
+// Helper function to convert days to TimeRange
+function convertDaysToTimeRange(days: number): TimeRange {
+  if (days === 1) return '24h';
+  if (days === 7) return '7d';
+  if (days === 14) return '14d';
+  if (days === 30) return '30d';
+  if (days > 30) return 'all';
+  return '14d';
+}

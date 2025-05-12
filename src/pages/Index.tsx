@@ -1,27 +1,27 @@
 
 import { DashboardLayout } from "@/components/dashboard/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, subDays } from "date-fns";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useOrg } from "@/context/OrgContext";
 import { Button } from "@/components/ui/button";
-import { DateRange } from "react-day-picker";
-import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
+import { cn } from "@/lib/utils";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { CallsChart } from "@/components/dashboard/CallsChart";
 import { CallsList } from "@/components/dashboard/CallsList";
 import { CustomerStatsList } from "@/components/dashboard/CustomerStatsList";
 import { ElevenLabsDiagnosticsButton } from "@/components/dashboard/ElevenLabsDiagnosticsButton";
 import { DiagnosticPanel } from "@/components/dashboard/DiagnosticPanel";
+import { TimeRangeButtonGroup, TimeRange } from "@/components/dashboard/TimeRangeSelector";
 
 // Import our specialized hooks
 import { 
   useStats, 
   useCallsData, 
   useCustomerData, 
-  useChartData 
+  useChartData,
+  useTimeRange
 } from "@/hooks/dashboard";
 
 const CALLS_PER_PAGE = 5;
@@ -30,12 +30,9 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState("overview");
   const { currentOrg } = useOrg();
   const orgSlug = currentOrg?.slug;
-
-  // State for date range picker
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 29),
-    to: new Date(),
-  });
+  
+  // Use our time range hook
+  const { timeRange, setTimeRange, dateRange } = useTimeRange();
 
   // State for calls list filters, sorting, pagination
   const [callsPage, setCallsPage] = useState(1);
@@ -43,7 +40,7 @@ export default function Index() {
   const [callsSortOrder, setCallsSortOrder] = useState<"asc" | "desc">("desc");
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Use our specialized hooks
+  // Use our specialized hooks with the time range
   const { 
     statsData, 
     isLoading: isLoadingStats, 
@@ -120,7 +117,11 @@ export default function Index() {
               className="mr-2" 
               onClick={() => setShowDiagnostics(!showDiagnostics)} 
             />
-            <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+            <TimeRangeButtonGroup
+              value={timeRange}
+              onChange={setTimeRange}
+              className="mr-2"
+            />
             <Button
               variant="outline"
               size="icon"
@@ -161,6 +162,7 @@ export default function Index() {
               isLoading={isLoadingChartData} 
               error={errorChartData} 
               refetch={refetchChartData} 
+              timeRange={timeRange}
             />
           </TabsContent>
 
@@ -179,6 +181,7 @@ export default function Index() {
               onPageChange={setCallsPage}
               onSortChange={handleSortChange}
               refetch={refetchCallsList}
+              timeRange={timeRange}
             />
           </TabsContent>
 
@@ -190,6 +193,7 @@ export default function Index() {
               error={errorCustomerStats}
               orgSlug={orgSlug}
               refetch={refetchCustomerStats}
+              timeRange={timeRange}
             />
           </TabsContent>
         </Tabs>

@@ -1,64 +1,120 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataWrapper } from "./DataWrapper";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
+import { TimeRange } from "@/components/dashboard/TimeRangeSelector";
+
+type CallsByDay = Record<string, number>;
 
 interface CallsChartProps {
-  data: Record<string, number>;
+  data: CallsByDay;
   isLoading?: boolean;
   error?: Error | null;
   refetch?: () => void;
+  timeRange?: TimeRange;
 }
 
-export function CallsChart({ data, isLoading, error, refetch }: CallsChartProps) {
-  // Convert record to array format for recharts
-  const chartData = Object.entries(data || {}).map(([date, count]) => ({
-    date: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
-    appels: count,
-  }));
+export function CallsChart({ 
+  data, 
+  isLoading = false, 
+  error = null, 
+  refetch,
+  timeRange = '14d' 
+}: CallsChartProps) {
+  // Format the data for the chart
+  const chartData = Object.entries(data).map(([date, count]) => ({
+    date,
+    calls: count,
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  const getTimeRangeLabel = () => {
+    switch(timeRange) {
+      case '24h': return 'dernières 24 heures';
+      case '7d': return '7 derniers jours';
+      case '14d': return '14 derniers jours';
+      case '30d': return '30 derniers jours';
+      case 'all': return 'toute la période';
+      default: return '14 derniers jours';
+    }
+  };
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Volume d'appels - {getTimeRangeLabel()}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center h-[300px] text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-medium mb-2">Erreur de chargement des données</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {error.message || "Une erreur est survenue lors du chargement des données"}
+            </p>
+            {refetch && (
+              <Button onClick={refetch} size="sm" variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="col-span-4">
+    <Card>
       <CardHeader>
-        <CardTitle>Appels par jour</CardTitle>
+        <CardTitle>Volume d'appels - {getTimeRangeLabel()}</CardTitle>
       </CardHeader>
-      <CardContent className="pl-2">
-        <DataWrapper isLoading={isLoading} error={error} refetch={refetch}>
-          {chartData.length > 0 ? (
-            <div className="h-[200px] sm:h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <XAxis
-                    dataKey="date"
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value}`}
-                    allowDecimals={false}
-                  />
-                  <Tooltip />
-                  <Bar
-                    dataKey="appels"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                    className="cursor-pointer hover:opacity-80"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground h-[200px] sm:h-[300px] flex items-center justify-center">
-              Aucune donnée d'appel pour cette période.
-            </p>
-          )}
-        </DataWrapper>
+      <CardContent>
+        {isLoading ? (
+          <div className="w-full h-[300px]">
+            <Skeleton className="w-full h-full" />
+          </div>
+        ) : chartData.length > 0 ? (
+          <div className="w-full h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(date) => {
+                    try {
+                      return format(parseISO(date), "d MMM", { locale: fr });
+                    } catch (e) {
+                      return date;
+                    }
+                  }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis allowDecimals={false} />
+                <Tooltip 
+                  formatter={(value) => [Number(value), "Appels"]}
+                  labelFormatter={(date) => {
+                    try {
+                      return format(parseISO(date as string), "d MMMM yyyy", { locale: fr });
+                    } catch (e) {
+                      return date;
+                    }
+                  }}
+                />
+                <Bar dataKey="calls" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-[300px]">
+            <p className="text-muted-foreground">Aucune donnée disponible</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

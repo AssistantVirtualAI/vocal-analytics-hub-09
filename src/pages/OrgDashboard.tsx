@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/Layout';
@@ -14,6 +15,8 @@ import { OrgFiltersSection } from '@/components/dashboard/org/OrgFiltersSection'
 import { OrgCallsSection } from '@/components/dashboard/org/OrgCallsSection';
 import { SyncCallsButton } from '@/components/dashboard/SyncCallsButton';
 import { useOrg } from '@/context/OrgContext';
+import { TimeRangeButtonGroup, TimeRange } from '@/components/dashboard/TimeRangeSelector';
+import { useTimeRange } from '@/hooks/dashboard/useTimeRange';
 
 export default function OrgDashboard() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -23,10 +26,9 @@ export default function OrgDashboard() {
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [satisfactionScore, setSatisfactionScore] = useState('');
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().setDate(new Date().getDate() - 30)),
-    to: new Date()
-  });
+  
+  // Use our time range hook
+  const { timeRange, setTimeRange, dateRange } = useTimeRange();
 
   const {
     callStats,
@@ -57,17 +59,14 @@ export default function OrgDashboard() {
   };
 
   const handleResetFilters = () => {
-    setDateRange({
-      from: new Date(new Date().setDate(new Date().getDate() - 30)),
-      to: new Date()
-    });
+    setTimeRange('14d');
     setSelectedAgent('');
     setSelectedCustomer('');
     setSatisfactionScore('');
     
     applyFilters({
       dateRange: {
-        from: new Date(new Date().setDate(new Date().getDate() - 30)),
+        from: new Date(new Date().setDate(new Date().getDate() - 14)),
         to: new Date()
       },
       agentId: '',
@@ -87,28 +86,34 @@ export default function OrgDashboard() {
         {/* Add the security fixer component only for admins */}
         {isAdmin && <SecurityIssuesFixer />}
         
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <DashboardHeader
             lastUpdated={lastUpdated}
             isLoading={isLoading}
             onRefresh={handleRefresh}
           />
           
-          {currentOrg?.agentId && (
-            <SyncCallsButton
-              agentId={currentOrg.agentId}
-              onSuccess={handleRefresh}
-              className="ml-2"
-              variant="secondary"
+          <div className="flex items-center gap-2">
+            <TimeRangeButtonGroup
+              value={timeRange}
+              onChange={setTimeRange}
             />
-          )}
+            
+            {currentOrg?.agentId && (
+              <SyncCallsButton
+                agentId={currentOrg.agentId}
+                onSuccess={handleRefresh}
+                variant="secondary"
+              />
+            )}
+          </div>
         </div>
 
         <OrgFiltersSection
           showFilters={showFilters}
           setShowFilters={setShowFilters}
           dateRange={dateRange}
-          setDateRange={setDateRange}
+          setDateRange={() => {}} // We're using timeRange instead
           selectedAgent={selectedAgent}
           setSelectedAgent={setSelectedAgent}
           selectedCustomer={selectedCustomer}
@@ -135,6 +140,7 @@ export default function OrgDashboard() {
               isLoading={isLoading} 
               error={null}
               onRetry={handleRefresh}
+              timeRange={timeRange}
             />
 
             <OrgCallsSection

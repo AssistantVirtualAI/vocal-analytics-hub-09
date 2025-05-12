@@ -3,7 +3,8 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
 import { getSupabaseEnvVars } from '../_shared/env.ts';
-import { createErrorResponse, createSuccessResponse, handleCorsOptions } from '../_shared/api-utils.ts';
+import { createErrorResponse, createSuccessResponse } from '../_shared/response.ts';
+import { handleCorsOptions } from '../_shared/cors-utils.ts';
 
 interface EmailPayload {
   email: string;

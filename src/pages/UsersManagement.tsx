@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -10,7 +9,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useAdminRoles } from '@/hooks/users/useAdminRoles';
+import { useAdminRoles } from '@/hooks/users/admin';
 
 export default function UsersManagement() {
   const { organizations } = useOrganization();

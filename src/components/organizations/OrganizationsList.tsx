@@ -22,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface OrganizationsListProps {
   organizations: Organization[];
   currentOrganization: Organization | null;
-  onEdit: (org: Organization) => void;
+  onEdit: (org: Organization) => Promise<void>;
   onDelete: (orgId: string) => void;
   onSelect: (orgId: string) => void;
 }

@@ -1,138 +1,145 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createAgentResolver } from "../_shared/agent-resolver-improved.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
+  
   try {
-    const body = await req.json();
-    const { agentId, days = 14, startDate, endDate } = body;
+    console.log("Edge function get_calls_per_day called");
     
-    // Validate required parameters
-    if (!agentId) {
-      return new Response(
-        JSON.stringify({
-          error: {
-            code: "MISSING_PARAMETER",
-            message: "agentId is required"
-          },
-          timestamp: new Date().toISOString()
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    // Parse request body
+    let body: { days?: number; agentId?: string; timeRange?: string; startDate?: string; endDate?: string };
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
+    try {
+      body = await req.json();
+    } catch (error) {
+      console.error("Error parsing request body:", error);
       return new Response(
         JSON.stringify({ 
-          error: { 
-            code: "SERVER_CONFIGURATION_ERROR", 
-            message: "Server configuration error"
-          },
-          timestamp: new Date().toISOString()
+          error: "Invalid request body", 
+          details: error instanceof Error ? error.message : "Unknown error" 
         }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
-
+    
+    // Get parameters from body
+    const days = body.days || 14;
+    const agentId = body.agentId;
+    const timeRange = body.timeRange;
+    const startDate = body.startDate;
+    const endDate = body.endDate;
+    
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Calculate date range
+    // Set up dates for filtering
+    const now = new Date();
     let fromDate = new Date();
+    fromDate.setDate(now.getDate() - days);
+    
+    // Override with explicit dates if provided
     if (startDate) {
       fromDate = new Date(startDate);
-    } else {
-      fromDate.setDate(fromDate.getDate() - days);
     }
     
-    const toDate = endDate ? new Date(endDate) : new Date();
+    let toDate = now;
+    if (endDate) {
+      toDate = new Date(endDate);
+    }
     
     // Format dates for SQL query
-    const fromDateFormatted = fromDate.toISOString().split('T')[0];
-    const toDateFormatted = toDate.toISOString().split('T')[0];
+    const fromDateStr = fromDate.toISOString().split('T')[0];
+    const toDateStr = toDate.toISOString().split('T')[0];
     
-    console.log(`Fetching calls per day for agent ${agentId} from ${fromDateFormatted} to ${toDateFormatted}`);
+    console.log(`Fetching calls from ${fromDateStr} to ${toDateStr}`);
     
-    // Query database to get calls per day
-    const { data, error } = await supabase
-      .from('calls')
-      .select('date')
-      .eq('agent_id', agentId)
-      .gte('date', fromDateFormatted)
-      .lte('date', toDateFormatted);
+    // Prepare query
+    let query = supabase.from('calls').select('date');
+    
+    // Apply agent filter if provided
+    if (agentId) {
+      const { getAgentUUIDByExternalId } = createAgentResolver(supabase);
+      const resolvedAgentId = await getAgentUUIDByExternalId(agentId);
+      
+      if (resolvedAgentId) {
+        console.log(`Filtering by agent ID: ${resolvedAgentId}`);
+        query = query.eq('agent_id', resolvedAgentId);
+      }
+    }
+    
+    // Apply date filter
+    query = query.gte('date', fromDateStr).lte('date', toDateStr);
+    
+    // Execute query
+    const { data: calls, error } = await query;
     
     if (error) {
-      console.error("Database query error:", error);
+      console.error("Error fetching calls:", error);
       return new Response(
-        JSON.stringify({ 
-          error: { 
-            code: "DATABASE_ERROR", 
-            message: error.message 
-          },
-          timestamp: new Date().toISOString()
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        JSON.stringify({ error: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Process the results to get count per day
+    // Process data
     const callsPerDay: Record<string, number> = {};
     
-    // Initialize all days in the range with 0 calls
-    let currentDate = new Date(fromDate);
+    // Initialize all dates in range with 0
+    const currentDate = new Date(fromDate);
     while (currentDate <= toDate) {
-      const dateKey = currentDate.toISOString().split('T')[0];
-      callsPerDay[dateKey] = 0;
+      const dateStr = currentDate.toISOString().split('T')[0];
+      callsPerDay[dateStr] = 0;
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // Count calls for each day
-    if (data && data.length > 0) {
-      data.forEach((call: any) => {
-        const dateKey = new Date(call.date).toISOString().split('T')[0];
-        callsPerDay[dateKey] = (callsPerDay[dateKey] || 0) + 1;
-      });
-    }
+    // Count calls per day
+    calls?.forEach(call => {
+      const callDate = new Date(call.date);
+      const dateStr = callDate.toISOString().split('T')[0];
+      callsPerDay[dateStr] = (callsPerDay[dateStr] || 0) + 1;
+    });
+    
+    // Prepare response
+    const response = {
+      callsPerDay,
+      timeRange: {
+        from: fromDateStr,
+        to: toDateStr,
+        days
+      },
+      total: calls?.length || 0
+    };
     
     return new Response(
-      JSON.stringify(callsPerDay),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      JSON.stringify(response),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
-    
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error("Unhandled error in get_calls_per_day function:", error);
     
     return new Response(
-      JSON.stringify({ 
-        error: { 
-          code: "INTERNAL_ERROR", 
-          message: error instanceof Error ? error.message : "An unexpected error occurred" 
-        },
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "An unexpected error occurred",
         timestamp: new Date().toISOString()
       }),
       {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }

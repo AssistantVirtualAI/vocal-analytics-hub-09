@@ -53,7 +53,7 @@ export function handleCorsOptions() {
 
 /**
  * Reports API metrics for monitoring
- * This is just a stub function that could be expanded to actually report metrics
+ * This is a stub function that could be expanded to actually report metrics
  */
 export async function reportApiMetrics(
   functionName: string, 

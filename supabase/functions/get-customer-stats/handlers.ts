@@ -5,12 +5,17 @@ import { createSuccessResponse, createErrorResponse } from "../_shared/api-utils
 import { getCustomers, getCalls, calculateCustomerStats } from "./service.ts";
 import { CustomerStatsRequest, CustomerStats } from "./models.ts";
 
-// Cache simple en mémoire pour démonstration
-// En production, utiliser un cache distribué comme Redis
+// Simple in-memory cache for demonstration
+// In production, use a distributed cache like Redis
 const cache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minute de cache
+const CACHE_TTL = 60 * 1000; // 1 minute cache
 
 export async function handleGetCustomerStats(req: Request): Promise<Response> {
+  // Handle CORS preflight request
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
   const requestStartTime = Date.now();
   const logger = {
     info: (message: string, metadata?: Record<string, any>) => {
@@ -29,7 +34,7 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
   };
   
   try {
-    // Extraire et valider le paramètre agentId
+    // Extract and validate the agentId parameter
     let agentId = '';
     try {
       const body = await req.json() as CustomerStatsRequest;
@@ -44,7 +49,7 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
       });
     }
 
-    // Vérifier le cache pour cet agentId
+    // Check cache for this agentId
     const cacheKey = `customer-stats-${agentId}`;
     const cachedData = cache.get(cacheKey);
     if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
@@ -67,7 +72,7 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-      // Récupérer les données des clients
+      // Get customers
       const customers = await getCustomers(supabase);
 
       if (!customers || customers.length === 0) {
@@ -75,10 +80,10 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
         return createSuccessResponse([]);
       }
 
-      // Récupérer les appels filtrés par agent si applicable
+      // Get calls filtered by agent if applicable
       const calls = await getCalls(supabase, agentId);
 
-      // Si pas d'appels, retourner des statistiques vides
+      // If no calls, return empty customer stats
       if (!calls || calls.length === 0) {
         logger.info("No calls found in database, returning empty customer stats");
         const emptyCustomerStats = customers.map(customer => ({
@@ -90,7 +95,7 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
           lastCallDate: null
         }));
         
-        // Stocker dans le cache
+        // Store in cache
         cache.set(cacheKey, { data: emptyCustomerStats, timestamp: Date.now() });
         
         return new Response(JSON.stringify(emptyCustomerStats), {
@@ -104,12 +109,12 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
         });
       }
 
-      // Calculer les statistiques des clients
+      // Calculate customer stats
       const customerStats = calculateCustomerStats(customers, calls);
       
       logger.info(`Returning stats for ${customerStats.length} customers`);
 
-      // Stocker dans le cache
+      // Store in cache
       cache.set(cacheKey, { data: customerStats, timestamp: Date.now() });
 
       const executionTime = Date.now() - requestStartTime;

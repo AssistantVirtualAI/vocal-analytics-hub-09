@@ -22,7 +22,13 @@ function convertToChartData(callStats: any): ChartDataItem[] {
     .map(([date, count]) => ({
       date: new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
       appels: typeof count === 'number' ? count : 0,
-    }));
+    }))
+    .sort((a, b) => {
+      // Properly sort by date
+      const dateA = new Date(a.date.split(' ')[0] + ' ' + a.date.split(' ')[1]);
+      const dateB = new Date(b.date.split(' ')[0] + ' ' + b.date.split(' ')[1]);
+      return dateA.getTime() - dateB.getTime();
+    });
 }
 
 export function useDashboardStats() {
@@ -61,8 +67,17 @@ export function useDashboardStats() {
     }
   };
 
+  const emptyCallStats = {
+    totalCalls: 0,
+    avgDuration: 0,
+    avgSatisfaction: 0,
+    callsPerDay: {},
+    lastUpdated: new Date().toISOString(),
+    topCustomers: []
+  };
+
   return {
-    callStats: callStats || { totalCalls: 0, avgDuration: 0, avgSatisfaction: 0, callsPerDay: {}, lastUpdated: new Date().toISOString(), topCustomers: [] },
+    callStats: callStats || emptyCallStats,
     customerStats: customerStatsData || [],
     recentCalls: recentCalls || [],
     chartData: chartData || [],

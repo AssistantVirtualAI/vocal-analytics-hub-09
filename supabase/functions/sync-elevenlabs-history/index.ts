@@ -1,8 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleCorsOptions } from "../_shared/api-utils.ts";
+import { handleCorsOptions } from "../_shared/index.ts";
 import { handleHistorySyncRequest } from "./handlers.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders } from "../_shared/index.ts";
 
 serve(async (req) => {
   const startTime = Date.now();

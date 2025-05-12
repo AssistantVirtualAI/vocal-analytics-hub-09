@@ -1,7 +1,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { FormattedCall } from "./types.ts";
 import { logInfo, logError } from "../_shared/agent-resolver/logger.ts";
+import { buildCallsQuery } from "./query-builder.ts";
+import { formatCallsResults } from "./result-formatter.ts";
 
 interface QueryCallsParams {
   supabase: SupabaseClient;
@@ -34,19 +35,7 @@ export async function queryCalls({
   customerId,
   startDate,
   endDate
-}: QueryCallsParams): Promise<{ calls: FormattedCall[], totalCount: number | null }> {
-  let query = supabase.from("calls_view").select("*", { count: "exact" });
-
-  if (startDate) query = query.gte('date', startDate);
-  if (endDate) query = query.lte('date', endDate);
-  if (customerId) query = query.eq('customer_id', customerId);
-  
-  // Apply agent filter if provided
-  if (agentUUIDForQuery) {
-    logInfo(`Applying filter: query.eq("agent_id", "${agentUUIDForQuery}")`);
-    query = query.eq('agent_id', agentUUIDForQuery);
-  }
-  
+}: QueryCallsParams) {
   if (!isSuperAdmin) {
     // Get list of organizations the user belongs to
     const { data: userOrgs } = await supabase
@@ -69,10 +58,32 @@ export async function queryCalls({
           .filter(Boolean); // Remove any null/undefined values
           
         if (agentIds.length > 0) {
-          // If we already have an agent filter, no need to apply this
+          // If no specific agent was requested, filter by all the user's organization agents
           if (!agentUUIDForQuery) {
-            logInfo(`Restricting to user's organization agents: ${agentIds.join(', ')}`);
-            query = query.in('agent_id', agentIds);
+            // Build and execute query with user's organization agents
+            logInfo("Executing query on calls_view with organization agent filters.");
+            const query = buildCallsQuery({
+              supabase,
+              agentUUIDForQuery,
+              limit,
+              offset,
+              sort,
+              order,
+              search,
+              customerId,
+              startDate,
+              endDate,
+              userOrgAgentIds: agentIds
+            });
+            
+            const { data: callsData, error: queryError, count: totalCount } = await query;
+
+            if (queryError) {
+              logError(`Database query error occurred on calls_view: ${queryError.message}`);
+              throw queryError;
+            }
+            
+            return formatCallsResults(callsData, totalCount);
           }
         } else {
           // User has organization access but no agents are set
@@ -91,35 +102,27 @@ export async function queryCalls({
     }
   }
 
-  if (search) query = query.or(`customer_name.ilike.%${search}%,agent_name.ilike.%${search}%`);
-  
-  query = query.order(sort, { ascending: order === 'asc' });
-  query = query.range(offset, offset + limit - 1);
-  
+  // Build and execute query (either for superadmin or for specific agent request)
   logInfo("Executing final query on calls_view.");
+  const query = buildCallsQuery({
+    supabase,
+    agentUUIDForQuery,
+    limit,
+    offset,
+    sort,
+    order,
+    search,
+    customerId,
+    startDate,
+    endDate
+  });
+  
   const { data: callsData, error: queryError, count: totalCount } = await query;
 
   if (queryError) {
     logError(`Database query error occurred on calls_view: ${queryError.message}`);
     throw queryError;
   }
-
-  logInfo(`Successfully retrieved ${callsData?.length || 0} calls. Total count: ${totalCount}`);
   
-  const formattedCalls = callsData?.map(call => ({
-    id: call.id,
-    customer_id: call.customer_id || null,
-    customer_name: call.customer_name || "Client inconnu",
-    agent_id: call.agent_id || null, 
-    agent_name: call.agent_name || "Agent inconnu",
-    date: call.date || new Date().toISOString(),
-    duration: call.duration || 0,
-    satisfaction_score: call.satisfaction_score || 0,
-    audio_url: call.audio_url || "",
-    summary: call.summary || "",
-    transcript: call.transcript || "",
-    tags: call.tags || []
-  })) || [];
-
-  return { calls: formattedCalls, totalCount };
+  return formatCallsResults(callsData, totalCount);
 }

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Call } from "@/types";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 interface OrgCallsListParams {
   limit?: number;
@@ -16,6 +17,31 @@ interface OrgCallsListParams {
   satisfactionScore?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+interface CallResponse {
+  calls: {
+    id: string;
+    customer_id: string;
+    customer_name: string;
+    agent_id: string;
+    agent_name: string;
+    date: string;
+    duration: number;
+    audio_url: string;
+    summary: string;
+    transcript?: string;
+    satisfaction_score: number;
+    tags: string[];
+  }[];
+  count: number;
+}
+
+interface FormattedCallsResponse {
+  calls: Call[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
 }
 
 export const useOrgCallsList = ({
@@ -50,84 +76,96 @@ export const useOrgCallsList = ({
 
   return useQuery({
     queryKey,
-    queryFn: async () => {
+    queryFn: async (): Promise<FormattedCallsResponse> => {
       if (!user || !orgSlug) {
         throw new Error("Authentication and organization required");
       }
 
-      console.log(`Fetching calls for organization slug: ${orgSlug} with filters: startDate=${startDate}, endDate=${endDate}`);
-      
-      // First, get the organization details from the slug
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('id, agent_id')
-        .eq('slug', orgSlug)
-        .single();
-      
-      if (orgError || !orgData) {
-        console.error("Error fetching organization:", orgError);
-        throw orgError || new Error("Organization not found");
-      }
+      try {
+        // First, get the organization details from the slug
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('id, agent_id')
+          .eq('slug', orgSlug)
+          .single();
+        
+        if (orgError) {
+          console.error("Error fetching organization:", orgError);
+          throw new Error(`Organization not found: ${orgError.message}`);
+        }
+        
+        if (!orgData) {
+          console.error("No organization data found for slug:", orgSlug);
+          throw new Error("Organization not found");
+        }
 
-      // Use the provided agentId or the organization's agent_id
-      const effectiveAgentId = agentId || orgData.agent_id;
+        // Use the provided agentId or the organization's agent_id
+        const effectiveAgentId = agentId || orgData.agent_id;
 
-      // Then, fetch calls for this organization's agent
-      const { data, error } = await supabase.functions.invoke("get-calls", {
-        body: JSON.stringify({
-          limit,
-          offset,
-          sort: sortBy,
-          order: sortOrder,
-          agentId: effectiveAgentId,
-          customerId,
-          startDate,
-          endDate,
-          satisfactionScore
-        }),
-      });
+        // Then, fetch calls for this organization's agent
+        const { data, error } = await supabase.functions.invoke<CallResponse>("get-calls", {
+          body: JSON.stringify({
+            limit,
+            offset,
+            sort: sortBy,
+            order: sortOrder,
+            agentId: effectiveAgentId,
+            customerId,
+            startDate,
+            endDate,
+            satisfactionScore
+          }),
+        });
 
-      if (error) {
-        console.error("Error fetching calls:", error);
-        throw error;
-      }
+        if (error) {
+          console.error("Error fetching calls:", error);
+          throw error;
+        }
 
-      console.log(`Retrieved ${data?.calls?.length || 0} calls for organization ${orgSlug}`);
+        if (!data || !data.calls) {
+          console.warn("No calls data found for organization");
+          return {
+            calls: [],
+            totalCount: 0,
+            totalPages: 0,
+            currentPage: page
+          };
+        }
 
-      if (!data || !data.calls || data.calls.length === 0) {
-        console.warn("No calls data found for organization");
+        // Format the calls to match our Call type
+        const formattedCalls: Call[] = data.calls.map((call) => ({
+          id: call.id,
+          customerId: call.customer_id,
+          customerName: call.customer_name,
+          agentId: call.agent_id,
+          agentName: call.agent_name || "Agent",
+          date: call.date,
+          duration: call.duration || 0,
+          audioUrl: call.audio_url || "",
+          summary: call.summary || "",
+          transcript: call.transcript || undefined,
+          satisfactionScore: call.satisfaction_score || 0,
+          tags: call.tags || [],
+        }));
+
         return {
-          calls: [],
-          totalCount: 0,
-          totalPages: 0,
+          calls: formattedCalls,
+          totalCount: data.count,
+          totalPages: Math.ceil(data.count / limit),
           currentPage: page
         };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+        console.error("Error in useOrgCallsList:", errorMessage);
+        toast.error(`Failed to load calls: ${errorMessage}`);
+        throw error;
       }
-
-      // Format the calls to match our Call type
-      const formattedCalls: Call[] = data.calls.map((call: any) => ({
-        id: call.id,
-        customerId: call.customer_id,
-        customerName: call.customer_name,
-        agentId: call.agent_id,
-        agentName: call.agent_name || "Agent",
-        date: call.date,
-        duration: call.duration || 0,
-        audioUrl: call.audio_url || "",
-        summary: call.summary || "",
-        transcript: call.transcript || undefined,
-        satisfactionScore: call.satisfaction_score || 0,
-        tags: call.tags || [],
-      }));
-
-      return {
-        calls: formattedCalls,
-        totalCount: data.count,
-        totalPages: Math.ceil(data.count / limit),
-        currentPage: page
-      };
     },
     enabled: !!user && !!orgSlug && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    meta: {
+      errorMessage: "Failed to load organization calls"
+    }
   });
 };

@@ -5,20 +5,7 @@ export interface ErrorResponseOptions {
   status: number;
   message: string;
   code: string;
-  details?: string | Record<string, unknown>;
-}
-
-/**
- * Creates a standardized success response with CORS headers
- */
-export function createSuccessResponse<T>(data: T): Response {
-  return new Response(
-    JSON.stringify({ data }),
-    {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    }
-  );
+  details?: any;
 }
 
 /**
@@ -32,12 +19,25 @@ export function createErrorResponse(options: ErrorResponseOptions): Response {
       error: {
         message,
         code,
-        ...(details ? { details } : {})
+        details
       }
     }),
     {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
+}
+
+/**
+ * Creates a standardized success response with CORS headers
+ */
+export function createSuccessResponse(data: any): Response {
+  return new Response(
+    JSON.stringify(data),
+    {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
   );
 }

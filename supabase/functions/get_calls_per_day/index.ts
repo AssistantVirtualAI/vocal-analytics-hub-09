@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, handleCorsOptions } from "../_shared/index.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { handleCorsOptions } from "../_shared/cors-utils.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAgentUUIDByExternalId } from "../_shared/agent-resolver/agent-lookup.ts";
 

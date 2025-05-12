@@ -30,7 +30,7 @@ export async function getAgentUUIDByExternalId(
     // Attendu si l'ID n'est pas un UUID, continuez avec l'approche suivante
   }
   
-  // Recherche par external_id (nouveau champ pour elevenlabs_voice_id)
+  // Recherche par external_id (champ pour elevenlabs_voice_id)
   try {
     const { data: externalIdData, error: externalIdError } = await supabase
       .from("agents")
@@ -62,20 +62,24 @@ export async function getAgentUUIDByExternalId(
     logInfo(`Name lookup failed: ${err}`);
   }
   
-  // Recherche par agent_id dans la table des organisations
+  // Note: We're no longer directly looking up by agent_id in organizations table
+  // since it now should contain UUID references to agents table
+  
+  // Instead, check if any organization uses this agent's name as reference
   try {
-    const { data: orgData, error: orgError } = await supabase
-      .from("organizations")
-      .select("agent_id")
-      .eq("agent_id", externalAgentId)
+    // This will need to be adapted based on your specific use case
+    const { data: agentByOrgData, error: agentByOrgError } = await supabase
+      .from("agents")
+      .select("id, name")
+      .eq("name", externalAgentId)
       .maybeSingle();
     
-    if (!orgError && orgData && orgData.agent_id) {
-      logInfo(`Found organization with agent_id: ${orgData.agent_id}`);
-      return orgData.agent_id;
+    if (!agentByOrgError && agentByOrgData) {
+      logInfo(`Found agent by name through organization reference: ${agentByOrgData.id}`);
+      return agentByOrgData.id;
     }
   } catch (err) {
-    logInfo(`Organization lookup failed: ${err}`);
+    logInfo(`Organization agent lookup failed: ${err}`);
   }
   
   logError(`No agent found with ID, external_id, or name matching: ${externalAgentId}`);

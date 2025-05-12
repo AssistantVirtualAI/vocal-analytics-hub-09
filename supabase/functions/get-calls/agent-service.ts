@@ -35,10 +35,11 @@ export async function processAgentId(
       record.organizations?.agent_id
     ).filter(Boolean) || [];
     
+    // Check for agent external ID mappings
     const { data: agentExternalIds } = await supabase
-      .from('agent_identifiers')
+      .from('agents')
       .select('external_id')
-      .eq('agent_id', agentUUIDForQuery);
+      .eq('id', agentUUIDForQuery);
       
     const externalIds = agentExternalIds?.map(record => record.external_id) || [];
     

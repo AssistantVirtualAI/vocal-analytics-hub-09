@@ -1,5 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, handleCorsOptions } from "../_shared/index.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { handleCorsOptions } from "../_shared/cors.ts";
 
 // OpenAPI specification for our API
 const openApiSpec = {

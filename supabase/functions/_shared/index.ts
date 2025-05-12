@@ -21,3 +21,5 @@ export { fetchWithRetry } from "./fetch-with-retry.ts";
 // Agent resolver (maintaining compatibility with improved version)
 export { getAgentUUIDByExternalId, checkUserOrganizationAccess, createAgentResolver } from "./agent-resolver-improved.ts";
 
+// Environment variable utilities
+export { getRequiredEnvVars, getSupabaseEnvVars, getElevenLabsEnvVars, safeGetEnv } from "./env.ts";

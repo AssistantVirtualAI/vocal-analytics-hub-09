@@ -26,6 +26,7 @@ interface SyncResult {
 
 export function useSyncElevenLabsHistory() {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   
   const syncHistory = async (agentId = AGENT_ID) => {
     if (!agentId) {
@@ -62,8 +63,11 @@ export function useSyncElevenLabsHistory() {
       }
       
       if (!data) {
-        throw new Error("Aucune données reçues de la fonction");
+        const noDataError = new Error("Aucune données reçues de la fonction");
+        throw noDataError;
       }
+      
+      setLastSyncResult(data);
       
       if (data.success) {
         if (data.summary?.total === 0) {
@@ -80,10 +84,13 @@ export function useSyncElevenLabsHistory() {
             errorMessage = "Clé API ElevenLabs invalide. Veuillez vérifier votre configuration.";
           } else if (errorMessage.includes("Missing ElevenLabs API key")) {
             errorMessage = "Clé API ElevenLabs manquante. Veuillez configurer la variable d'environnement ELEVENLABS_API_KEY.";
+          } else if (errorMessage.includes("rate limit") || errorMessage.includes("quota exceeded")) {
+            errorMessage = "Limite d'utilisation de l'API ElevenLabs dépassée. Veuillez réessayer plus tard.";
           }
         }
         
         toast.error(`Erreur de synchronisation: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
       
       return data;
@@ -94,7 +101,7 @@ export function useSyncElevenLabsHistory() {
         toast.error(props.description || "Une erreur est survenue lors de la synchronisation");
       });
       
-      return { success: false };
+      return { success: false, error: { message: error.message, code: "SYNC_FAILED" } };
     } finally {
       setIsSyncing(false);
     }
@@ -102,6 +109,7 @@ export function useSyncElevenLabsHistory() {
   
   return {
     syncHistory,
-    isSyncing
+    isSyncing,
+    lastSyncResult
   };
 }

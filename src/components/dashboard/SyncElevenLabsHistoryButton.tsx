@@ -33,11 +33,17 @@ export function SyncElevenLabsHistoryButton({
     }
     
     console.log("Starting ElevenLabs history sync with agentId:", effectiveAgentId);
-    const result = await syncHistory(effectiveAgentId);
-    console.log("Sync result:", result);
     
-    if (result.success && onSuccess) {
-      onSuccess();
+    try {
+      const result = await syncHistory(effectiveAgentId);
+      console.log("Sync result:", result);
+      
+      if (result.success && onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Sync operation failed with error:", error);
+      toast.error(`La synchronisation a échoué: ${error.message || "Erreur inconnue"}`);
     }
   };
 

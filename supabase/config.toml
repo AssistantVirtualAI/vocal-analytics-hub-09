@@ -72,9 +72,13 @@ url = ""
 port = 54321
 
 [functions.get-call-audio]
-# Verify JWT in incoming requests. Default is true.
+# Verify JWT in incoming requests.
 verify_jwt = false
 
 [functions.get_calls_per_day]
 # Ensure the edge function doesn't need JWT verification
+verify_jwt = false
+
+[functions.sync-elevenlabs-history]
+# No JWT verification needed for this function
 verify_jwt = false

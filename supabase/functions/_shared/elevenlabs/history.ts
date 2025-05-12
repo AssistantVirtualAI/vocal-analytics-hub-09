@@ -1,4 +1,3 @@
-
 // Shared module for interacting with the ElevenLabs API - History functionality
 import { fetchWithRetry } from "../fetch-with-retry.ts";
 import { ELEVENLABS_API_BASE_URL, handleElevenLabsApiError } from "./client.ts";
@@ -50,9 +49,10 @@ export async function fetchElevenLabsHistory(
     // URL for the history API
     let url = `${ELEVENLABS_API_BASE_URL}/history?page_size=${pageSize}`;
     
-    // Add voice filter if provided
+    // Add voice filter if provided - CRITICAL for filtering by the correct voice/agent
     if (voiceId) {
-      url += `&voice_id=${voiceId}`;
+      url += `&voice_id=${encodeURIComponent(voiceId)}`;
+      console.log(`Filtering ElevenLabs history by voice_id: ${voiceId}`);
     }
 
     console.log(`Calling ElevenLabs History API: ${url}`);
@@ -61,6 +61,8 @@ export async function fetchElevenLabsHistory(
     let hasMore = true;
     let lastItemId: string | undefined = undefined;
     let totalRequests = 0;
+    let retryCount = 0;
+    const maxRetries = 3;
     
     try {
       // Loop to fetch all pages
@@ -70,17 +72,58 @@ export async function fetchElevenLabsHistory(
         // Add pagination token if we have one
         const paginationUrl = lastItemId ? `${url}&history_item_id=${lastItemId}` : url;
         
-        const response = await fetchWithRetry(paginationUrl, {
-          headers: {
-            "xi-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-        });
+        let response;
+        let retrySuccess = false;
         
-        console.log(`Response status: ${response.status}, URL: ${paginationUrl}`);
+        // Add retry loop for API request
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            console.log(`API Request attempt ${attempt + 1}/${maxRetries + 1} to: ${paginationUrl}`);
+            
+            response = await fetchWithRetry(paginationUrl, {
+              headers: {
+                "xi-api-key": apiKey,
+                "Content-Type": "application/json",
+              },
+              timeout: 15000, // 15 second timeout
+            });
+            
+            console.log(`Response status: ${response.status}, URL: ${paginationUrl}`);
+            
+            if (response.ok) {
+              retrySuccess = true;
+              break;
+            } else if (response.status === 429) {
+              // Rate limiting - wait longer before retrying
+              const waitTime = Math.min(1000 * Math.pow(2, attempt + 1), 10000);
+              console.log(`Rate limited, waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            } else if (response.status === 401) {
+              console.error("Authentication failed with ElevenLabs API. Invalid API key.");
+              break; // Don't retry auth errors
+            } else {
+              // Other error, try again with back-off
+              const waitTime = Math.min(1000 * Math.pow(2, attempt), 5000);
+              console.log(`Request failed with status ${response.status}, waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          } catch (fetchError) {
+            console.error(`Fetch error on attempt ${attempt + 1}:`, fetchError);
+            if (attempt < maxRetries) {
+              const waitTime = 1000 * Math.pow(2, attempt);
+              console.log(`Waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+        }
         
+        // If all attempts failed, throw an error
+        if (!retrySuccess || !response) {
+          throw new Error(`Failed to fetch data from ElevenLabs API after ${maxRetries + 1} attempts`);
+        }
+        
+        // Handle API errors with more detailed logging
         if (!response.ok) {
-          // Handle API errors with more detailed logging
           const statusCode = response.status;
           const statusText = response.statusText || '';
           
@@ -152,6 +195,19 @@ export async function fetchElevenLabsHistory(
               success: false,
               error: `Invalid response format from ElevenLabs API (missing history array). Got fields: ${availableFields}`
             };
+          }
+        }
+        
+        // If voice_id filter was provided, double-check the results contain only that voice_id
+        if (voiceId && data.history && data.history.length > 0) {
+          console.log(`Filtering returned history to only include items with voice_id: ${voiceId}`);
+          const filteredHistory = data.history.filter((item: any) => 
+            item.voice_id === voiceId || !item.voice_id // Include items without voice_id as they might be relevant
+          );
+          
+          if (filteredHistory.length < data.history.length) {
+            console.log(`Filtered out ${data.history.length - filteredHistory.length} items that didn't match voice_id ${voiceId}`);
+            data.history = filteredHistory;
           }
         }
         

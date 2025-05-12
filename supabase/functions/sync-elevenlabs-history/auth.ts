@@ -1,6 +1,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createAgentResolver } from "../_shared/agent-resolver-improved.ts";
 
 /**
  * Verifies the authentication token and checks if the user has access to the specified agent
@@ -51,11 +52,10 @@ export async function verifyUserAccess(
     };
   }
   
-  // Check user access to the agent/organization
-  const { checkUserOrganizationAccess } = await import("../_shared/agent-resolver-improved.ts");
+  // Use the agent resolver to check user access to the agent/organization
+  const agentResolver = createAgentResolver(supabaseAdmin);
   
-  const hasAccess = await checkUserOrganizationAccess(
-    supabaseAdmin, 
+  const hasAccess = await agentResolver.checkUserOrganizationAccess(
     user.id, 
     undefined, // We'll check based on agent instead of org
     agentId

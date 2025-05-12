@@ -1,123 +1,101 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Customer, Call, CustomerStats } from "./models.ts";
+import { CustomerStats } from "./models.ts";
 
-// Structured logger pour la surveillance
-const logger = {
-  info: (message: string, metadata?: Record<string, any>) => {
-    console.log(JSON.stringify({ level: "info", message, metadata, timestamp: new Date().toISOString() }));
-  },
-  error: (message: string, error?: any, metadata?: Record<string, any>) => {
-    console.error(JSON.stringify({ 
-      level: "error", 
-      message, 
-      error: error?.toString() || null,
-      stack: error?.stack || null,
-      metadata,
-      timestamp: new Date().toISOString() 
-    }));
-  }
-};
-
-/**
- * Récupère les clients depuis la base de données
- */
-export async function getCustomers(supabase: SupabaseClient): Promise<Customer[]> {
+export async function getCustomers(supabase: SupabaseClient) {
   const { data: customers, error } = await supabase
-    .from("customers")
-    .select("*");
-
+    .from('customers')
+    .select('*');
+  
   if (error) {
-    logger.error("Error fetching customers", error);
+    console.error("Error fetching customers:", error);
     throw error;
   }
-
-  logger.info(`Retrieved ${customers?.length || 0} customers from database`);
+  
   return customers || [];
 }
 
-/**
- * Récupère les appels filtrés par agent ou organisation
- */
-export async function getCalls(
-  supabase: SupabaseClient, 
-  agentId: string
-): Promise<Call[]> {
-  let query = supabase.from("calls_view").select("*");
+export async function getCalls(supabase: SupabaseClient, agentId?: string) {
+  let query = supabase
+    .from('calls')
+    .select(`
+      id,
+      customer_id,
+      date,
+      duration,
+      satisfaction_score,
+      customers(name)
+    `)
+    .order('date', { ascending: false });
   
-  // Essayer de trouver une organisation associée à cet agent
+  // Filter by agent if provided
   if (agentId) {
-    const { data: orgCheck } = await supabase
-      .from("organizations")
-      .select("id")
-      .eq("agent_id", agentId)
-      .maybeSingle();
-    
-    if (orgCheck?.id) {
-      // Si trouvé dans les organisations, filtrer par organization_id
-      query = query.eq("organization_id", orgCheck.id);
-      logger.info(`Found organization with agent_id: ${agentId}, filtering by organization_id: ${orgCheck.id}`);
-    } else {
-      // Vérifier si c'est un UUID d'agent valide
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidPattern.test(agentId)) {
-        query = query.eq("agent_id", agentId);
-        logger.info(`Using agent_id as UUID filter: ${agentId}`);
-      } else {
-        query = query.eq("agent_external_id", agentId);
-        logger.info(`Using agent_external_id filter for non-UUID: ${agentId}`);
-      }
-    }
+    query = query.eq('agent_id', agentId);
   }
   
   const { data: calls, error } = await query;
-
+  
   if (error) {
-    logger.error("Error fetching calls", error);
+    console.error("Error fetching calls:", error);
     throw error;
   }
-
-  logger.info(`Retrieved ${calls?.length || 0} calls from database`);
+  
   return calls || [];
 }
 
-/**
- * Calcule les statistiques des clients en fonction des appels
- */
-export function calculateCustomerStats(
-  customers: Customer[], 
-  calls: Call[]
-): CustomerStats[] {
-  const customerStats = customers.map(customer => {
-    const customerCalls = calls.filter(call => call.customer_id === customer.id);
-    const totalCalls = customerCalls.length;
+export function calculateCustomerStats(customers: any[], calls: any[]): CustomerStats[] {
+  // Create a map to store statistics for each customer
+  const customerStatsMap = new Map();
+  
+  // Initialize customer stats with basic info
+  customers.forEach(customer => {
+    customerStatsMap.set(customer.id, {
+      customerId: customer.id,
+      customerName: customer.name || "Unknown Customer",
+      totalCalls: 0,
+      totalDuration: 0,
+      totalSatisfaction: 0,
+      lastCallDate: null
+    });
+  });
+  
+  // Process calls to calculate statistics
+  calls.forEach(call => {
+    const customerId = call.customer_id;
+    if (!customerStatsMap.has(customerId)) return;
     
-    // Calculer les moyennes
-    const totalDuration = customerCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
-    const avgDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+    const stats = customerStatsMap.get(customerId);
+    stats.totalCalls++;
+    stats.totalDuration += call.duration || 0;
     
-    const totalSatisfaction = customerCalls.reduce((sum, call) => 
-      sum + (call.satisfaction_score || 0), 0);
-    const avgSatisfaction = totalCalls > 0 ? totalSatisfaction / totalCalls : 0;
+    if (call.satisfaction_score) {
+      stats.totalSatisfaction += call.satisfaction_score;
+    }
     
-    // Trouver la date du dernier appel
-    const lastCallDate = customerCalls.length > 0 
-      ? customerCalls.sort((a, b) => 
-          new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
-      : null;
+    // Update last call date if this call is more recent
+    const callDate = new Date(call.date);
+    if (!stats.lastCallDate || callDate > new Date(stats.lastCallDate)) {
+      stats.lastCallDate = call.date;
+    }
+    
+    // Update customer name from the joined customers record if available
+    if (call.customers && call.customers.name) {
+      stats.customerName = call.customers.name;
+    }
+  });
+  
+  // Calculate averages and format final stats
+  return Array.from(customerStatsMap.values()).map(stats => {
+    const avgDuration = stats.totalCalls > 0 ? stats.totalDuration / stats.totalCalls : 0;
+    const avgSatisfaction = stats.totalCalls > 0 ? stats.totalSatisfaction / stats.totalCalls : 0;
     
     return {
-      customerId: customer.id,
-      customerName: customer.name,
-      totalCalls,
+      customerId: stats.customerId,
+      customerName: stats.customerName,
+      totalCalls: stats.totalCalls,
       avgDuration,
       avgSatisfaction,
-      lastCallDate
+      lastCallDate: stats.lastCallDate
     };
   });
-
-  // Trier par nombre total d'appels
-  customerStats.sort((a, b) => b.totalCalls - a.totalCalls);
-  
-  return customerStats;
 }

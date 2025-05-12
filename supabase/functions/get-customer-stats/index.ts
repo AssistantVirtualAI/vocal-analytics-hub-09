@@ -1,30 +1,28 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleCorsOptions } from "../_shared/api-utils.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { handleGetCustomerStats } from "./handlers.ts";
 
 serve(async (req) => {
-  // Gestion des requêtes CORS preflight
-  if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
-  
+
   try {
     return await handleGetCustomerStats(req);
   } catch (error) {
-    console.error('Unhandled error in get-customer-stats function:', error);
-    return new Response(JSON.stringify({ 
-      error: {
-        message: error instanceof Error ? error.message : "Une erreur inattendue s'est produite",
-        code: "INTERNAL_SERVER_ERROR"
+    console.error("Unhandled error in get-customer-stats:", error);
+    
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "An unexpected error occurred",
+        timestamp: new Date().toISOString()
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
       }
-    }), {
-      status: 500,
-      headers: { 
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        'Content-Type': 'application/json'
-      },
-    });
+    );
   }
 });

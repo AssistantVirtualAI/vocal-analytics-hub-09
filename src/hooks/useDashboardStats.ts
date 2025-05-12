@@ -34,7 +34,11 @@ export function useDashboardStats() {
     handleRefresh: refreshCalls
   } = useDashboardFetch();
   
-  const { data: customerStatsData, isLoading: customerStatsLoading, isError: customerStatsError } = useCustomerStats();
+  const { 
+    data: customerStatsData, 
+    isLoading: customerStatsLoading, 
+    isError: customerStatsError 
+  } = useCustomerStats();
 
   const isLoading = callsLoading || customerStatsLoading;
   const hasError = callsError || customerStatsError;
@@ -52,6 +56,7 @@ export function useDashboardStats() {
       setLastUpdated(new Date());
       showSuccessToast();
     } catch (error) {
+      console.error("Error refreshing dashboard:", error);
       showErrorToast();
     }
   };

@@ -1,7 +1,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createSuccessResponse, createErrorResponse, reportApiMetrics } from "../_shared/api-utils.ts";
+import { createSuccessResponse, createErrorResponse } from "../_shared/api-utils.ts";
 import { getCustomers, getCalls, calculateCustomerStats } from "./service.ts";
 import { CustomerStatsRequest, CustomerStats } from "./models.ts";
 
@@ -37,7 +37,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
       logger.info(`Received agentId: ${agentId}`);
     } catch (error) {
       logger.error('Error parsing request body', error);
-      await reportApiMetrics("get-customer-stats", requestStartTime, 400, "Invalid request body");
       return createErrorResponse({
         status: 400,
         message: "The request body could not be parsed as JSON",
@@ -50,7 +49,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
     const cachedData = cache.get(cacheKey);
     if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
       logger.info(`Cache hit for agentId: ${agentId}`);
-      await reportApiMetrics("get-customer-stats", requestStartTime, 200);
       return new Response(JSON.stringify(cachedData.data), {
         status: 200,
         headers: { 
@@ -74,7 +72,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
 
       if (!customers || customers.length === 0) {
         logger.info("No customers found in database");
-        await reportApiMetrics("get-customer-stats", requestStartTime, 200);
         return createSuccessResponse([]);
       }
 
@@ -96,7 +93,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
         // Stocker dans le cache
         cache.set(cacheKey, { data: emptyCustomerStats, timestamp: Date.now() });
         
-        await reportApiMetrics("get-customer-stats", requestStartTime, 200);
         return new Response(JSON.stringify(emptyCustomerStats), {
           status: 200,
           headers: { 
@@ -117,7 +113,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
       cache.set(cacheKey, { data: customerStats, timestamp: Date.now() });
 
       const executionTime = Date.now() - requestStartTime;
-      await reportApiMetrics("get-customer-stats", requestStartTime, 200);
       
       return new Response(JSON.stringify(customerStats), {
         status: 200,
@@ -132,7 +127,6 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('Error in get-customer-stats function', error);
-      await reportApiMetrics("get-customer-stats", requestStartTime, 500, errorMessage);
       return createErrorResponse({
         status: 500,
         message: "Failed to retrieve customer statistics",
@@ -141,8 +135,7 @@ export async function handleGetCustomerStats(req: Request): Promise<Response> {
     }
   } catch (unhandledError) {
     const errorMessage = unhandledError instanceof Error ? unhandledError.message : String(unhandledError);
-    logger.error('Unhandled error in get-customer-stats function', unhandledError);
-    await reportApiMetrics("get-customer-stats", requestStartTime, 500, errorMessage);
+    console.error('Unhandled error in get-customer-stats function:', unhandledError);
     return createErrorResponse({
       status: 500,
       message: "An unexpected error occurred",

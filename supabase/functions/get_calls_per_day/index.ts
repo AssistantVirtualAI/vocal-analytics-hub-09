@@ -1,106 +1,139 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getAgentUUIDByExternalId, createServiceClient } from "../_shared/agent-resolver.ts";
-import { createErrorResponse, createSuccessResponse, handleCorsOptions, handleApiError } from "../_shared/api-utils.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  const startTime = Date.now();
-  const functionName = "get_calls_per_day";
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+    return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("Edge function get_calls_per_day called");
-
   try {
-    // Parse request parameters
-    const {
-      agentId,
-      startDate,
-      endDate,
-    } = JSON.parse(await req.text());
-
-    console.log(`Request parameters: agentId=${agentId}, startDate=${startDate}, endDate=${endDate}`);
-
+    const body = await req.json();
+    const { agentId, days = 14, startDate, endDate } = body;
+    
+    // Validate required parameters
     if (!agentId) {
-      return createErrorResponse({
-        status: 400,
-        message: "agentId is required",
-        code: "MISSING_PARAMETER"
-      });
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "MISSING_PARAMETER",
+            message: "agentId is required"
+          },
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ 
+          error: { 
+            code: "SERVER_CONFIGURATION_ERROR", 
+            message: "Server configuration error"
+          },
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    const supabase = createServiceClient();
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Résoudre l'ID de l'agent externe en UUID
-    const resolvedAgentId = await getAgentUUIDByExternalId(supabase, agentId);
-    
-    if (!resolvedAgentId) {
-      console.warn(`No agent found with ID or name matching: ${agentId}`);
-      return createSuccessResponse([]);
-    }
-
-    // Prepare the query to get calls per day
-    let query = supabase.from("calls").select("date");
-    
-    // Filter by agent ID if we have a valid UUID
-    if (resolvedAgentId !== "USE_NO_FILTER") {
-      query = query.eq("agent_id", resolvedAgentId);
-    } else {
-      console.log(`Using no agent filter as ${agentId} is an organization's agent ID`);
-      // For organizations, we might add additional filtering if needed
-    }
-    
-    // Apply date filters if provided
+    // Calculate date range
+    let fromDate = new Date();
     if (startDate) {
-      query = query.gte('date', startDate);
-    }
-
-    if (endDate) {
-      query = query.lte('date', `${endDate}T23:59:59`);
+      fromDate = new Date(startDate);
+    } else {
+      fromDate.setDate(fromDate.getDate() - days);
     }
     
-    const { data: calls, error: queryError } = await query;
-
-    if (queryError) {
-      console.error("Database query error:", queryError);
-      return createErrorResponse({
-        status: 500,
-        message: queryError.message || "Database query error",
-        code: "DATABASE_ERROR" 
+    const toDate = endDate ? new Date(endDate) : new Date();
+    
+    // Format dates for SQL query
+    const fromDateFormatted = fromDate.toISOString().split('T')[0];
+    const toDateFormatted = toDate.toISOString().split('T')[0];
+    
+    console.log(`Fetching calls per day for agent ${agentId} from ${fromDateFormatted} to ${toDateFormatted}`);
+    
+    // Query database to get calls per day
+    const { data, error } = await supabase
+      .from('calls')
+      .select('date')
+      .eq('agent_id', agentId)
+      .gte('date', fromDateFormatted)
+      .lte('date', toDateFormatted);
+    
+    if (error) {
+      console.error("Database query error:", error);
+      return new Response(
+        JSON.stringify({ 
+          error: { 
+            code: "DATABASE_ERROR", 
+            message: error.message 
+          },
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // Process the results to get count per day
+    const callsPerDay: Record<string, number> = {};
+    
+    // Initialize all days in the range with 0 calls
+    let currentDate = new Date(fromDate);
+    while (currentDate <= toDate) {
+      const dateKey = currentDate.toISOString().split('T')[0];
+      callsPerDay[dateKey] = 0;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Count calls for each day
+    if (data && data.length > 0) {
+      data.forEach((call: any) => {
+        const dateKey = new Date(call.date).toISOString().split('T')[0];
+        callsPerDay[dateKey] = (callsPerDay[dateKey] || 0) + 1;
       });
     }
-
-    console.log(`Retrieved ${calls?.length || 0} calls from database`);
     
-    if (!calls || calls.length === 0) {
-      return createSuccessResponse([]);
-    }
-
-    // Group calls by day and count them
-    const callsByDay = calls.reduce((acc, call) => {
-      // Extract just the date part (YYYY-MM-DD)
-      const dateOnly = new Date(call.date).toISOString().split('T')[0];
-      
-      if (!acc[dateOnly]) {
-        acc[dateOnly] = 0;
+    return new Response(
+      JSON.stringify(callsPerDay),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-      
-      acc[dateOnly]++;
-      return acc;
-    }, {} as Record<string, number>);
+    );
     
-    // Convert to array format for the chart
-    const result = Object.entries(callsByDay).map(([date, count]) => ({
-      date,
-      count
-    })).sort((a, b) => a.date.localeCompare(b.date));
-
-    return createSuccessResponse(result);
   } catch (error) {
-    return await handleApiError(error, functionName, startTime);
+    console.error("Error processing request:", error);
+    
+    return new Response(
+      JSON.stringify({ 
+        error: { 
+          code: "INTERNAL_ERROR", 
+          message: error instanceof Error ? error.message : "An unexpected error occurred" 
+        },
+        timestamp: new Date().toISOString()
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

@@ -67,9 +67,21 @@ export async function checkUserOrganizationAccess(
     return true;
   }
 
+  // Check if user is a super admin
+  const { data: adminData } = await supabase
+    .from('user_roles')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('role', 'admin')
+    .maybeSingle();
+  
+  if (adminData) {
+    return true;
+  }
+
   // Check if user is a member of the specified organization
   if (organizationId) {
-    const { data: userOrg, error } = await supabase
+    const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('*')
       .eq('user_id', userId)

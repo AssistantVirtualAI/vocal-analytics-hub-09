@@ -65,3 +65,6 @@ verify_jwt = false
 
 [edge_functions.sync-elevenlabs-conversations]
 verify_jwt = false
+
+[edge_functions.get_calls_per_day]
+verify_jwt = false

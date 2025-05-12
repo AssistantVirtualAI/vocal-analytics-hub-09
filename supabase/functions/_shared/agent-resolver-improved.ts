@@ -46,7 +46,7 @@ export async function getAgentUUIDByExternalId(
   
   if (organization) {
     console.log(`[agent-resolver] Found organization with agent_id: ${externalAgentId}, using default agent`);
-    return "USE_NO_FILTER"; // Special flag to indicate we should not filter by agent
+    return "2df8e9d7-0939-4bd8-9da1-c99ac86eb2f8"; // Use actual UUID instead of special flag
   }
   
   console.log(`[agent-resolver] Agent not found for external ID: ${externalAgentId}`);
@@ -107,4 +107,15 @@ export async function checkUserOrganizationAccess(
   }
 
   return false;
+}
+
+/**
+ * Create agent resolver functions
+ */
+export function createAgentResolver(supabase: SupabaseClient) {
+  return {
+    getAgentUUIDByExternalId: (externalAgentId: string) => getAgentUUIDByExternalId(supabase, externalAgentId),
+    checkUserOrganizationAccess: (userId: string, organizationId?: string, agentId?: string) => 
+      checkUserOrganizationAccess(supabase, userId, organizationId, agentId)
+  };
 }

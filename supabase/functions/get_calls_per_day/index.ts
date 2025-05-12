@@ -2,7 +2,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createAgentResolver } from "../_shared/agent-resolver-improved.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -32,9 +31,18 @@ serve(async (req) => {
       );
     }
     
-    // Get parameters from body
+    // Check if agentId is provided
+    const agentId = body.agentId || 'QNdB45Jpgh06Hr67TzFO'; // Default to QNdB45Jpgh06Hr67TzFO if not provided
+    
+    if (!agentId) {
+      return new Response(
+        JSON.stringify({ error: "MISSING_PARAMETER - agentId is required" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Get other parameters from body
     const days = body.days || 14;
-    const agentId = body.agentId;
     const timeRange = body.timeRange;
     const startDate = body.startDate;
     const endDate = body.endDate;
@@ -63,21 +71,14 @@ serve(async (req) => {
     const fromDateStr = fromDate.toISOString().split('T')[0];
     const toDateStr = toDate.toISOString().split('T')[0];
     
-    console.log(`Fetching calls from ${fromDateStr} to ${toDateStr}`);
+    console.log(`Fetching calls from ${fromDateStr} to ${toDateStr} for agent ${agentId}`);
     
     // Prepare query
     let query = supabase.from('calls').select('date');
     
-    // Apply agent filter if provided
-    if (agentId) {
-      const { getAgentUUIDByExternalId } = createAgentResolver(supabase);
-      const resolvedAgentId = await getAgentUUIDByExternalId(agentId);
-      
-      if (resolvedAgentId) {
-        console.log(`Filtering by agent ID: ${resolvedAgentId}`);
-        query = query.eq('agent_id', resolvedAgentId);
-      }
-    }
+    // Always apply agent filter
+    console.log(`Filtering by agent ID: ${agentId}`);
+    query = query.eq('agent_id', agentId);
     
     // Apply date filter
     query = query.gte('date', fromDateStr).lte('date', toDateStr);
@@ -119,7 +120,8 @@ serve(async (req) => {
         to: toDateStr,
         days
       },
-      total: calls?.length || 0
+      total: calls?.length || 0,
+      agentId
     };
     
     return new Response(

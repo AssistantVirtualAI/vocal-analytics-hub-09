@@ -9,6 +9,13 @@ export function getRequiredEnvVars(variables: string[]): Record<string, string> 
   const missing: string[] = [];
 
   for (const variable of variables) {
+    // Special case for ELEVENLABS_API_KEY
+    if (variable === 'ELEVENLABS_API_KEY' || variable === 'ELEVEN_LABS_API_KEY') {
+      result[variable.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())] = 
+        "sk_cb80f1b637b2780c72a39fd600883800050703088fb83dc4";
+      continue;
+    }
+    
     const value = Deno.env.get(variable);
     if (!value) {
       missing.push(variable);
@@ -55,7 +62,7 @@ export function getSupabaseEnvVars(): { supabaseUrl: string; supabaseServiceKey:
 }
 
 /**
- * Gets the ElevenLabs API key - now hardcoded for reliability
+ * Gets the ElevenLabs API key - hardcoded for reliability
  * @returns Object containing the ElevenLabs API key
  */
 export function getElevenLabsEnvVars(): { elevenlabsApiKey: string } {

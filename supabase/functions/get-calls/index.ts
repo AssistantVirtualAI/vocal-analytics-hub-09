@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAgentUUIDByExternalId, checkUserOrganizationAccess } from "../_shared/agent-resolver-improved.ts";
@@ -46,7 +45,6 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     let agentUUIDForQuery: string | null = null;
     
-    // Extract JWT token and get user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("[get-calls MAIN] No authorization header provided");
@@ -73,7 +71,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Check user role - whether they're a super admin
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
@@ -110,7 +107,6 @@ serve(async (req: Request) => {
       }
     }
     
-    // If an organization ID is provided, verify user has access to it
     if (orgId && !isSuperAdmin) {
       const hasOrgAccess = await checkUserOrganizationAccess(supabase, user.id, orgId);
       if (!hasOrgAccess) {
@@ -134,7 +130,6 @@ serve(async (req: Request) => {
       query = query.eq('agent_id', agentUUIDForQuery);
     }
     
-    // For non-super admins, restrict to organizations they belong to
     if (!isSuperAdmin) {
       // Get list of organizations the user belongs to
       const { data: userOrgs } = await supabase

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AddUserDialog } from './users/AddUserDialog';
 import { OrganizationUsersTable } from './users/OrganizationUsersTable';
 import { useOrganizationInvitations } from '@/hooks/useOrganizationInvitations';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface OrganizationUsersProps {
   currentOrganization: Organization | null;
@@ -24,22 +24,34 @@ export const OrganizationUsers = ({
   onUpdateUserRole
 }: OrganizationUsersProps) => {
   const { pendingInvitations, cancelInvitation } = useOrganizationInvitations(currentOrganization?.id || null);
-  const fetchInitiated = useRef(false);
-  const currentOrgId = useRef<string | null>(null);
+  const hasInitiallyLoaded = useRef(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Fetch users only once when the component mounts or when the organization changes
+  // Only fetch users once when the component mounts or when the organization changes
   useEffect(() => {
     if (!currentOrganization) {
-      fetchInitiated.current = false;
+      hasInitiallyLoaded.current = false;
       return;
     }
+
+    const orgId = currentOrganization.id;
     
-    // Only fetch if the organization has changed or we haven't fetched yet
-    if (!fetchInitiated.current || currentOrgId.current !== currentOrganization.id) {
-      console.log(`OrganizationUsers: Initial fetch for org ${currentOrganization.id}`);
-      fetchOrganizationUsers(currentOrganization.id);
-      fetchInitiated.current = true;
-      currentOrgId.current = currentOrganization.id;
+    if (!hasInitiallyLoaded.current) {
+      console.log(`OrganizationUsers: Initial fetch for org ${orgId}`);
+      
+      // Use a microtask to avoid state updates during render
+      const fetchData = async () => {
+        try {
+          await fetchOrganizationUsers(orgId);
+        } catch (error) {
+          console.error("Error fetching organization users:", error);
+        } finally {
+          hasInitiallyLoaded.current = true;
+          setIsInitialLoad(false);
+        }
+      };
+      
+      fetchData();
     }
   }, [currentOrganization, fetchOrganizationUsers]);
 
@@ -48,7 +60,6 @@ export const OrganizationUsers = ({
     
     try {
       await addUserToOrganization(newUserEmail, currentOrganization.id);
-      // Don't need to fetch again as addUserToOrganization already does this
     } catch (error) {
       console.error("Error adding user:", error);
     }
@@ -59,7 +70,6 @@ export const OrganizationUsers = ({
     
     try {
       await removeUserFromOrganization(userId, currentOrganization.id);
-      // Don't need to fetch again as removeUserFromOrganization already does this
     } catch (error) {
       console.error("Error removing user:", error);
     }

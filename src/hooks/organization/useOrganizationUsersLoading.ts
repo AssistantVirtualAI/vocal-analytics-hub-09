@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,16 @@ export const useOrganizationUsersLoading = () => {
   const loadingRef = useRef(false);
   const lastFetchedOrgIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup function to cancel any pending requests when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // Load organization users
   const loadOrganizationUsers = useCallback(async (orgId: string) => {
@@ -116,7 +126,8 @@ export const useOrganizationUsersLoading = () => {
     } finally {
       setLoading(false);
       loadingRef.current = false;
-      abortControllerRef.current = null;
+      
+      // Don't reset the abort controller here to allow for cleanup on unmount
     }
   }, []);
 

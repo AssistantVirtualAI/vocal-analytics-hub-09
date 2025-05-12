@@ -14,7 +14,7 @@ export function SecuritySettings() {
         <p className="text-sm text-muted-foreground mt-2">
           Options de sécurité pour votre compte
         </p>
-        {/* Add authentication settings here */}
+        {/* Authentication settings will be added here */}
       </div>
     </div>
   );

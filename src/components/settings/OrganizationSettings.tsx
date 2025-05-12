@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useOrganization } from '@/context/organization/OrganizationProvider';
@@ -27,6 +27,17 @@ export function OrganizationSettings() {
     createOrganization,
     changeOrganization
   } = useOrganization();
+
+  const initialLoadPerformed = useRef(false);
+  
+  // Make sure we only load organizations once on component mount
+  useEffect(() => {
+    if (!initialLoadPerformed.current) {
+      console.log('OrganizationSettings: Initial load of organizations');
+      loadOrganizations();
+      initialLoadPerformed.current = true;
+    }
+  }, [loadOrganizations]);
 
   // Create a handler function that converts the newOrg object to individual parameters
   const handleAddOrganization = async (newOrg: { name: string; agentId: string; description: string; }) => {
@@ -64,4 +75,4 @@ export function OrganizationSettings() {
       )}
     </div>
   );
-}
+};

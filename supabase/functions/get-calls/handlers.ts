@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getAgentUUIDByExternalId, checkUserOrganizationAccess } from "../_shared/agent-resolver-improved.ts";
+import { getAgentUUIDByExternalId, checkUserOrganizationAccess } from "../_shared/agent-resolver/index.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { CallsQueryParams, CallsResponse, FormattedCall } from "./types.ts";
 

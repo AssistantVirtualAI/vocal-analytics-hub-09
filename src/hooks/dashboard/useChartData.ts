@@ -3,17 +3,20 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { useCallsPerDay } from '@/hooks/useCallsPerDay';
+import { TimeRange } from '@/components/dashboard/TimeRangeSelector';
 
 interface UseChartDataOptions {
   orgSlug?: string;
   dateRange?: DateRange;
   enabled?: boolean;
+  timeRange?: TimeRange;
 }
 
-export function useChartData({ orgSlug, dateRange, enabled = true }: UseChartDataOptions = {}) {
+export function useChartData({ orgSlug, dateRange, enabled = true, timeRange = '14d' }: UseChartDataOptions = {}) {
   const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
   const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
 
+  // Pass the timeRange to the useCallsPerDay hook
   const { 
     data: callsPerDayData, 
     isLoading, 
@@ -24,7 +27,8 @@ export function useChartData({ orgSlug, dateRange, enabled = true }: UseChartDat
     !!orgSlug && enabled,
     orgSlug,
     startDate,
-    endDate
+    endDate,
+    timeRange
   );
 
   // Format chart data for display

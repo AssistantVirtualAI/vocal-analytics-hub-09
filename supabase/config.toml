@@ -86,3 +86,6 @@ verify_jwt = false
 
 [edge_functions.sync-elevenlabs-periodic]
 verify_jwt = false
+
+[edge_functions.get-call]
+verify_jwt = false

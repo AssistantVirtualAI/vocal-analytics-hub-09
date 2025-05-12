@@ -19,7 +19,7 @@ serve(async (req) => {
 
   // Handle CORS preflight requests with explicit status 200
   if (req.method === "OPTIONS") {
-    console.log('[get-customer-stats] Handling OPTIONS request with status 200');
+    console.log('[get-customer-stats] Handling OPTIONS request with explicit status 200');
     return new Response(null, { 
       status: 200,
       headers: corsHeaders 

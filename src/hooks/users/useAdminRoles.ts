@@ -1,112 +1,212 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { checkSuperAdminStatus, checkOrganizationAdminStatus } from '@/services/organization/users/adminRoles';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const useAdminRoles = (
-  selectedOrg: string | null, 
-  userId: string | undefined, 
-  refreshCallback?: () => Promise<void>
+  organizationId: string | null,
+  userId: string | undefined,
+  refreshUsers?: () => Promise<void>
 ) => {
   const [currentUserIsOrgAdmin, setCurrentUserIsOrgAdmin] = useState(false);
   const [currentUserIsSuperAdmin, setCurrentUserIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [checkCount, setCheckCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const checkInProgressRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  // Check if the current user is a super admin or an organization admin
-  const checkCurrentUserPermissions = useCallback(async () => {
-    if (!userId) {
-      console.log("[useAdminRoles] No user ID, defaulting to not admin");
-      setCurrentUserIsOrgAdmin(false);
-      setCurrentUserIsSuperAdmin(false);
-      setLoading(false);
-      setIsInitialized(true);
-      return { isSuperAdmin: false, isOrgAdmin: false };
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      checkInProgressRef.current = false;
+    };
+  }, []);
+
+  const checkUserAccess = useCallback(async () => {
+    if (!userId || !organizationId || checkInProgressRef.current) {
+      return;
     }
+
+    checkInProgressRef.current = true;
+    setLoading(true);
+
+    try {
+      console.log(`[useAdminRoles] Checking permissions for user ${userId} in org ${organizationId}`);
+      
+      // Check if user is super admin
+      const isSuperAdmin = await checkSuperAdminStatus(userId);
+      
+      // If user is super admin, they're automatically an org admin too
+      if (isSuperAdmin && isMountedRef.current) {
+        console.log(`[useAdminRoles] User ${userId} super admin status: ${isSuperAdmin}`);
+        setCurrentUserIsSuperAdmin(true);
+        setCurrentUserIsOrgAdmin(true);
+        checkInProgressRef.current = false;
+        return;
+      }
+      
+      // Check if user is org admin
+      const { data, error } = await supabase
+        .from('user_organizations')
+        .select('is_org_admin')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking org admin status:', error);
+        throw error;
+      }
+      
+      const isOrgAdmin = !!data?.is_org_admin;
+      
+      if (isMountedRef.current) {
+        console.log(`[useAdminRoles] User ${userId} permissions - Super Admin: ${isSuperAdmin}, Org Admin: ${isOrgAdmin}`);
+        setCurrentUserIsOrgAdmin(isOrgAdmin);
+        setCurrentUserIsSuperAdmin(isSuperAdmin);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      if (isMountedRef.current) {
+        setCurrentUserIsOrgAdmin(false);
+        setCurrentUserIsSuperAdmin(false);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+      checkInProgressRef.current = false;
+    }
+  }, [userId, organizationId]);
+
+  // Check permissions whenever dependencies change
+  useEffect(() => {
+    if (userId && organizationId) {
+      console.log('[useAdminRoles] Dependencies changed, checking permissions');
+      checkUserAccess();
+    }
+  }, [userId, organizationId, checkUserAccess]);
+
+  // Toggle organization admin status
+  const toggleOrganizationAdmin = useCallback(async (targetUserId: string, makeAdmin: boolean) => {
+    if (!organizationId) return;
     
     setLoading(true);
-    setError(null);
-    
     try {
-      console.log(`[useAdminRoles] Checking permissions for user ${userId} in org ${selectedOrg || 'none'}`);
+      console.log(`Toggling org admin status for user ${targetUserId} to ${makeAdmin}`);
       
-      // First check if user is a super admin (this applies to all orgs)
-      const isSuperAdmin = await checkSuperAdminStatus(userId);
-      console.log(`[useAdminRoles] User ${userId} super admin status:`, isSuperAdmin);
+      const { error } = await supabase
+        .from('user_organizations')
+        .update({ is_org_admin: makeAdmin })
+        .eq('user_id', targetUserId)
+        .eq('organization_id', organizationId);
       
-      // Then check if user is an admin of the current org
-      let isOrgAdmin = isSuperAdmin; // Super admins are implicitly org admins
+      if (error) throw error;
       
-      if (!isOrgAdmin && selectedOrg) {
-        // Only check org admin status if not already a super admin and an org is selected
-        isOrgAdmin = await checkOrganizationAdminStatus(userId, selectedOrg);
-        console.log(`[useAdminRoles] User ${userId} org admin status for org ${selectedOrg}:`, isOrgAdmin);
+      if (refreshUsers) {
+        await refreshUsers();
       }
       
-      console.log(`[useAdminRoles] User ${userId} permissions - Super Admin: ${isSuperAdmin}, Org Admin: ${isOrgAdmin}`);
-      
-      // Update state
-      setCurrentUserIsSuperAdmin(isSuperAdmin);
-      setCurrentUserIsOrgAdmin(isOrgAdmin);
-      setIsInitialized(true);
-      setError(null);
-      
-      // Reset check count on success
-      setCheckCount(0);
-      
-      return { isSuperAdmin, isOrgAdmin };
+      toast.success(`L'utilisateur est maintenant ${makeAdmin ? 'administrateur' : 'utilisateur'} de l'organisation`);
     } catch (error: any) {
-      console.error("[useAdminRoles] Error checking admin permissions:", error);
-      setError(error);
-      
-      // Only show toast after multiple failures to avoid spamming
-      if (checkCount >= 2) {
-        toast.error("Erreur lors de la vérification des permissions: " + error.message);
-      }
-      
-      // Increment check count for retry logic
-      setCheckCount(prev => prev + 1);
-      
-      return { isSuperAdmin: false, isOrgAdmin: false };
+      console.error('Error toggling organization admin status:', error);
+      toast.error(`Erreur: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedOrg, checkCount]);
+  }, [organizationId, refreshUsers]);
 
-  // Reset initialization when dependencies change
-  useEffect(() => {
-    if (isInitialized && (userId || selectedOrg)) {
-      setIsInitialized(false);
-      setCheckCount(0);
-    }
-  }, [userId, selectedOrg, isInitialized]);
-
-  // Check permissions when component mounts or dependencies change
-  useEffect(() => {
-    if (!isInitialized) {
-      console.log("[useAdminRoles] Dependencies changed, checking permissions");
+  // Toggle super admin status
+  const toggleSuperAdmin = useCallback(async (targetUserId: string, makeAdmin: boolean) => {
+    setLoading(true);
+    try {
+      console.log(`Toggling super admin status for user ${targetUserId} to ${makeAdmin}`);
       
-      // Add a slight delay for retries to prevent flooding
-      const delayMs = checkCount > 0 ? 1000 * checkCount : 0;
+      // First delete existing role
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', targetUserId);
       
-      const timer = setTimeout(() => {
-        checkCurrentUserPermissions();
-      }, delayMs);
+      if (deleteError) throw deleteError;
       
-      return () => clearTimeout(timer);
-    } else if (!userId && !selectedOrg) {
-      console.log("[useAdminRoles] Missing userId and selectedOrg, skipping permission check");
+      // Then insert new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: targetUserId,
+          role: makeAdmin ? 'admin' : 'user'
+        });
+      
+      if (insertError) throw insertError;
+      
+      if (refreshUsers) {
+        await refreshUsers();
+      }
+      
+      toast.success(`L'utilisateur est maintenant ${makeAdmin ? 'super admin' : 'utilisateur standard'}`);
+    } catch (error: any) {
+      console.error('Error toggling super admin status:', error);
+      toast.error(`Erreur: ${error.message}`);
+    } finally {
       setLoading(false);
     }
-  }, [userId, selectedOrg, checkCurrentUserPermissions, isInitialized, checkCount]);
+  }, [refreshUsers]);
 
   return {
-    loading,
-    error,
     currentUserIsOrgAdmin,
     currentUserIsSuperAdmin,
-    checkCurrentUserPermissions
+    loading,
+    checkCurrentUserPermissions: checkUserAccess,
+    toggleOrganizationAdmin,
+    toggleSuperAdmin
   };
+};
+
+// Standalone function to check if a user is a super admin
+export const checkSuperAdminStatus = async (userId: string): Promise<boolean> => {
+  try {
+    console.log(`Checking super admin status for user ${userId}`);
+    
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking super admin status:', error);
+      return false;
+    }
+    
+    const isSuperAdmin = !!data;
+    console.log(`Super admin check result: ${isSuperAdmin}`);
+    return isSuperAdmin;
+  } catch (error) {
+    console.error('Error in checkSuperAdminStatus:', error);
+    return false;
+  }
+};
+
+// Standalone function to check if a user is an organization admin
+export const checkOrganizationAdminStatus = async (userId: string, organizationId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_organizations')
+      .select('is_org_admin')
+      .eq('user_id', userId)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking org admin status:', error);
+      return false;
+    }
+    
+    return !!data?.is_org_admin;
+  } catch (error) {
+    console.error('Error in checkOrganizationAdminStatus:', error);
+    return false;
+  }
 };

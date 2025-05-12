@@ -20,9 +20,9 @@ serve(async (req) => {
     console.error(`[${functionName}] Error checking environment variables:`, envError);
   }
 
-  // Gestion des requêtes CORS preflight avec status 200 explicite
+  // Handle CORS preflight requests with explicit status 200
   if (req.method === 'OPTIONS') {
-    console.log(`[${functionName}] Handling OPTIONS request with status 200`);
+    console.log(`[${functionName}] Handling OPTIONS request with explicit status 200`);
     return new Response(null, { 
       status: 200, 
       headers: {

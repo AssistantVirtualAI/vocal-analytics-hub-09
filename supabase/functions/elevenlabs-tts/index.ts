@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { fetchWithRetry } from "../_shared/fetch-with-retry.ts";
+import { safeGetEnv } from "../_shared/env.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -16,7 +17,11 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
-    const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
+    const elevenlabsApiKey = safeGetEnv('ELEVENLABS_API_KEY') || safeGetEnv('ELEVEN_LABS_API_KEY');
+    if (!elevenlabsApiKey) {
+      throw new Error('ELEVENLABS_API_KEY or ELEVEN_LABS_API_KEY environment variable is missing');
+    }
+
     const defaultVoiceId = 'QNdB45Jpgh06Hr67TzFO'; // Using the provided agent ID as voice ID
 
     const response = await fetchWithRetry(
@@ -26,7 +31,7 @@ serve(async (req) => {
         headers: {
           'Accept': 'audio/mpeg',
           'Content-Type': 'application/json',
-          'xi-api-key': elevenlabsApiKey || '',
+          'xi-api-key': elevenlabsApiKey,
         },
         body: JSON.stringify({
           text,
@@ -65,4 +70,3 @@ serve(async (req) => {
     );
   }
 });
-

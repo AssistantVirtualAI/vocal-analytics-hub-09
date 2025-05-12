@@ -13,7 +13,7 @@ import { safeGetEnv } from "../_shared/env.ts";
 export function getElevenLabsApiKey(): string {
   const apiKey = safeGetEnv("ELEVENLABS_API_KEY") || safeGetEnv("ELEVEN_LABS_API_KEY");
   if (!apiKey) {
-    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
+    throw new Error("ELEVENLABS_API_KEY or ELEVEN_LABS_API_KEY environment variable is missing");
   }
   return apiKey;
 }

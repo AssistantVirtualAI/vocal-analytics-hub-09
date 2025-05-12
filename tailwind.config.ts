@@ -79,6 +79,10 @@ export default {
 				    'purple': '#9C27B0', // Tech Purple
 				    'indigo': '#3F51B5', // Tech Indigo
 				    'teal': '#009688',   // Tech Teal
+					'violet': '#8A2BE2', // Vibrant Violet
+					'magenta': '#FF00FF', // Bright Magenta
+					'coral': '#FF7F50',   // Coral
+					'mint': '#98FB98',    // Mint Green
 				}
 			},
 			borderRadius: {
@@ -124,6 +128,14 @@ export default {
 				'shimmer': {
 					'0%': { backgroundPosition: '-1000px 0' },
 					'100%': { backgroundPosition: '1000px 0' }
+				},
+				'card-hover': {
+					'0%': { transform: 'translateY(0)' },
+					'100%': { transform: 'translateY(-8px)' }
+				},
+				'border-glow': {
+					'0%, 100%': { borderColor: 'rgba(99, 102, 241, 0.3)' },
+					'50%': { borderColor: 'rgba(99, 102, 241, 0.8)' }
 				}
 			},
 			animation: {
@@ -132,11 +144,22 @@ export default {
 				'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
 				'float': 'float 6s ease-in-out infinite',
 				'glow': 'glow 3s ease-in-out infinite',
-				'shimmer': 'shimmer 2s linear infinite'
+				'shimmer': 'shimmer 2s linear infinite',
+				'card-hover': 'card-hover 0.3s ease-out forwards',
+				'border-glow': 'border-glow 2s infinite'
 			},
 			backdropFilter: {
 				'none': 'none',
 				'blur': 'blur(20px)'
+			},
+			boxShadow: {
+				'card-hover': '0 10px 25px -5px rgba(99, 102, 241, 0.1), 0 8px 10px -6px rgba(99, 102, 241, 0.1)',
+				'card-glow': '0 0 15px rgba(99, 102, 241, 0.5)'
+			},
+			transitionProperty: {
+				'height': 'height',
+				'spacing': 'margin, padding',
+				'glow': 'box-shadow, border-color'
 			}
 		}
 	},

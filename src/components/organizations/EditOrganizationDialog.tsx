@@ -1,19 +1,17 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Organization } from '@/types/organization';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
   DialogClose
 } from '@/components/ui/dialog';
+import { OrganizationForm } from '@/components/organizations/settings/OrganizationForm';
 
 interface EditOrganizationDialogProps {
   isOpen: boolean;
@@ -28,91 +26,53 @@ export const EditOrganizationDialog = ({
   organization, 
   onUpdate 
 }: EditOrganizationDialogProps) => {
-  const [orgToEdit, setOrgToEdit] = useState<Organization | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (organization) {
-      setOrgToEdit({...organization});
-    }
-  }, [organization]);
-
-  const handleUpdateOrganization = async () => {
-    if (orgToEdit) {
-      // Regenerate slug if name changes
-      if (orgToEdit.name !== organization?.name) {
-        const newSlug = orgToEdit.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        orgToEdit.slug = newSlug;
-      }
-      await onUpdate(orgToEdit);
+  const handleUpdateOrganization = async (values: any) => {
+    if (!organization) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Update slug if name changes
+      const updatedOrg: Organization = {
+        ...organization,
+        name: values.name,
+        description: values.description || organization.description,
+        agentId: values.agentId,
+        slug: values.slug
+      };
+      
+      await onUpdate(updatedOrg);
       onClose();
+    } catch (error) {
+      console.error("Error updating organization:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!orgToEdit) return null;
+  if (!organization) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-blue-100/50 dark:border-blue-900/30">
         <DialogHeader>
-          <DialogTitle>Modifier l'organisation</DialogTitle>
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-primary to-ai-violet bg-clip-text text-transparent">
+            Modifier l'organisation
+          </DialogTitle>
           <DialogDescription>
-            Modifiez les détails de l'organisation
+            Modifiez les détails de <span className="font-medium">{organization.name}</span>
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-name" className="text-right">
-              Nom
-            </Label>
-            <Input
-              id="edit-name"
-              className="col-span-3"
-              value={orgToEdit.name}
-              onChange={(e) => setOrgToEdit({...orgToEdit, name: e.target.value})}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-agentId" className="text-right">
-              Agent ID
-            </Label>
-            <Input
-              id="edit-agentId"
-              className="col-span-3"
-              value={orgToEdit.agentId}
-              onChange={(e) => setOrgToEdit({...orgToEdit, agentId: e.target.value})}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-description" className="text-right">
-              Description
-            </Label>
-            <Textarea
-              id="edit-description"
-              className="col-span-3"
-              value={orgToEdit.description || ''}
-              onChange={(e) => setOrgToEdit({...orgToEdit, description: e.target.value})}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-slug" className="text-right">
-              Slug
-            </Label>
-            <Input
-              id="edit-slug"
-              className="col-span-3"
-              value={orgToEdit.slug}
-              onChange={(e) => setOrgToEdit({...orgToEdit, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')})}
-            />
-          </div>
+        <div className="py-4">
+          <OrganizationForm 
+            onSubmit={handleUpdateOrganization}
+            initialData={organization}
+            isSubmitting={isSubmitting}
+            buttonText="Enregistrer les modifications"
+          />
         </div>
-        
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Annuler</Button>
-          </DialogClose>
-          <Button onClick={handleUpdateOrganization}>Enregistrer</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

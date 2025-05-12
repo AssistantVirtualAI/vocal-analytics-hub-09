@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect } from 'react';
 import { OrganizationUser } from '@/types/organization';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,13 +20,21 @@ type UserOrgQueryResult = {
 export const useOrganizationUsersLoading = () => {
   const [users, setUsers] = useState<OrganizationUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastLoadedOrgId, setLastLoadedOrgId] = useState<string | null>(null);
 
   // Load organization users
   const loadOrganizationUsers = useCallback(async (orgId: string) => {
     try {
       if (!orgId) return;
       
+      // Skip if we're already loading users for this organization
+      if (loading && lastLoadedOrgId === orgId) {
+        console.log(`Already loading users for organization: ${orgId}`);
+        return;
+      }
+      
       setLoading(true);
+      setLastLoadedOrgId(orgId);
       console.log(`Fetching users for organization: ${orgId}`);
       
       // Fetch organization users directly from Supabase
@@ -87,7 +96,7 @@ export const useOrganizationUsersLoading = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading, lastLoadedOrgId]);
 
   return {
     users,

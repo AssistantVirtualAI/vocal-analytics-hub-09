@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AddUserDialog } from './users/AddUserDialog';
 import { OrganizationUsersTable } from './users/OrganizationUsersTable';
 import { useOrganizationInvitations } from '@/hooks/useOrganizationInvitations';
+import { useEffect, useRef } from 'react';
 
 interface OrganizationUsersProps {
   currentOrganization: Organization | null;
@@ -23,6 +24,20 @@ export const OrganizationUsers = ({
   onUpdateUserRole
 }: OrganizationUsersProps) => {
   const { pendingInvitations, cancelInvitation } = useOrganizationInvitations(currentOrganization?.id || null);
+  const fetchInitiated = useRef(false);
+
+  // Fetch users only once when the component mounts or when the organization changes
+  useEffect(() => {
+    if (currentOrganization && !fetchInitiated.current) {
+      fetchOrganizationUsers(currentOrganization.id);
+      fetchInitiated.current = true;
+    }
+    
+    return () => {
+      // Reset when component unmounts or org changes
+      fetchInitiated.current = false;
+    };
+  }, [currentOrganization, fetchOrganizationUsers]);
 
   const handleAddUser = async (newUserEmail: string) => {
     if (currentOrganization && newUserEmail) {

@@ -29,20 +29,49 @@ export function OrganizationSettings() {
   } = useOrganization();
 
   const initialLoadPerformed = useRef(false);
+  const loadInProgressRef = useRef(false);
   
   // Make sure we only load organizations once on component mount
   useEffect(() => {
+    if (loadInProgressRef.current) {
+      console.log('OrganizationSettings: Load already in progress, skipping duplicate load');
+      return;
+    }
+    
     if (!initialLoadPerformed.current) {
       console.log('OrganizationSettings: Initial load of organizations');
-      loadOrganizations();
-      initialLoadPerformed.current = true;
+      loadInProgressRef.current = true;
+      
+      // Use Promise to handle async loadOrganizations
+      loadOrganizations()
+        .finally(() => {
+          initialLoadPerformed.current = true;
+          loadInProgressRef.current = false;
+        });
     }
   }, [loadOrganizations]);
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      initialLoadPerformed.current = false;
+      loadInProgressRef.current = false;
+    };
+  }, []);
 
   // Create a handler function that converts the newOrg object to individual parameters
   const handleAddOrganization = async (newOrg: { name: string; agentId: string; description: string; }) => {
     await createOrganization(newOrg.name, newOrg.description, newOrg.agentId);
   };
+
+  console.log('OrganizationSettings: Rendering with', {
+    organizations: organizations?.length || 0,
+    currentOrg: currentOrganization?.id || 'none',
+    users: users?.length || 0, 
+    isLoading,
+    error,
+    initialLoadPerformed: initialLoadPerformed.current
+  });
 
   return (
     <div className="space-y-6">
@@ -53,7 +82,7 @@ export function OrganizationSettings() {
 
       <DataWrapper isLoading={isLoading} error={error} refetch={loadOrganizations}>
         <OrganizationManagementSection
-          organizations={organizations}
+          organizations={organizations || []}
           currentOrganization={currentOrganization}
           isAdmin={userHasAdminAccessToCurrentOrg}
           onAddOrganization={handleAddOrganization}
@@ -67,7 +96,7 @@ export function OrganizationSettings() {
       {currentOrganization && (
         <OrganizationUserManagementSection 
           currentOrganization={currentOrganization}
-          users={users}
+          users={users || []}
           addUserToOrganization={addUser}
           removeUserFromOrganization={removeUser}
           updateUserRole={updateUser}

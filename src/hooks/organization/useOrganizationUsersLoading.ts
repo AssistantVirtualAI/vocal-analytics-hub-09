@@ -38,19 +38,19 @@ export const useOrganizationUsersLoading = () => {
   const loadOrganizationUsers = useCallback(async (orgId: string) => {
     try {
       if (!orgId) {
-        console.log('No organization ID provided');
+        console.log('[useOrganizationUsersLoading] No organization ID provided');
         return;
       }
       
       // Skip if we're already loading users for this organization
       if (loadingRef.current && lastFetchedOrgIdRef.current === orgId) {
-        console.log(`Already loading users for organization: ${orgId}`);
+        console.log(`[useOrganizationUsersLoading] Already loading users for organization: ${orgId}`);
         return;
       }
       
       // Cancel previous request if there was one
       if (abortControllerRef.current) {
-        console.log('Cancelling previous request');
+        console.log('[useOrganizationUsersLoading] Cancelling previous request');
         abortControllerRef.current.abort();
       }
       
@@ -60,7 +60,7 @@ export const useOrganizationUsersLoading = () => {
       setLoading(true);
       loadingRef.current = true;
       lastFetchedOrgIdRef.current = orgId;
-      console.log(`Fetching users for organization: ${orgId}`);
+      console.log(`[useOrganizationUsersLoading] Fetching users for organization: ${orgId}`);
       
       // Fetch organization users directly from Supabase
       const { data, error } = await supabase
@@ -107,17 +107,20 @@ export const useOrganizationUsersLoading = () => {
           };
         });
         
-        console.log(`Loaded ${formattedUsers.length} users for org ${orgId}`);
+        console.log(`[useOrganizationUsersLoading] Loaded ${formattedUsers.length} users for org ${orgId}`);
         setUsers(formattedUsers);
+      } else {
+        console.log('[useOrganizationUsersLoading] No data returned for org users query');
+        setUsers([]);
       }
       
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        console.log('Request was aborted');
+        console.log('[useOrganizationUsersLoading] Request was aborted');
         return;
       }
       
-      console.error(`Error loading users for organization ${orgId}:`, error);
+      console.error(`[useOrganizationUsersLoading] Error loading users for organization ${orgId}:`, error);
       toast({
         title: "Error", 
         description: "Failed to load organization users",

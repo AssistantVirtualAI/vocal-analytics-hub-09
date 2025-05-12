@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useOrganization } from '@/context/OrganizationContext';
 import { AllUsersSection } from '@/components/users/AllUsersSection';
@@ -19,9 +19,11 @@ export default function UsersManagement() {
   const initialSetupDone = useRef(false);
   const refreshRequestedRef = useRef(false);
   
+  console.log("UsersManagement - Organizations:", organizations);
+  
   // Initialize organization selection only once
   useEffect(() => {
-    if (!initialSetupDone.current && organizations.length > 0) {
+    if (!initialSetupDone.current && organizations && organizations.length > 0) {
       console.log('[UsersManagement] Setting initial organization:', organizations[0].id);
       setSelectedOrg(organizations[0].id);
       initialSetupDone.current = true;
@@ -36,8 +38,6 @@ export default function UsersManagement() {
   } = useAdminRoles(selectedOrg, user?.id);
 
   // Only load user management if an organization is selected
-  const orgIdToUse = useMemo(() => selectedOrg, [selectedOrg]);
-  
   const {
     orgUsers,
     allUsers,
@@ -48,12 +48,12 @@ export default function UsersManagement() {
     loadAllUsers,
     addUserToOrg,
     refreshAllData
-  } = useUsersManagement(orgIdToUse);
+  } = useUsersManagement(selectedOrg);
 
   // Debug logging
   console.log('[UsersManagement] Selected org:', selectedOrg);
-  console.log('[UsersManagement] Organizations:', organizations);
-  console.log('[UsersManagement] Org users:', orgUsers);
+  console.log('[UsersManagement] Organizations count:', organizations?.length || 0);
+  console.log('[UsersManagement] Org users count:', orgUsers?.length || 0);
   console.log('[UsersManagement] Loading states:', { loading, orgUsersLoading, allUsersLoading, permissionsLoading });
   console.log('[UsersManagement] Admin states:', { currentUserIsOrgAdmin, currentUserIsSuperAdmin });
 
@@ -107,7 +107,7 @@ export default function UsersManagement() {
 
           {currentUserIsSuperAdmin && (
             <AllUsersSection 
-              users={allUsers} 
+              users={allUsers || []} 
               fetchUsers={fetchUsers}  
               loading={allUsersLoading}
               loadAllUsers={loadAllUsers}
@@ -115,10 +115,10 @@ export default function UsersManagement() {
           )}
 
           <OrganizationUsersSection
-            organizations={organizations}
+            organizations={organizations || []}
             selectedOrg={selectedOrg}
             onSelectOrg={handleSelectOrg}
-            users={orgUsers}
+            users={orgUsers || []}
             fetchUsers={fetchUsers}
             onAddUser={addUserToOrg}
             loading={loading}

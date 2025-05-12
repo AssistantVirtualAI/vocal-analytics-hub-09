@@ -1,8 +1,10 @@
+
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useOrganizationUsersLoading } from '@/hooks/organization/useOrganizationUsersLoading';
 import { useUserAddition } from '@/hooks/organization/useUserAddition';
 import { useUserRemoval } from '@/hooks/organization/useUserRemoval';
 import { useUserRoleUpdate } from '@/hooks/organization/useUserRoleUpdate';
+import { OrganizationUser } from '@/types/organization';
 
 export const useOrganizationUsers = () => {
   // Keep track of the last loaded organization to prevent unnecessary reloads
@@ -30,11 +32,12 @@ export const useOrganizationUsers = () => {
     operationInProgressRef.current = true;
     
     try {
+      console.log(`[useOrganizationUsers] Adding user ${email} to organization ${orgId}`);
       await addUser(email, orgId, role);
       await loadOrganizationUsers(orgId);
       setCurrentOrgId(orgId);
     } catch (error) {
-      console.error("Error adding user with refresh:", error);
+      console.error("[useOrganizationUsers] Error adding user with refresh:", error);
     } finally {
       operationInProgressRef.current = false;
     }
@@ -46,11 +49,12 @@ export const useOrganizationUsers = () => {
     operationInProgressRef.current = true;
     
     try {
+      console.log(`[useOrganizationUsers] Removing user ${userId} from organization ${orgId}`);
       await removeUser(userId, orgId);
       await loadOrganizationUsers(orgId);
       setCurrentOrgId(orgId);
     } catch (error) {
-      console.error("Error removing user with refresh:", error);
+      console.error("[useOrganizationUsers] Error removing user with refresh:", error);
     } finally {
       operationInProgressRef.current = false;
     }
@@ -62,11 +66,12 @@ export const useOrganizationUsers = () => {
     operationInProgressRef.current = true;
     
     try {
+      console.log(`[useOrganizationUsers] Updating user ${userId} role to ${role} in organization ${orgId}`);
       await updateUserRole(userId, role, orgId);
       await loadOrganizationUsers(orgId);
       setCurrentOrgId(orgId);
     } catch (error) {
-      console.error("Error updating user role with refresh:", error);
+      console.error("[useOrganizationUsers] Error updating user role with refresh:", error);
     } finally {
       operationInProgressRef.current = false;
     }
@@ -75,34 +80,35 @@ export const useOrganizationUsers = () => {
   // Memoized version of loadOrganizationUsers that prevents redundant calls
   const safeLoadOrganizationUsers = useCallback((orgId: string) => {
     if (!orgId) {
-      console.log('No organization ID provided for loading users');
-      return;
+      console.log('[useOrganizationUsers] No organization ID provided for loading users');
+      return Promise.resolve();
     }
     
     if (loadingRef.current) {
-      console.log('Already loading organization users, skipping duplicate request');
-      return;
+      console.log('[useOrganizationUsers] Already loading organization users, skipping duplicate request');
+      return Promise.resolve();
     }
     
     // Only load if this is a different org or we have no users yet
     if (orgId !== currentOrgId || users.length === 0) {
-      console.log(`Loading users for organization: ${orgId} (current: ${currentOrgId})`);
+      console.log(`[useOrganizationUsers] Loading users for organization: ${orgId} (current: ${currentOrgId})`);
       loadingRef.current = true;
       
-      loadOrganizationUsers(orgId)
+      return loadOrganizationUsers(orgId)
         .finally(() => {
           loadingRef.current = false;
           setCurrentOrgId(orgId);
         });
     } else {
-      console.log(`Skipping load - already loaded users for org: ${orgId}`);
+      console.log(`[useOrganizationUsers] Skipping load - already loaded users for org: ${orgId}`);
+      return Promise.resolve();
     }
   }, [currentOrgId, loadOrganizationUsers, users.length]);
 
   // Cleanup function for when the component unmounts
   useEffect(() => {
     return () => {
-      console.log('useOrganizationUsers hook cleanup');
+      console.log('[useOrganizationUsers] Hook cleanup');
       isInitialLoadRef.current = true;
     };
   }, []);

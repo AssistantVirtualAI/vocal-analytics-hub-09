@@ -26,34 +26,55 @@ export const OrganizationUsers = ({
   const { pendingInvitations, cancelInvitation } = useOrganizationInvitations(currentOrganization?.id || null);
   const hasInitiallyLoaded = useRef(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const fetchInProgressRef = useRef(false);
+  const orgIdRef = useRef<string | null>(null);
 
   // Only fetch users once when the component mounts or when the organization changes
   useEffect(() => {
     if (!currentOrganization) {
       hasInitiallyLoaded.current = false;
+      orgIdRef.current = null;
       return;
     }
 
     const orgId = currentOrganization.id;
     
-    if (!hasInitiallyLoaded.current) {
-      console.log(`OrganizationUsers: Initial fetch for org ${orgId}`);
-      
-      // Use a microtask to avoid state updates during render
-      const fetchData = async () => {
-        try {
-          await fetchOrganizationUsers(orgId);
-        } catch (error) {
-          console.error("Error fetching organization users:", error);
-        } finally {
-          hasInitiallyLoaded.current = true;
-          setIsInitialLoad(false);
-        }
-      };
-      
-      fetchData();
+    // Skip if already loading or if already loaded for this org
+    if (fetchInProgressRef.current || (hasInitiallyLoaded.current && orgId === orgIdRef.current)) {
+      return;
     }
+    
+    // Mark that we're starting a fetch
+    fetchInProgressRef.current = true;
+    
+    console.log(`OrganizationUsers: Fetch for org ${orgId} (previous: ${orgIdRef.current})`);
+    
+    // Use a microtask to avoid state updates during render
+    const fetchData = async () => {
+      try {
+        await fetchOrganizationUsers(orgId);
+      } catch (error) {
+        console.error("Error fetching organization users:", error);
+      } finally {
+        hasInitiallyLoaded.current = true;
+        setIsInitialLoad(false);
+        fetchInProgressRef.current = false;
+        orgIdRef.current = orgId;
+      }
+    };
+    
+    fetchData();
   }, [currentOrganization, fetchOrganizationUsers]);
+
+  // Reset the loading state when unmounting
+  useEffect(() => {
+    return () => {
+      console.log("OrganizationUsers: Cleaning up");
+      fetchInProgressRef.current = false;
+      hasInitiallyLoaded.current = false;
+      orgIdRef.current = null;
+    };
+  }, []);
 
   const handleAddUser = async (newUserEmail: string) => {
     if (!currentOrganization || !newUserEmail) return;
@@ -87,6 +108,8 @@ export const OrganizationUsers = ({
 
   if (!currentOrganization) return null;
 
+  console.log(`OrganizationUsers: Rendering for org ${currentOrganization.id} with ${users?.length || 0} users`);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
@@ -99,8 +122,8 @@ export const OrganizationUsers = ({
       </CardHeader>
       <CardContent>
         <OrganizationUsersTable
-          users={users}
-          pendingInvitations={pendingInvitations}
+          users={users || []}
+          pendingInvitations={pendingInvitations || []}
           onRemoveUser={handleRemoveUser}
           onCancelInvitation={cancelInvitation}
           onUpdateRole={handleUpdateRole}

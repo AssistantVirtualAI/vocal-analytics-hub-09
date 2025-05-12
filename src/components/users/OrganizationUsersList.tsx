@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Table } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
 import { 
@@ -17,6 +17,8 @@ import {
   resendInvitation, 
   resetUserPassword 
 } from '@/services/organization/userManagement';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface OrganizationUsersListProps {
   users: OrganizationUser[];
@@ -39,18 +41,24 @@ export const OrganizationUsersList = ({
   const [actionLoading, setActionLoading] = useState(false);
   const [resendingFor, setResendingFor] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   
   // Debug log when users change
-  console.log("OrganizationUsersList - Current users:", users);
+  useEffect(() => {
+    console.log("OrganizationUsersList - Users received:", users?.length || 0);
+  }, [users]);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
     
     try {
       setIsRefreshing(true);
+      setError(null);
       await fetchUsers();
       toast.success("Liste des utilisateurs actualisée");
     } catch (error: any) {
+      console.error("Error refreshing users:", error);
+      setError(error);
       toast.error("Erreur lors de l'actualisation: " + error.message);
     } finally {
       setIsRefreshing(false);
@@ -155,6 +163,32 @@ export const OrganizationUsersList = ({
     }
   };
 
+  if (error) {
+    return (
+      <Alert variant="destructive" className="my-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Erreur lors du chargement des utilisateurs: {error.message}
+          <button 
+            onClick={handleRefresh} 
+            className="ml-2 underline"
+          >
+            Réessayer
+          </button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (loading || isRefreshing) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-sm text-muted-foreground">Chargement des utilisateurs...</span>
+      </div>
+    );
+  }
+
   return (
     <div>
       <UsersListHeader onRefresh={handleRefresh} loading={loading || isRefreshing} />
@@ -162,7 +196,7 @@ export const OrganizationUsersList = ({
       <Table>
         <UserTableHeader showAdminColumns={currentUserIsOrgAdmin || currentUserIsSuperAdmin} />
         <UsersTableContent
-          users={users}
+          users={users || []}
           loading={loading}
           actionLoading={actionLoading}
           resendingFor={resendingFor}

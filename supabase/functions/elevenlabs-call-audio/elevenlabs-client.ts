@@ -7,16 +7,22 @@ import {
 } from "../_shared/elevenlabs/conversations.ts";
 import { fetchElevenLabsHistoryItem } from "../_shared/elevenlabs/history.ts";
 import { ELEVENLABS_API_BASE_URL, handleElevenLabsApiError } from "../_shared/elevenlabs/client.ts";
+import { safeGetEnv } from "../_shared/env.ts";
 
-export const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY") || "";
+// Get API key from environment variables
+export function getElevenLabsApiKey(): string {
+  const apiKey = safeGetEnv("ELEVENLABS_API_KEY") || safeGetEnv("ELEVEN_LABS_API_KEY");
+  if (!apiKey) {
+    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
+  }
+  return apiKey;
+}
 
 /**
  * Fetch audio URL from ElevenLabs for a given conversation
  */
 export async function getElevenLabsAudioUrl(conversationId: string, useConversationalApi = true) {
-  if (!ELEVENLABS_API_KEY) {
-    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
-  }
+  const apiKey = getElevenLabsApiKey();
   
   if (useConversationalApi) {
     return getElevenLabsConversationAudioUrl(conversationId);
@@ -30,17 +36,15 @@ export async function getElevenLabsAudioUrl(conversationId: string, useConversat
  * Fetch transcript from ElevenLabs for a given conversation
  */
 export async function getElevenLabsTranscript(conversationId: string, useConversationalApi = true) {
-  if (!ELEVENLABS_API_KEY) {
-    throw new Error("ELEVENLABS_API_KEY environment variable is missing");
-  }
+  const apiKey = getElevenLabsApiKey();
   
   try {
     if (useConversationalApi) {
-      const transcriptData = await fetchElevenLabsConversationTranscript(conversationId, ELEVENLABS_API_KEY);
+      const transcriptData = await fetchElevenLabsConversationTranscript(conversationId, apiKey);
       return transcriptData.transcript?.map(item => item.text).join(" ") || "";
     } else {
       // Legacy approach - use history item text
-      const historyItem = await fetchElevenLabsHistoryItem(conversationId, ELEVENLABS_API_KEY);
+      const historyItem = await fetchElevenLabsHistoryItem(conversationId, apiKey);
       return historyItem.text || "";
     }
   } catch (error) {
@@ -53,11 +57,13 @@ export async function getElevenLabsTranscript(conversationId: string, useConvers
  * Check if audio exists for a given conversation without downloading the full content
  */
 export async function checkElevenLabsAudioExists(audioUrl: string) {
+  const apiKey = getElevenLabsApiKey();
+  
   try {
     const response = await fetch(audioUrl, {
       method: "HEAD",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
+        "xi-api-key": apiKey,
       },
     });
     

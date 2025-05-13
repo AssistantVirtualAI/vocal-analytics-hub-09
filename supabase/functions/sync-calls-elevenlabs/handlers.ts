@@ -52,7 +52,8 @@ export async function handleSyncRequest(req: Request): Promise<Response> {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Process each call
+    // Use the refactored syncCalls function from service.ts
+    // This now coordinates the workflow between agent-service, customer-service, and call-processor
     const results: SyncResult[] = await syncCalls(supabase, calls, agentId);
     
     // Calculate summary statistics
